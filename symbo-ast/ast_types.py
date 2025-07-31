@@ -14,10 +14,10 @@ from abc import ABC, abstractmethod
 
 
 # Base Classes
-@dataclass
 class ASTNode(ABC):
     """Base class for all AST nodes."""
-    location: Optional['SourceLocation'] = None
+    def __init__(self, location: Optional['SourceLocation'] = None):
+        self.location = location
     
     @abstractmethod
     def accept(self, visitor: 'ASTVisitor') -> Any:
@@ -129,9 +129,9 @@ class PathPart(ASTNode):
 @dataclass
 class TableName(ASTNode):
     """Table name (possibly qualified)."""
+    table: Identifier
     project: Optional[Identifier] = None
     dataset: Optional[Identifier] = None
-    table: Identifier = None
     
     def accept(self, visitor: 'ASTVisitor') -> Any:
         return visitor.visit_table_name(self)
@@ -634,8 +634,8 @@ class WithClause(ASTNode):
 class CTE(ASTNode):
     """Common Table Expression."""
     name: Identifier
-    columns: Optional[List[Identifier]] = None
     query: Statement
+    columns: Optional[List[Identifier]] = None
     
     def accept(self, visitor: 'ASTVisitor') -> Any:
         return visitor.visit_cte(self)
@@ -660,10 +660,11 @@ class FromClause(ASTNode):
         return visitor.visit_from_clause(self)
 
 
-@dataclass
 class TableExpression(ASTNode):
     """Base class for table expressions."""
-    alias: Optional[Identifier] = None
+    def __init__(self, alias: Optional[Identifier] = None, location: Optional['SourceLocation'] = None):
+        super().__init__(location)
+        self.alias = alias
     
     
 @dataclass
@@ -813,8 +814,8 @@ class MergeStatement(Statement):
 class MergeWhenClause(ASTNode):
     """WHEN clause in MERGE."""
     match_type: str  # 'MATCHED', 'NOT MATCHED', 'NOT MATCHED BY SOURCE', 'NOT MATCHED BY TARGET'
-    condition: Optional[Expression] = None
     action: Union['MergeInsert', 'MergeUpdate', 'MergeDelete']
+    condition: Optional[Expression] = None
     
     def accept(self, visitor: 'ASTVisitor') -> Any:
         return visitor.visit_merge_when_clause(self)
@@ -918,19 +919,398 @@ class ASTVisitor(ABC):
     def visit_identifier(self, node: Identifier) -> Any:
         pass
     
+    def visit_unquoted_identifier(self, node: 'UnquotedIdentifier') -> Any:
+        pass
+    
+    def visit_quoted_identifier(self, node: 'QuotedIdentifier') -> Any:
+        pass
+    
     def visit_path_expression(self, node: PathExpression) -> Any:
+        pass
+    
+    def visit_path_part(self, node: PathPart) -> Any:
         pass
     
     def visit_table_name(self, node: TableName) -> Any:
         pass
     
-    # ... (methods for all node types)
+    def visit_column_name(self, node: 'ColumnName') -> Any:
+        pass
+    
+    def visit_field_name(self, node: 'FieldName') -> Any:
+        pass
+    
+    # Literal visitors
+    def visit_string_literal(self, node: StringLiteral) -> Any:
+        pass
+    
+    def visit_bytes_literal(self, node: BytesLiteral) -> Any:
+        pass
+    
+    def visit_integer_literal(self, node: IntegerLiteral) -> Any:
+        pass
+    
+    def visit_float_literal(self, node: FloatLiteral) -> Any:
+        pass
+    
+    def visit_numeric_literal(self, node: NumericLiteral) -> Any:
+        pass
+    
+    def visit_bignumeric_literal(self, node: BigNumericLiteral) -> Any:
+        pass
+    
+    def visit_boolean_literal(self, node: BooleanLiteral) -> Any:
+        pass
+    
+    def visit_null_literal(self, node: NullLiteral) -> Any:
+        pass
+    
+    def visit_date_literal(self, node: DateLiteral) -> Any:
+        pass
+    
+    def visit_time_literal(self, node: TimeLiteral) -> Any:
+        pass
+    
+    def visit_datetime_literal(self, node: DatetimeLiteral) -> Any:
+        pass
+    
+    def visit_timestamp_literal(self, node: TimestampLiteral) -> Any:
+        pass
+    
+    def visit_interval_literal(self, node: IntervalLiteral) -> Any:
+        pass
+    
+    def visit_array_literal(self, node: ArrayLiteral) -> Any:
+        pass
+    
+    def visit_struct_literal(self, node: StructLiteral) -> Any:
+        pass
+    
+    def visit_range_literal(self, node: RangeLiteral) -> Any:
+        pass
+    
+    def visit_json_literal(self, node: JSONLiteral) -> Any:
+        pass
+    
+    # Expression visitors
+    def visit_column_ref(self, node: ColumnRef) -> Any:
+        pass
+    
+    def visit_star_expression(self, node: StarExpression) -> Any:
+        pass
+    
+    def visit_binary_op(self, node: BinaryOp) -> Any:
+        pass
+    
+    def visit_unary_op(self, node: UnaryOp) -> Any:
+        pass
+    
+    def visit_function_call(self, node: FunctionCall) -> Any:
+        pass
+    
+    def visit_window_function(self, node: WindowFunction) -> Any:
+        pass
+    
+    def visit_window_specification(self, node: WindowSpecification) -> Any:
+        pass
+    
+    def visit_window_frame(self, node: WindowFrame) -> Any:
+        pass
+    
+    def visit_window_bound(self, node: WindowBound) -> Any:
+        pass
+    
+    def visit_cast_expression(self, node: CastExpression) -> Any:
+        pass
+    
+    def visit_extract_expression(self, node: ExtractExpression) -> Any:
+        pass
+    
+    def visit_case_expression(self, node: CaseExpression) -> Any:
+        pass
+    
+    def visit_when_clause(self, node: WhenClause) -> Any:
+        pass
+    
+    def visit_array_access(self, node: ArrayAccess) -> Any:
+        pass
+    
+    def visit_field_access(self, node: FieldAccess) -> Any:
+        pass
+    
+    def visit_in_expression(self, node: InExpression) -> Any:
+        pass
+    
+    def visit_between_expression(self, node: BetweenExpression) -> Any:
+        pass
+    
+    def visit_like_expression(self, node: LikeExpression) -> Any:
+        pass
+    
+    def visit_exists_expression(self, node: ExistsExpression) -> Any:
+        pass
+    
+    def visit_subquery_expression(self, node: SubqueryExpression) -> Any:
+        pass
+    
+    def visit_named_parameter(self, node: NamedParameter) -> Any:
+        pass
+    
+    def visit_positional_parameter(self, node: PositionalParameter) -> Any:
+        pass
+    
+    # Type visitors
+    def visit_simple_type(self, node: SimpleType) -> Any:
+        pass
+    
+    def visit_array_type(self, node: ArrayType) -> Any:
+        pass
+    
+    def visit_struct_type(self, node: StructType) -> Any:
+        pass
+    
+    def visit_range_type(self, node: RangeType) -> Any:
+        pass
+    
+    # Statement visitors
+    def visit_select_statement(self, node: SelectStatement) -> Any:
+        pass
+    
+    def visit_with_clause(self, node: WithClause) -> Any:
+        pass
+    
+    def visit_cte(self, node: CTE) -> Any:
+        pass
+    
+    def visit_select_item(self, node: SelectItem) -> Any:
+        pass
+    
+    def visit_from_clause(self, node: FromClause) -> Any:
+        pass
+    
+    def visit_table_reference(self, node: TableReference) -> Any:
+        pass
+    
+    def visit_join_expression(self, node: JoinExpression) -> Any:
+        pass
+    
+    def visit_unnest(self, node: Unnest) -> Any:
+        pass
+    
+    def visit_table_function(self, node: TableFunction) -> Any:
+        pass
+    
+    def visit_subquery_table(self, node: SubqueryTable) -> Any:
+        pass
+    
+    def visit_group_by_clause(self, node: GroupByClause) -> Any:
+        pass
+    
+    def visit_order_by_item(self, node: OrderByItem) -> Any:
+        pass
+    
+    def visit_named_window(self, node: NamedWindow) -> Any:
+        pass
+    
+    # DML statement visitors
+    def visit_insert_statement(self, node: InsertStatement) -> Any:
+        pass
+    
+    def visit_update_statement(self, node: UpdateStatement) -> Any:
+        pass
+    
+    def visit_set_clause(self, node: SetClause) -> Any:
+        pass
+    
+    def visit_delete_statement(self, node: DeleteStatement) -> Any:
+        pass
+    
+    def visit_merge_statement(self, node: MergeStatement) -> Any:
+        pass
+    
+    def visit_merge_when_clause(self, node: MergeWhenClause) -> Any:
+        pass
+    
+    def visit_merge_insert(self, node: MergeInsert) -> Any:
+        pass
+    
+    def visit_merge_update(self, node: MergeUpdate) -> Any:
+        pass
+    
+    def visit_merge_delete(self, node: MergeDelete) -> Any:
+        pass
+    
+    # DDL statement visitors
+    def visit_create_table_statement(self, node: CreateTableStatement) -> Any:
+        pass
+    
+    def visit_column_definition(self, node: ColumnDefinition) -> Any:
+        pass
+    
+    # Set operation visitors
+    def visit_set_operation(self, node: SetOperation) -> Any:
+        pass
+    
+    # Special feature visitors
+    def visit_table_hint(self, node: TableHint) -> Any:
+        pass
+    
+    def visit_script(self, node: Script) -> Any:
+        pass
+    
+    def visit_comment(self, node: 'Comment') -> Any:
+        pass
+    
+    # Additional visitor methods for extended BigQuery support
+    def visit_create_view_statement(self, node: 'CreateViewStatement') -> Any:
+        pass
+
+    def visit_create_function_statement(self, node: 'CreateFunctionStatement') -> Any:
+        pass
+
+    def visit_function_parameter(self, node: 'FunctionParameter') -> Any:
+        pass
+
+    def visit_create_procedure_statement(self, node: 'CreateProcedureStatement') -> Any:
+        pass
+
+    def visit_procedure_parameter(self, node: 'ProcedureParameter') -> Any:
+        pass
+
+    def visit_drop_statement(self, node: 'DropStatement') -> Any:
+        pass
+
+    def visit_truncate_statement(self, node: 'TruncateStatement') -> Any:
+        pass
+
+    def visit_pivot_expression(self, node: 'PivotExpression') -> Any:
+        pass
+
+    def visit_unpivot_expression(self, node: 'UnpivotExpression') -> Any:
+        pass
+
+    def visit_array_subquery_expression(self, node: 'ArraySubqueryExpression') -> Any:
+        pass
+
+    def visit_struct_expression(self, node: 'StructExpression') -> Any:
+        pass
+    
+    # Additional visitor methods for extended BigQuery support
+    def visit_for_system_time_as_of_expression(self, node: 'ForSystemTimeAsOfExpression') -> Any:
+        pass
+    
+    def visit_qualify_clause(self, node: 'QualifyClause') -> Any:
+        pass
+    
+    def visit_create_schema_statement(self, node: 'CreateSchemaStatement') -> Any:
+        pass
+    
+    def visit_alter_table_statement(self, node: 'AlterTableStatement') -> Any:
+        pass
+    
+    def visit_add_column_action(self, node: 'AddColumnAction') -> Any:
+        pass
+    
+    def visit_drop_column_action(self, node: 'DropColumnAction') -> Any:
+        pass
+    
+    def visit_rename_column_action(self, node: 'RenameColumnAction') -> Any:
+        pass
+    
+    def visit_set_options_action(self, node: 'SetOptionsAction') -> Any:
+        pass
+    
+    def visit_export_data_statement(self, node: 'ExportDataStatement') -> Any:
+        pass
+    
+    def visit_call_statement(self, node: 'CallStatement') -> Any:
+        pass
+    
+    def visit_execute_immediate_statement(self, node: 'ExecuteImmediateStatement') -> Any:
+        pass
+    
+    def visit_begin_statement(self, node: 'BeginStatement') -> Any:
+        pass
+    
+    def visit_commit_statement(self, node: 'CommitStatement') -> Any:
+        pass
+    
+    def visit_rollback_statement(self, node: 'RollbackStatement') -> Any:
+        pass
+    
+    def visit_assert_statement(self, node: 'AssertStatement') -> Any:
+        pass
+    
+    def visit_clone_data_statement(self, node: 'CloneDataStatement') -> Any:
+        pass
+    
+    def visit_analytic_function_call(self, node: 'AnalyticFunctionCall') -> Any:
+        pass
+    
+    def visit_system_variable_expression(self, node: 'SystemVariableExpression') -> Any:
+        pass
+    
+    def visit_session_variable_expression(self, node: 'SessionVariableExpression') -> Any:
+        pass
+    
+    # Additional BigQuery-specific visitors
+    def visit_table_sample_expression(self, node: 'TableSampleExpression') -> Any:
+        pass
+    
+    def visit_create_model_statement(self, node: 'CreateModelStatement') -> Any:
+        pass
+    
+    def visit_ml_predict_expression(self, node: 'MLPredictExpression') -> Any:
+        pass
+    
+    def visit_safe_navigation_expression(self, node: 'SafeNavigationExpression') -> Any:
+        pass
+    
+    def visit_generate_array_expression(self, node: 'GenerateArrayExpression') -> Any:
+        pass
+    
+    def visit_generate_date_array_expression(self, node: 'GenerateDateArrayExpression') -> Any:
+        pass
+    
+    def visit_with_partition_columns_clause(self, node: 'WithPartitionColumnsClause') -> Any:
+        pass
+    
+    def visit_define_table_statement(self, node: 'DefineTableStatement') -> Any:
+        pass
+    
+    def visit_load_data_statement(self, node: 'LoadDataStatement') -> Any:
+        pass
+    
+    def visit_geography_literal(self, node: 'GeographyLiteral') -> Any:
+        pass
+    
+    def visit_new_expression(self, node: 'NewExpression') -> Any:
+        pass
+    
+    def visit_descriptor_expression(self, node: 'DescriptorExpression') -> Any:
+        pass
+    
+    def visit_flatten_expression(self, node: 'FlattenExpression') -> Any:
+        pass
+    
+    def visit_with_connection_clause(self, node: 'WithConnectionClause') -> Any:
+        pass
+    
+    def visit_replace_fields_expression(self, node: 'ReplaceFieldsExpression') -> Any:
+        pass
+    
+    def visit_add_to_fields_expression(self, node: 'AddToFieldsExpression') -> Any:
+        pass
+    
+    def visit_drop_fields_expression(self, node: 'DropFieldsExpression') -> Any:
+        pass
     
     def generic_visit(self, node: ASTNode) -> Any:
         """Default visit method."""
         pass
 
-# --- Identifier Nodes ---
+
+# Additional AST Node types to complete BigQuery support
 
 @dataclass
 class UnquotedIdentifier(ASTNode):
@@ -949,44 +1329,6 @@ class QuotedIdentifier(ASTNode):
         return visitor.visit_quoted_identifier(self)
 
 @dataclass
-class Identifier(ASTNode):
-    """General identifier: either quoted or unquoted, with quoting info."""
-    name: str
-    quoted: bool = False
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_identifier(self)
-
-# --- Path and Table/Field/Column Names ---
-
-@dataclass
-class PathPart(ASTNode):
-    """Path part: identifier or number, with separator."""
-    value: Union[Identifier, int]
-    separator: Optional[str] = None  # '/', ':', '-', or '.'
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_path_part(self)
-
-@dataclass
-class PathExpression(ASTNode):
-    """Path expression: sequence of path parts."""
-    parts: List[PathPart]
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_path_expression(self)
-
-@dataclass
-class TableName(ASTNode):
-    """Table name: project, dataset, table (each can be quoted/unquoted, with dash support for project/table)."""
-    project: Optional[Identifier] = None
-    dataset: Optional[Identifier] = None
-    table: Identifier = None  # Required
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_table_name(self)
-
-@dataclass
 class ColumnName(ASTNode):
     """Column name (quoted or unquoted, may support dash in some contexts)."""
     identifier: Identifier
@@ -1002,143 +1344,6 @@ class FieldName(ASTNode):
     def accept(self, visitor: 'ASTVisitor') -> Any:
         return visitor.visit_field_name(self)
 
-# --- Literals ---
-
-@dataclass
-class StringLiteral(Literal):
-    value: str
-    quote_type: str  # single, double, triple_single, triple_double
-    raw: bool = False  # r"..." or not
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_string_literal(self)
-
-@dataclass
-class BytesLiteral(Literal):
-    value: bytes
-    quote_type: str
-    raw: bool = False  # br"..." or rb"..."
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_bytes_literal(self)
-
-@dataclass
-class IntegerLiteral(Literal):
-    value: int
-    hex: bool = False  # 0x... or plain decimal
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_integer_literal(self)
-
-@dataclass
-class FloatLiteral(Literal):
-    value: float
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_float_literal(self)
-
-@dataclass
-class NumericLiteral(Literal):
-    value: str  # Keep as string for precision
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_numeric_literal(self)
-
-@dataclass
-class BigNumericLiteral(Literal):
-    value: str
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_bignumeric_literal(self)
-
-@dataclass
-class DateLiteral(Literal):
-    value: str  # Canonical date format
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_date_literal(self)
-
-@dataclass
-class TimeLiteral(Literal):
-    value: str  # Canonical time format
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_time_literal(self)
-
-@dataclass
-class DatetimeLiteral(Literal):
-    value: str  # Canonical datetime format
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_datetime_literal(self)
-
-@dataclass
-class TimestampLiteral(Literal):
-    value: str  # Canonical timestamp format
-    timezone: Optional[str] = None  # May include zone info
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_timestamp_literal(self)
-
-@dataclass
-class ArrayLiteral(Literal):
-    elements: List['Expression']
-    element_type: Optional['TypeExpression'] = None
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_array_literal(self)
-
-@dataclass
-class StructLiteral(Literal):
-    fields: List[Tuple[Optional[str], 'Expression']]
-    type: Optional['StructType'] = None
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_struct_literal(self)
-
-@dataclass
-class RangeLiteral(Literal):
-    element_type: DataType
-    lower_bound: Optional['Expression']
-    upper_bound: Optional['Expression']
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_range_literal(self)
-
-@dataclass
-class IntervalLiteral(Literal):
-    value: Union[int, str]  # int for simple, str for range (e.g. '10:20:30.52')
-    unit: IntervalUnit
-    end_unit: Optional[IntervalUnit] = None  # For range intervals
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_interval_literal(self)
-
-@dataclass
-class JSONLiteral(Literal):
-    value: str
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_json_literal(self)
-
-# --- Query Parameters ---
-
-@dataclass
-class NamedParameter(Expression):
-    """@parameter_name (quoted or unquoted, can be reserved word)."""
-    name: Identifier
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_named_parameter(self)
-
-@dataclass
-class PositionalParameter(Expression):
-    """? parameter."""
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_positional_parameter(self)
-
-# --- Comments ---
-
 @dataclass
 class Comment(ASTNode):
     """SQL comment: single-line (#, --) or multi-line (/* ... */)."""
@@ -1148,3 +1353,498 @@ class Comment(ASTNode):
 
     def accept(self, visitor: 'ASTVisitor') -> Any:
         return visitor.visit_comment(self)
+
+# Additional DDL Statements for complete BigQuery support
+
+@dataclass
+class CreateViewStatement(Statement):
+    """CREATE VIEW statement."""
+    view: TableName
+    columns: Optional[List[Identifier]] = None
+    as_select: Optional[SelectStatement] = None
+    or_replace: bool = False
+    if_not_exists: bool = False
+    temporary: bool = False
+    materialized: bool = False
+    options: Optional[Dict[str, Expression]] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_create_view_statement(self)
+
+@dataclass
+class CreateFunctionStatement(Statement):
+    """CREATE FUNCTION statement."""
+    function_name: TableName
+    parameters: List['FunctionParameter'] = field(default_factory=list)
+    returns: Optional[TypeExpression] = None
+    language: Optional[str] = None
+    body: Optional[str] = None
+    options: Optional[Dict[str, Expression]] = None
+    or_replace: bool = False
+    if_not_exists: bool = False
+    temporary: bool = False
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_create_function_statement(self)
+
+@dataclass
+class FunctionParameter(ASTNode):
+    """Function parameter definition."""
+    name: Optional[Identifier] = None
+    data_type: Optional[TypeExpression] = None
+    default: Optional[Expression] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_function_parameter(self)
+
+@dataclass
+class CreateProcedureStatement(Statement):
+    """CREATE PROCEDURE statement."""
+    procedure_name: TableName
+    parameters: List['ProcedureParameter'] = field(default_factory=list)
+    options: Optional[Dict[str, Expression]] = None
+    or_replace: bool = False
+    body: Optional[str] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_create_procedure_statement(self)
+
+@dataclass
+class ProcedureParameter(ASTNode):
+    """Procedure parameter definition."""
+    name: Identifier
+    data_type: TypeExpression
+    mode: str = "IN"  # IN, OUT, INOUT
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_procedure_parameter(self)
+
+@dataclass
+class DropStatement(Statement):
+    """DROP statement for tables, views, functions, etc."""
+    object_type: str  # TABLE, VIEW, FUNCTION, PROCEDURE, etc.
+    object_name: TableName
+    if_exists: bool = False
+    cascade: bool = False
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_drop_statement(self)
+
+@dataclass
+class TruncateStatement(Statement):
+    """TRUNCATE TABLE statement."""
+    table: TableName
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_truncate_statement(self)
+
+# Additional expression types
+
+@dataclass
+class PivotExpression(Expression):
+    """PIVOT expression."""
+    aggregate_list: List[FunctionCall]
+    for_clause: Expression
+    in_clause: List[Expression]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_pivot_expression(self)
+
+@dataclass
+class UnpivotExpression(Expression):
+    """UNPIVOT expression."""
+    value_column: Identifier
+    name_column: Identifier
+    in_clause: List[Expression]
+    include_nulls: bool = False
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_unpivot_expression(self)
+
+@dataclass
+class ArraySubqueryExpression(Expression):
+    """ARRAY(subquery) expression."""
+    subquery: SelectStatement
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_array_subquery_expression(self)
+
+@dataclass
+class StructExpression(Expression):
+    """STRUCT constructor expression."""
+    fields: List[Tuple[Optional[str], Expression]]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_struct_expression(self)
+
+
+# Additional BigQuery-specific constructs
+@dataclass
+class ForSystemTimeAsOfExpression(ASTNode):
+    """FOR SYSTEM_TIME AS OF expression."""
+    timestamp_expression: Expression
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_for_system_time_as_of_expression(self)
+
+
+@dataclass
+class QualifyClause(ASTNode):
+    """QUALIFY clause for window functions."""
+    condition: Expression
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_qualify_clause(self)
+
+
+@dataclass
+class CreateSchemaStatement(Statement):
+    """CREATE SCHEMA statement."""
+    schema_name: Identifier
+    if_not_exists: bool = False
+    options: Optional[Dict[str, Expression]] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_create_schema_statement(self)
+
+
+@dataclass
+class AlterTableStatement(Statement):
+    """ALTER TABLE statement."""
+    table: TableName
+    actions: List['AlterAction']
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_alter_table_statement(self)
+
+
+@dataclass
+class AlterAction(ASTNode):
+    """Base class for ALTER TABLE actions."""
+    pass
+
+
+@dataclass
+class AddColumnAction(AlterAction):
+    """ADD COLUMN action."""
+    column: ColumnDefinition
+    if_not_exists: bool = False
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_add_column_action(self)
+
+
+@dataclass
+class DropColumnAction(AlterAction):
+    """DROP COLUMN action."""
+    column_name: Identifier
+    if_exists: bool = False
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_drop_column_action(self)
+
+
+@dataclass
+class RenameColumnAction(AlterAction):
+    """RENAME COLUMN action."""
+    old_name: Identifier
+    new_name: Identifier
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_rename_column_action(self)
+
+
+@dataclass
+class SetOptionsAction(AlterAction):
+    """SET OPTIONS action."""
+    options: Dict[str, Expression]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_set_options_action(self)
+
+
+@dataclass
+class ExportDataStatement(Statement):
+    """EXPORT DATA statement."""
+    query: SelectStatement
+    destination_uris: List[StringLiteral]
+    options: Optional[Dict[str, Expression]] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_export_data_statement(self)
+
+
+@dataclass
+class CallStatement(Statement):
+    """CALL procedure statement."""
+    procedure_name: TableName
+    arguments: List[Expression] = field(default_factory=list)
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_call_statement(self)
+
+
+@dataclass
+class ExecuteImmediateStatement(Statement):
+    """EXECUTE IMMEDIATE statement."""
+    sql_expression: Expression
+    into_clause: Optional[List[Identifier]] = None
+    using_clause: Optional[List[Expression]] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_execute_immediate_statement(self)
+
+
+@dataclass
+class BeginStatement(Statement):
+    """BEGIN statement for transaction/block."""
+    transaction: bool = False
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_begin_statement(self)
+
+
+@dataclass
+class CommitStatement(Statement):
+    """COMMIT statement."""
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_commit_statement(self)
+
+
+@dataclass
+class RollbackStatement(Statement):
+    """ROLLBACK statement."""
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_rollback_statement(self)
+
+
+@dataclass
+class AssertStatement(Statement):
+    """ASSERT statement."""
+    condition: Expression
+    message: Optional[StringLiteral] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_assert_statement(self)
+
+
+@dataclass
+class CloneDataStatement(Statement):
+    """CREATE TABLE ... CLONE statement."""
+    target_table: TableName
+    source_table: TableName
+    snapshot_time: Optional[Expression] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_clone_data_statement(self)
+
+
+@dataclass
+class AnalyticFunctionCall(Expression):
+    """Analytic function call (window function)."""
+    function: FunctionCall
+    over_clause: WindowSpecification
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_analytic_function_call(self)
+
+
+@dataclass
+class SystemVariableExpression(Expression):
+    """System variable like @@project_id."""
+    variable_name: str
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_system_variable_expression(self)
+
+
+@dataclass
+class SessionVariableExpression(Expression):
+    """Session variable like @@session.time_zone."""
+    variable_name: str
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_session_variable_expression(self)
+
+
+# BigQuery-specific table sampling and ML constructs
+@dataclass
+class TableSampleExpression(ASTNode):
+    """TABLESAMPLE clause."""
+    method: str  # BERNOULLI or SYSTEM
+    percent: Expression
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_table_sample_expression(self)
+
+
+@dataclass
+class CreateModelStatement(Statement):
+    """CREATE MODEL statement for BigQuery ML."""
+    model_name: TableName
+    options: Dict[str, Expression]
+    as_select: Optional[SelectStatement] = None
+    or_replace: bool = False
+    if_not_exists: bool = False
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_create_model_statement(self)
+
+
+@dataclass
+class MLPredictExpression(Expression):
+    """ML.PREDICT function call."""
+    model: TableName
+    table_or_query: Union[TableName, SelectStatement]
+    options: Optional[Dict[str, Expression]] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_ml_predict_expression(self)
+
+
+@dataclass
+class SafeNavigationExpression(Expression):
+    """Safe navigation with ?. operator."""
+    base_expression: Expression
+    field_or_index: Union[Identifier, Expression]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_safe_navigation_expression(self)
+
+
+@dataclass
+class GenerateArrayExpression(Expression):
+    """GENERATE_ARRAY function."""
+    start: Expression
+    end: Expression
+    step: Optional[Expression] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_generate_array_expression(self)
+
+
+@dataclass
+class GenerateDateArrayExpression(Expression):
+    """GENERATE_DATE_ARRAY function."""
+    start_date: Expression
+    end_date: Expression
+    interval_expr: Optional[IntervalLiteral] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_generate_date_array_expression(self)
+
+
+@dataclass
+class WithPartitionColumnsClause(ASTNode):
+    """WITH PARTITION COLUMNS clause."""
+    columns: List[ColumnDefinition]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_with_partition_columns_clause(self)
+
+
+@dataclass
+class DefineTableStatement(Statement):
+    """DEFINE TABLE statement for external tables."""
+    table_name: TableName
+    columns: List[ColumnDefinition]
+    options: Dict[str, Expression]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_define_table_statement(self)
+
+
+@dataclass  
+class LoadDataStatement(Statement):
+    """LOAD DATA statement."""
+    table_name: TableName
+    from_files: List[StringLiteral]
+    options: Optional[Dict[str, Expression]] = None
+    with_partition_columns: Optional[WithPartitionColumnsClause] = None
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_load_data_statement(self)
+
+
+# Geography and JSON functions
+@dataclass
+class GeographyLiteral(Literal):
+    """GEOGRAPHY literal."""
+    value: str  # WKT or GeoJSON string
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_geography_literal(self)
+
+
+@dataclass
+class NewExpression(Expression):
+    """NEW constructor expression."""
+    type_name: TypeExpression
+    arguments: List[Expression] = field(default_factory=list)
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_new_expression(self)
+
+
+# More advanced BigQuery constructs
+@dataclass
+class DescriptorExpression(Expression):
+    """DESCRIPTOR expression for flexible column references."""
+    columns: List[Identifier]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_descriptor_expression(self)
+
+
+@dataclass
+class FlattenExpression(Expression):
+    """FLATTEN expression (legacy)."""
+    table_expression: Expression
+    flatten_column: Identifier
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_flatten_expression(self)
+
+
+@dataclass
+class WithConnectionClause(ASTNode):
+    """WITH CONNECTION clause."""
+    connection_name: Identifier
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_with_connection_clause(self)
+
+
+# Data transformation expressions
+@dataclass
+class ReplaceFieldsExpression(Expression):
+    """REPLACE expression for struct field replacement."""
+    struct_expression: Expression
+    field_replacements: List[Tuple[Identifier, Expression]]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_replace_fields_expression(self)
+
+
+@dataclass
+class AddToFieldsExpression(Expression):
+    """Expression to add fields to struct."""
+    struct_expression: Expression
+    new_fields: List[Tuple[Identifier, Expression]]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_add_to_fields_expression(self)
+
+
+@dataclass
+class DropFieldsExpression(Expression):
+    """Expression to drop fields from struct."""
+    struct_expression: Expression
+    fields_to_drop: List[Identifier]
+    
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_drop_fields_expression(self)
+
+
