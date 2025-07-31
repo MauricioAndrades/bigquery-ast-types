@@ -203,19 +203,19 @@ class Collection(Generic[T]):
     def insertBefore(self, node: Union[ASTNode, Callable[[NodePath, int], ASTNode]]) -> "Collection":
         """
         Insert node before each path in the collection.
-        
+
         Args:
-            node: Either an ASTNode to insert, or a function that returns 
+            node: Either an ASTNode to insert, or a function that returns
                   an ASTNode based on the current path and index.
-                  
+
         Returns:
             Collection of newly inserted NodePaths.
-            
+
         Raises:
             ValueError: If any node cannot be inserted (e.g., root nodes or non-list nodes).
         """
         new_paths = []
-        
+
         # Process in reverse order to avoid index shifting issues
         for i, path in enumerate(reversed(self.paths)):
             if callable(node):
@@ -225,33 +225,33 @@ class Collection(Generic[T]):
                 # Use the same node (Note: this could be problematic if the same
                 # node instance is inserted multiple times, consider cloning)
                 new_node = node
-                
+
             try:
                 new_path = path.insert_before(new_node)
                 new_paths.append(new_path)
             except ValueError as e:
                 # Could either skip or raise, depending on desired behavior
                 raise ValueError(f"Cannot insert before {path}: {e}")
-                
+
         # Return in original order
         return Collection(list(reversed(new_paths)))
 
     def insertAfter(self, node: Union[ASTNode, Callable[[NodePath, int], ASTNode]]) -> "Collection":
         """
         Insert node after each path in the collection.
-        
+
         Args:
-            node: Either an ASTNode to insert, or a function that returns 
+            node: Either an ASTNode to insert, or a function that returns
                   an ASTNode based on the current path and index.
-                  
+
         Returns:
             Collection of newly inserted NodePaths.
-            
+
         Raises:
             ValueError: If any node cannot be inserted (e.g., root nodes or non-list nodes).
         """
         new_paths = []
-        
+
         # Process in reverse order to avoid index shifting issues
         for i, path in enumerate(reversed(self.paths)):
             if callable(node):
@@ -261,14 +261,14 @@ class Collection(Generic[T]):
                 # Use the same node (Note: this could be problematic if the same
                 # node instance is inserted multiple times, consider cloning)
                 new_node = node
-                
+
             try:
                 new_path = path.insert_after(new_node)
                 new_paths.append(new_path)
             except ValueError as e:
                 # Could either skip or raise, depending on desired behavior
                 raise ValueError(f"Cannot insert after {path}: {e}")
-                
+
         # Return in original order
         return Collection(list(reversed(new_paths)))
 
@@ -419,6 +419,16 @@ def root(root_node: Union[ASTNode, NodePath, List[NodePath]]) -> Collection:
     """jQuery-style alias for astCollection with the provided root node.
     Args:
         root_node: The ASTNode, NodePath, or list of NodePaths to wrap in a Collection.
+    Returns:
+        Collection instance wrapping the root node(s).
+    """
+    return astCollection(root_node)
+
+def create_collection(root_node):
+    """
+    Create a Collection from an ASTNode, NodePath, or list of NodePaths.
+    Args:
+        root_node: ASTNode, NodePath, or list of NodePaths
     Returns:
         Collection instance wrapping the root node(s).
     """

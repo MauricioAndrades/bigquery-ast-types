@@ -17,4 +17,4 @@ from .serializer import (
     pretty_print,
     compact_print
 )
-from .collection import Collection, create_collection
+from .collection import Collection

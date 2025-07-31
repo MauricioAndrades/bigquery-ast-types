@@ -31,9 +31,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "sqlglot"))
 import sqlglot
 from sqlglot import exp
 
-from jsql import (
+from lib.bsql import (
     j,
-    JSQLNode,
+    SQLNode,
     null_safe_eq,
     standardize_string_id,
     standardize_numeric,
@@ -46,17 +46,17 @@ from jsql import (
 
 class ComprehensiveMergeBuilder:
     """Build comprehensive MERGE DELETE queries with full column comparison."""
-    
+
     def __init__(self, project: str, dataset: str):
         self.project = project
         self.dataset = dataset
         self.target_table = f"`{dataset}.order`"
         self.staging_table = f"`{project}.{dataset}_staging.order`"
-        
+
         # All columns in order table
         self.all_columns = [
             "retailer_id",
-            "order_id", 
+            "order_id",
             "order_ts",
             "session_id",
             "visitor_id",
@@ -79,20 +79,20 @@ class ComprehensiveMergeBuilder:
             "child_product_id",
             "symbiosys_ts"
         ]
-    
+
     def build_comprehensive_merge(self,
                                 start_date: str,
                                 end_date: str,
                                 filter_start: str,
                                 filter_end: str) -> str:
         """Build the exact comprehensive MERGE DELETE pattern."""
-        
+
         # Build partition columns for dedup
         partition_columns = self._build_partition_columns()
-        
+
         # Build ON clause conditions
         on_conditions = self._build_on_conditions(filter_start, filter_end)
-        
+
         return f"""MERGE {self.target_table} AS T USING (
   WITH deduped AS (
   SELECT
@@ -115,12 +115,12 @@ ON
 
 WHEN MATCHED THEN
   DELETE;"""
-    
+
     def _build_partition_columns(self) -> str:
         """Build PARTITION BY clause with special handling."""
-        
+
         partition_exprs = []
-        
+
         for col in self.all_columns:
             if col == 'child_product_id':
                 # Special normalization
@@ -141,35 +141,35 @@ WHEN MATCHED THEN
         )""")
             else:
                 partition_exprs.append(col)
-        
+
         return ",\n        ".join(partition_exprs)
-    
+
     def _build_on_conditions(self, filter_start: str, filter_end: str) -> str:
         """Build ON clause with null-safe comparisons for all columns."""
-        
+
         conditions = []
-        
+
         # retailer_id (special - not null-safe)
         conditions.append("  -- retailer and order identifiers")
         conditions.append("  T.retailer_id = B.retailer_id")
-        
+
         # order_id (null-safe)
         conditions.append("  AND (T.order_id = B.order_id OR (T.order_id IS NULL AND B.order_id IS NULL))")
-        
+
         # timestamps
         conditions.append("\n  -- timestamps")
         conditions.append("  AND (T.order_ts = B.order_ts OR (T.order_ts IS NULL AND B.order_ts IS NULL))")
-        
+
         # scalar fields
         conditions.append("\n  -- all the rest of the scalar fields, null‑safe")
         scalar_fields = [
-            "session_id", "visitor_id", "crm_id", "platform", 
+            "session_id", "visitor_id", "crm_id", "platform",
             "user_ip", "zip_code", "hashed_email"
         ]
-        
+
         for field in scalar_fields:
             conditions.append(f"  AND (T.{field} = B.{field} OR (T.{field} IS NULL AND B.{field} IS NULL))")
-        
+
         # hashed_pii array (special handling)
         conditions.append("""
   -- inline, sorted fingerprint of the PII array
@@ -196,47 +196,47 @@ WHEN MATCHED THEN
       ', '
     )
   )""")
-        
+
         # More scalar fields
         more_fields = [
-            "product_id", "quantity", "regular_unit_price", 
+            "product_id", "quantity", "regular_unit_price",
             "discount_unit_price", "merchant_id", "country"
         ]
-        
+
         conditions.append("")
         for field in more_fields:
             # Add extra spacing for alignment
             padding = " " * (20 - len(field))
             conditions.append(f"  AND (T.{field}{padding} = B.{field}{padding} OR (T.{field}{padding} IS NULL AND B.{field}{padding} IS NULL))")
-        
+
         # Boolean flags
         conditions.append("\n  -- boolean flags with null-safe comparison")
         bool_fields = ["is_restaurant", "is_recurring", "user_tracking_allowed"]
-        
+
         for field in bool_fields:
             conditions.append(f"  AND (T.{field} = B.{field} OR (T.{field} IS NULL AND B.{field} IS NULL))")
-        
+
         # seller_id
         conditions.append("")
         conditions.append("  AND (T.seller_id            = B.seller_id            OR (T.seller_id            IS NULL AND B.seller_id            IS NULL))")
-        
+
         # child_product_id with normalization
         conditions.append("""
   -- child_product_id with same normalization as backup
   AND (
-    COALESCE(NULLIF(TRIM(T.child_product_id), ''), CAST(T.product_id AS STRING)) = 
+    COALESCE(NULLIF(TRIM(T.child_product_id), ''), CAST(T.product_id AS STRING)) =
     COALESCE(NULLIF(TRIM(B.child_product_id), ''), CAST(B.product_id AS STRING))
   )""")
-        
+
         # symbiosys_ts
         conditions.append("""
   -- finally, symbiosys_ts
   AND (T.symbiosys_ts       = B.symbiosys_ts       OR (T.symbiosys_ts       IS NULL AND B.symbiosys_ts       IS NULL))""")
-        
+
         # Date filter
         conditions.append(f"    AND T.order_ts >= TIMESTAMP('{filter_start}')")
         conditions.append(f"    AND T.order_ts <  TIMESTAMP('{filter_end}')")
-        
+
         return "\n".join(conditions)
 
 
@@ -363,11 +363,11 @@ WITH
 
         return final_query
 
-    def _build_raw_orders_cte(self, source_query: JSQLNode) -> JSQLNode:
+    def _build_raw_orders_cte(self, source_query: SQLNode) -> SQLNode:
         """Build raw_orders CTE from source query."""
         return j.CTE("raw_orders", source_query.node)
 
-    def _build_cleaned_orders_cte(self, retailer_id: int) -> JSQLNode:
+    def _build_cleaned_orders_cte(self, retailer_id: int) -> SQLNode:
         """Build cleaned_orders CTE with standardization using native sqlglot."""
 
         # Parse a template to get column structure
@@ -414,7 +414,7 @@ WITH
 
         return j.CTE("cleaned_orders", select)
 
-    def _build_deduped_orders_cte(self) -> JSQLNode:
+    def _build_deduped_orders_cte(self) -> SQLNode:
         """Build deduped_orders CTE with ROW_NUMBER deduplication."""
 
         dedup_sql = """
@@ -439,7 +439,7 @@ WHERE rank = 1
 
     def _build_merge_statement(
         self, retailer_id: int, datetime_threshold: str
-    ) -> JSQLNode:
+    ) -> SQLNode:
         """Build MERGE statement."""
 
         # Key columns for merge
