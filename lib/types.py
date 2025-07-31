@@ -321,7 +321,8 @@ class IntervalLiteral(Literal):
 @dataclass
 class ArrayLiteral(Literal):
     """Array literal."""
-    elements: List[Expression]
+    value: Any = field(default=None)  # Satisfy parent class requirement
+    elements: List[Expression] = field(default_factory=list)
     element_type: Optional[str] = None  # ARRAY<type>
     
     def accept(self, visitor: "ASTVisitor") -> Any:
@@ -331,7 +332,8 @@ class ArrayLiteral(Literal):
 @dataclass
 class StructLiteral(Literal):
     """Struct literal."""
-    fields: List[Tuple[Optional[str], Expression]]  # [(field_name, value), ...]
+    value: Any = field(default=None)  # Satisfy parent class requirement
+    fields: List[Tuple[Optional[str], Expression]] = field(default_factory=list)  # [(field_name, value), ...]
     struct_type: Optional[str] = None
     
     def accept(self, visitor: "ASTVisitor") -> Any:
@@ -341,7 +343,8 @@ class StructLiteral(Literal):
 @dataclass
 class RangeLiteral(Literal):
     """RANGE literal."""
-    range_type: str  # DATE, DATETIME, TIMESTAMP
+    value: Any = field(default=None)  # Satisfy parent class requirement
+    range_type: str = "DATE"  # DATE, DATETIME, TIMESTAMP
     lower_bound: Optional[Expression] = None
     upper_bound: Optional[Expression] = None
     lower_unbounded: bool = False

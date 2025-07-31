@@ -9,8 +9,34 @@ import sqlglot
 from sqlglot import exp
 from sqlglot.dialects import BigQuery
 
-from ..lib.types import *
-from ..lib.builders import b
+# Handle imports for both package and direct usage
+try:
+    from ..lib.types import *
+    from ..lib.builders import b
+except ImportError:
+    # Direct import when running as script
+    import sys
+    import os
+    import importlib.util
+    
+    # Import types module
+    types_path = os.path.join(os.path.dirname(__file__), '../lib/types.py')
+    spec = importlib.util.spec_from_file_location('types', types_path)
+    types_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(types_module)
+    
+    # Import all types
+    globals().update({name: getattr(types_module, name) for name in dir(types_module) 
+                     if not name.startswith('_')})
+    
+    # Mock builders for now
+    class MockBuilders:
+        def col(self, name): return UnquotedIdentifier(name)
+        def lit(self, value): return StringLiteral(str(value))
+        def select(self, *args): return Select(select_list=list(args))
+        def eq(self, left, right): return BinaryOp(left=left, operator="=", right=right)
+    
+    b = MockBuilders()
 
 
 class SQLGlotParser:
