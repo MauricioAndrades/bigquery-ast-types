@@ -16,9 +16,7 @@ from sqlglot.optimizer.scope import find_all_in_scope, walk_in_scope
 if t.TYPE_CHECKING:
     from sqlglot.dialects.dialect import DialectType
 
-    DateTruncBinaryTransform = t.Callable[
-        [exp.Expression, datetime.date, str, Dialect, exp.DataType], t.Optional[exp.Expression]
-    ]
+    DateTruncBinaryTransform = t.Callable[[exp.Expression, datetime.date, str, Dialect, exp.DataType], t.Optional[exp.Expression]]
 
 logger = logging.getLogger("sqlglot")
 
@@ -110,9 +108,7 @@ def simplify(
             if new_node is not node:
                 node.replace(new_node)
 
-            pre_transformation_stack.extend(
-                n for n in new_node.iter_expressions(reverse=True) if not n.meta.get(FINAL)
-            )
+            pre_transformation_stack.extend(n for n in new_node.iter_expressions(reverse=True) if not n.meta.get(FINAL))
             post_transformation_stack.append((new_node, parent))
 
         while post_transformation_stack:
@@ -282,11 +278,7 @@ def simplify_connectors(expression, root=True):
         elif isinstance(expression, exp.Or):
             if always_true(left) or always_true(right):
                 return exp.true()
-            if (
-                (is_null(left) and is_null(right))
-                or (is_null(left) and always_false(right))
-                or (always_false(left) and is_null(right))
-            ):
+            if (is_null(left) and is_null(right)) or (is_null(left) and always_false(right)) or (always_false(left) and is_null(right)):
                 return exp.null()
             if is_false(left):
                 return right
@@ -517,11 +509,7 @@ def propagate_constants(expression, root=True):
     Reference: https://www.sqlite.org/optoverview.html
     """
 
-    if (
-        isinstance(expression, exp.And)
-        and (root or not expression.same_parent)
-        and sqlglot.optimizer.normalize.normalized(expression, dnf=True)
-    ):
+    if isinstance(expression, exp.And) and (root or not expression.same_parent) and sqlglot.optimizer.normalize.normalized(expression, dnf=True):
         constant_mapping = {}
         for expr in walk_in_scope(expression, prune=lambda node: isinstance(node, exp.If)):
             if isinstance(expr, exp.EQ):
@@ -536,11 +524,7 @@ def propagate_constants(expression, root=True):
             for column in find_all_in_scope(expression, exp.Column):
                 parent = column.parent
                 column_id, constant = constant_mapping.get(column) or (None, None)
-                if (
-                    column_id is not None
-                    and id(column) != column_id
-                    and not (isinstance(parent, exp.Is) and isinstance(parent.expression, exp.Null))
-                ):
+                if column_id is not None and id(column) != column_id and not (isinstance(parent, exp.Is) and isinstance(parent.expression, exp.Null)):
                     column.replace(constant.copy())
 
     return expression
@@ -612,9 +596,7 @@ def simplify_equality(expression: exp.Expression) -> exp.Expression:
         else:
             return expression
 
-        return expression.__class__(
-            this=a, expression=INVERSE_OPS[l.__class__](this=r, expression=b)
-        )
+        return expression.__class__(this=a, expression=INVERSE_OPS[l.__class__](this=r, expression=b))
     return expression
 
 
@@ -646,12 +628,7 @@ def _simplify_integer_cast(expr: exp.Expression) -> exp.Expression:
         # Remove the (up)cast from small (byte-sized) integers in predicates which is side-effect free. Downcasts on any
         # integer type might cause overflow, thus the cast cannot be eliminated and the behavior is
         # engine-dependent
-        if (
-            TINYINT_MIN <= num <= TINYINT_MAX and expr.to.this in exp.DataType.SIGNED_INTEGER_TYPES
-        ) or (
-            UTINYINT_MIN <= num <= UTINYINT_MAX
-            and expr.to.this in exp.DataType.UNSIGNED_INTEGER_TYPES
-        ):
+        if (TINYINT_MIN <= num <= TINYINT_MAX and expr.to.this in exp.DataType.SIGNED_INTEGER_TYPES) or (UTINYINT_MIN <= num <= UTINYINT_MAX and expr.to.this in exp.DataType.UNSIGNED_INTEGER_TYPES):
             return this
 
     return expr
@@ -745,25 +722,10 @@ def simplify_parens(expression: exp.Expression, dialect: DialectType = None) -> 
 
     # Handle risingwave struct columns
     # see https://docs.risingwave.com/sql/data-types/struct#retrieve-data-in-a-struct
-    if (
-        dialect == "risingwave"
-        and isinstance(parent, exp.Dot)
-        and (isinstance(parent.right, (exp.Identifier, exp.Star)))
-    ):
+    if dialect == "risingwave" and isinstance(parent, exp.Dot) and (isinstance(parent.right, (exp.Identifier, exp.Star))):
         return expression
 
-    if (
-        not isinstance(parent, (exp.Condition, exp.Binary))
-        or isinstance(parent, exp.Paren)
-        or (
-            not isinstance(this, exp.Binary)
-            and not (isinstance(this, (exp.Not, exp.Is)) and parent_is_predicate)
-        )
-        or (isinstance(this, exp.Predicate) and not parent_is_predicate)
-        or (isinstance(this, exp.Add) and isinstance(parent, exp.Add))
-        or (isinstance(this, exp.Mul) and isinstance(parent, exp.Mul))
-        or (isinstance(this, exp.Mul) and isinstance(parent, (exp.Add, exp.Sub)))
-    ):
+    if not isinstance(parent, (exp.Condition, exp.Binary)) or isinstance(parent, exp.Paren) or (not isinstance(this, exp.Binary) and not (isinstance(this, (exp.Not, exp.Is)) and parent_is_predicate)) or (isinstance(this, exp.Predicate) and not parent_is_predicate) or (isinstance(this, exp.Add) and isinstance(parent, exp.Add)) or (isinstance(this, exp.Mul) and isinstance(parent, exp.Mul)) or (isinstance(this, exp.Mul) and isinstance(parent, (exp.Add, exp.Sub))):
         return this
 
     return expression
@@ -848,7 +810,8 @@ def simplify_concat(expression):
     """Reduces all groups that contain string literals by concatenating them."""
     if not isinstance(expression, CONCATS) or (
         # We can't reduce a CONCAT_WS call if we don't statically know the separator
-        isinstance(expression, exp.ConcatWs) and not expression.expressions[0].is_string
+        isinstance(expression, exp.ConcatWs)
+        and not expression.expressions[0].is_string
     ):
         return expression
 
@@ -867,9 +830,7 @@ def simplify_concat(expression):
         }
 
     new_args = []
-    for is_string_group, group in itertools.groupby(
-        expressions or expression.flatten(), lambda e: e.is_string
-    ):
+    for is_string_group, group in itertools.groupby(expressions or expression.flatten(), lambda e: e.is_string):
         if is_string_group:
             new_args.append(exp.Literal.string(sep.join(string.name for string in group)))
         else:
@@ -922,11 +883,7 @@ def simplify_startswith(expression: exp.Expression) -> exp.Expression:
         >>> simplify_startswith(parse_one("STARTSWITH('foo', 'f')")).sql()
         'TRUE'
     """
-    if (
-        isinstance(expression, exp.StartsWith)
-        and expression.this.is_string
-        and expression.expression.is_string
-    ):
+    if isinstance(expression, exp.StartsWith) and expression.this.is_string and expression.expression.is_string:
         return exp.convert(expression.name.startswith(expression.expression.name))
 
     return expression
@@ -953,9 +910,7 @@ def _datetrunc_range(date: datetime.date, unit: str, dialect: Dialect) -> t.Opti
     return floor, floor + interval(unit)
 
 
-def _datetrunc_eq_expression(
-    left: exp.Expression, drange: DateRange, target_type: t.Optional[exp.DataType]
-) -> exp.Expression:
+def _datetrunc_eq_expression(left: exp.Expression, drange: DateRange, target_type: t.Optional[exp.DataType]) -> exp.Expression:
     """Get the logical expression for a date range"""
     return exp.and_(
         left >= date_literal(drange[0], target_type),
@@ -997,8 +952,7 @@ def _datetrunc_neq(
 
 
 DATETRUNC_BINARY_COMPARISONS: t.Dict[t.Type[exp.Expression], DateTruncBinaryTransform] = {
-    exp.LT: lambda l, dt, u, d, t: l
-    < date_literal(dt if dt == date_floor(dt, u, d) else date_floor(dt, u, d) + interval(u), t),
+    exp.LT: lambda l, dt, u, d, t: l < date_literal(dt if dt == date_floor(dt, u, d) else date_floor(dt, u, d) + interval(u), t),
     exp.GT: lambda l, dt, u, d, t: l >= date_literal(date_floor(dt, u, d) + interval(u), t),
     exp.LTE: lambda l, dt, u, d, t: l < date_literal(date_floor(dt, u, d) + interval(u), t),
     exp.GTE: lambda l, dt, u, d, t: l >= date_literal(date_ceil(dt, u, d), t),
@@ -1041,12 +995,7 @@ def simplify_datetrunc(expression: exp.Expression, dialect: Dialect) -> exp.Expr
         if not date:
             return expression
 
-        return (
-            DATETRUNC_BINARY_COMPARISONS[comparison](
-                trunc_arg, date, unit, dialect, extract_type(r)
-            )
-            or expression
-        )
+        return DATETRUNC_BINARY_COMPARISONS[comparison](trunc_arg, date, unit, dialect, extract_type(r)) or expression
 
     if isinstance(expression, exp.In):
         l = expression.this
@@ -1071,9 +1020,7 @@ def simplify_datetrunc(expression: exp.Expression, dialect: Dialect) -> exp.Expr
             ranges = merge_ranges(ranges)
             target_type = extract_type(*rs)
 
-            return exp.or_(
-                *[_datetrunc_eq_expression(l, drange, target_type) for drange in ranges], copy=False
-            )
+            return exp.or_(*[_datetrunc_eq_expression(l, drange, target_type) for drange in ranges], copy=False)
 
     return expression
 
@@ -1086,16 +1033,10 @@ def sort_comparison(expression: exp.Expression) -> exp.Expression:
         l_const = _is_constant(l)
         r_const = _is_constant(r)
 
-        if (
-            (l_column and not r_column)
-            or (r_const and not l_const)
-            or isinstance(r, exp.SubqueryPredicate)
-        ):
+        if (l_column and not r_column) or (r_const and not l_const) or isinstance(r, exp.SubqueryPredicate):
             return expression
         if (r_column and not l_column) or (l_const and not r_const) or (gen(l) > gen(r)):
-            return INVERSE_COMPARISONS.get(expression.__class__, expression.__class__)(
-                this=r, expression=l
-            )
+            return INVERSE_COMPARISONS.get(expression.__class__, expression.__class__)(this=r, expression=l)
     return expression
 
 
@@ -1115,21 +1056,14 @@ def remove_where_true(expression):
         if always_true(where.this):
             where.pop()
     for join in expression.find_all(exp.Join):
-        if (
-            always_true(join.args.get("on"))
-            and not join.args.get("using")
-            and not join.args.get("method")
-            and (join.side, join.kind) in JOINS
-        ):
+        if always_true(join.args.get("on")) and not join.args.get("using") and not join.args.get("method") and (join.side, join.kind) in JOINS:
             join.args["on"].pop()
             join.set("side", None)
             join.set("kind", "CROSS")
 
 
 def always_true(expression):
-    return (isinstance(expression, exp.Boolean) and expression.this) or (
-        isinstance(expression, exp.Literal) and not is_zero(expression)
-    )
+    return (isinstance(expression, exp.Boolean) and expression.this) or (isinstance(expression, exp.Literal) and not is_zero(expression))
 
 
 def always_false(expression):
@@ -1242,11 +1176,7 @@ def extract_type(*expressions):
 
 def date_literal(date, target_type=None):
     if not target_type or not target_type.is_type(*exp.DataType.TEMPORAL_TYPES):
-        target_type = (
-            exp.DataType.Type.DATETIME
-            if isinstance(date, datetime.datetime)
-            else exp.DataType.Type.DATE
-        )
+        target_type = exp.DataType.Type.DATETIME if isinstance(date, datetime.datetime) else exp.DataType.Type.DATE
 
     return exp.cast(exp.Literal.string(date), target_type)
 
@@ -1330,9 +1260,7 @@ def _flat_simplify(expression, simplifier, root=True):
                 operands.append(a)
 
         if len(operands) < size:
-            return functools.reduce(
-                lambda a, b: expression.__class__(this=a, expression=b), operands
-            )
+            return functools.reduce(lambda a, b: expression.__class__(this=a, expression=b), operands)
     return expression
 
 
@@ -1409,9 +1337,7 @@ class Gen:
             name = this.this
             name = f'"{name}"' if this.quoted else name.upper()
         else:
-            raise ValueError(
-                f"Anonymous.this expects a str or an Identifier, got '{this.__class__.__name__}'."
-            )
+            raise ValueError(f"Anonymous.this expects a str or an Identifier, got '{this.__class__.__name__}'.")
 
         self.stack.extend(
             (

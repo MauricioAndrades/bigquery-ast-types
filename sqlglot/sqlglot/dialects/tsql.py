@@ -123,20 +123,14 @@ XML_OPTIONS: parser.OPTIONS_TYPE = {
 OPTIONS_THAT_REQUIRE_EQUAL = ("MAX_GRANT_PERCENT", "MIN_GRANT_PERCENT", "LABEL")
 
 
-def _build_formatted_time(
-    exp_class: t.Type[E], full_format_mapping: t.Optional[bool] = None
-) -> t.Callable[[t.List], E]:
+def _build_formatted_time(exp_class: t.Type[E], full_format_mapping: t.Optional[bool] = None) -> t.Callable[[t.List], E]:
     def _builder(args: t.List) -> E:
         fmt = seq_get(args, 0)
         if isinstance(fmt, exp.Expression):
             fmt = exp.Literal.string(
                 format_time(
                     fmt.name.lower(),
-                    (
-                        {**TSQL.TIME_MAPPING, **FULL_FORMAT_TIME_MAPPING}
-                        if full_format_mapping
-                        else TSQL.TIME_MAPPING
-                    ),
+                    ({**TSQL.TIME_MAPPING, **FULL_FORMAT_TIME_MAPPING} if full_format_mapping else TSQL.TIME_MAPPING),
                 )
             )
 
@@ -160,11 +154,7 @@ def _build_format(args: t.List) -> exp.NumberToStr | exp.TimeToStr:
         return exp.NumberToStr(this=this, format=fmt, culture=culture)
 
     if fmt:
-        fmt = exp.Literal.string(
-            format_time(fmt.name, TSQL.FORMAT_TIME_MAPPING)
-            if len(fmt.name) == 1
-            else format_time(fmt.name, TSQL.TIME_MAPPING)
-        )
+        fmt = exp.Literal.string(format_time(fmt.name, TSQL.FORMAT_TIME_MAPPING) if len(fmt.name) == 1 else format_time(fmt.name, TSQL.TIME_MAPPING))
 
     return exp.TimeToStr(this=this, format=fmt, culture=culture)
 
@@ -242,9 +232,7 @@ def _string_agg_sql(self: TSQL.Generator, expression: exp.GroupConcat) -> str:
     return f"STRING_AGG({self.format_args(this, separator)}){order}"
 
 
-def _build_date_delta(
-    exp_class: t.Type[E], unit_mapping: t.Optional[t.Dict[str, str]] = None
-) -> t.Callable[[t.List], E]:
+def _build_date_delta(exp_class: t.Type[E], unit_mapping: t.Optional[t.Dict[str, str]] = None) -> t.Callable[[t.List], E]:
     def _builder(args: t.List) -> E:
         unit = seq_get(args, 0)
         if unit and unit_mapping:
@@ -274,20 +262,14 @@ def qualify_derived_table_outputs(expression: exp.Expression) -> exp.Expression:
     """Ensures all (unnamed) output columns are aliased for CTEs and Subqueries."""
     alias = expression.args.get("alias")
 
-    if (
-        isinstance(expression, (exp.CTE, exp.Subquery))
-        and isinstance(alias, exp.TableAlias)
-        and not alias.columns
-    ):
+    if isinstance(expression, (exp.CTE, exp.Subquery)) and isinstance(alias, exp.TableAlias) and not alias.columns:
         from sqlglot.optimizer.qualify_columns import qualify_outputs
 
         # We keep track of the unaliased column projection indexes instead of the expressions
         # themselves, because the latter are going to be replaced by new nodes when the aliases
         # are added and hence we won't be able to reach these newly added Alias parents
         query = expression.this
-        unaliased_column_indexes = (
-            i for i, c in enumerate(query.selects) if isinstance(c, exp.Column) and not c.alias
-        )
+        unaliased_column_indexes = (i for i, c in enumerate(query.selects) if isinstance(c, exp.Column) and not c.alias)
 
         qualify_outputs(query)
 
@@ -374,9 +356,7 @@ def _build_json_query(args: t.List, dialect: Dialect) -> exp.JSONExtract:
     return parser.build_extract_json_with_path(exp.JSONExtract)(args, dialect)
 
 
-def _json_extract_sql(
-    self: TSQL.Generator, expression: exp.JSONExtract | exp.JSONExtractScalar
-) -> str:
+def _json_extract_sql(self: TSQL.Generator, expression: exp.JSONExtract | exp.JSONExtractScalar) -> str:
     json_query = self.func("JSON_QUERY", expression.this, expression.expression)
     json_value = self.func("JSON_VALUE", expression.this, expression.expression)
     return self.func("ISNULL", json_query, json_value)
@@ -583,12 +563,8 @@ class TSQL(Dialect):
                 substr=seq_get(args, 0),
                 position=seq_get(args, 2),
             ),
-            "COUNT": lambda args: exp.Count(
-                this=seq_get(args, 0), expressions=args[1:], big_int=False
-            ),
-            "COUNT_BIG": lambda args: exp.Count(
-                this=seq_get(args, 0), expressions=args[1:], big_int=True
-            ),
+            "COUNT": lambda args: exp.Count(this=seq_get(args, 0), expressions=args[1:], big_int=False),
+            "COUNT_BIG": lambda args: exp.Count(this=seq_get(args, 0), expressions=args[1:], big_int=True),
             "DATEADD": build_date_delta(exp.DateAdd, unit_mapping=DATE_DELTA_INTERVAL),
             "DATEDIFF": _build_date_delta(exp.DateDiff, unit_mapping=DATE_DELTA_INTERVAL),
             "DATENAME": _build_formatted_time(exp.TimeToStr, full_format_mapping=True),
@@ -620,9 +596,7 @@ class TSQL(Dialect):
 
         JOIN_HINTS = {"LOOP", "HASH", "MERGE", "REMOTE"}
 
-        PROCEDURE_OPTIONS = dict.fromkeys(
-            ("ENCRYPTION", "RECOMPILE", "SCHEMABINDING", "NATIVE_COMPILATION", "EXECUTE"), tuple()
-        )
+        PROCEDURE_OPTIONS = dict.fromkeys(("ENCRYPTION", "RECOMPILE", "SCHEMABINDING", "NATIVE_COMPILATION", "EXECUTE"), tuple())
 
         COLUMN_DEFINITION_MODES = {"OUT", "OUTPUT", "READONLY"}
 
@@ -653,9 +627,7 @@ class TSQL(Dialect):
         # The DCOLON (::) operator serves as a scope resolution (exp.ScopeResolution) operator in T-SQL
         COLUMN_OPERATORS = {
             **parser.Parser.COLUMN_OPERATORS,
-            TokenType.DCOLON: lambda self, this, to: self.expression(exp.Cast, this=this, to=to)
-            if isinstance(to, exp.DataType) and to.this != exp.DataType.Type.USERDEFINED
-            else self.expression(exp.ScopeResolution, this=this, expression=to),
+            TokenType.DCOLON: lambda self, this, to: self.expression(exp.Cast, this=this, to=to) if isinstance(to, exp.DataType) and to.this != exp.DataType.Type.USERDEFINED else self.expression(exp.ScopeResolution, this=this, expression=to),
         }
 
         def _parse_alter_table_set(self) -> exp.AlterSet:
@@ -688,9 +660,7 @@ class TSQL(Dialect):
                     return None
 
                 self._match(TokenType.EQ)
-                return self.expression(
-                    exp.QueryOption, this=option, expression=self._parse_primary_or_var()
-                )
+                return self.expression(exp.QueryOption, this=option, expression=self._parse_primary_or_var())
 
             return self._parse_wrapped_csv(_parse_option)
 
@@ -710,8 +680,7 @@ class TSQL(Dialect):
             def _parse_for_xml() -> t.Optional[exp.Expression]:
                 return self.expression(
                     exp.QueryOption,
-                    this=self._parse_var_from_options(XML_OPTIONS, raise_unmatched=False)
-                    or self._parse_xml_key_value_option(),
+                    this=self._parse_var_from_options(XML_OPTIONS, raise_unmatched=False) or self._parse_xml_key_value_option(),
                 )
 
             return self._parse_csv(_parse_for_xml)
@@ -723,14 +692,7 @@ class TSQL(Dialect):
 
             See: https://learn.microsoft.com/en-us/sql/t-sql/queries/select-clause-transact-sql?view=sql-server-ver16#syntax
             """
-            return [
-                (
-                    exp.alias_(projection.expression, projection.this.this, copy=False)
-                    if isinstance(projection, exp.EQ) and isinstance(projection.this, exp.Column)
-                    else projection
-                )
-                for projection in super()._parse_projections()
-            ]
+            return [(exp.alias_(projection.expression, projection.this.this, copy=False) if isinstance(projection, exp.EQ) and isinstance(projection.this, exp.Column) else projection) for projection in super()._parse_projections()]
 
         def _parse_commit_or_rollback(self) -> exp.Commit | exp.Rollback:
             """Applies to SQL Server and Azure SQL Database
@@ -787,9 +749,7 @@ class TSQL(Dialect):
             returns.set("table", table)
             return returns
 
-        def _parse_convert(
-            self, strict: bool, safe: t.Optional[bool] = None
-        ) -> t.Optional[exp.Expression]:
+        def _parse_convert(self, strict: bool, safe: t.Optional[bool] = None) -> t.Optional[exp.Expression]:
             this = self._parse_types()
             self._match(TokenType.COMMA)
             args = [this, *self._parse_csv(self._parse_assignment)]
@@ -798,9 +758,7 @@ class TSQL(Dialect):
             convert.set("strict", strict)
             return convert
 
-        def _parse_column_def(
-            self, this: t.Optional[exp.Expression], computed_column: bool = True
-        ) -> t.Optional[exp.Expression]:
+        def _parse_column_def(self, this: t.Optional[exp.Expression], computed_column: bool = True) -> t.Optional[exp.Expression]:
             this = super()._parse_column_def(this=this, computed_column=computed_column)
             if not this:
                 return None
@@ -810,16 +768,10 @@ class TSQL(Dialect):
                 this.set("output", self._prev.text)
             return this
 
-        def _parse_user_defined_function(
-            self, kind: t.Optional[TokenType] = None
-        ) -> t.Optional[exp.Expression]:
+        def _parse_user_defined_function(self, kind: t.Optional[TokenType] = None) -> t.Optional[exp.Expression]:
             this = super()._parse_user_defined_function(kind=kind)
 
-            if (
-                kind == TokenType.FUNCTION
-                or isinstance(this, exp.UserDefinedFunction)
-                or self._match(TokenType.ALIAS, advance=False)
-            ):
+            if kind == TokenType.FUNCTION or isinstance(this, exp.UserDefinedFunction) or self._match(TokenType.ALIAS, advance=False):
                 return this
 
             if not self._match(TokenType.WITH, advance=False):
@@ -898,13 +850,9 @@ class TSQL(Dialect):
                 low = self._parse_bitwise()
                 high = self._parse_bitwise() if self._match_text_seq("TO") else None
 
-                return (
-                    self.expression(exp.PartitionRange, this=low, expression=high) if high else low
-                )
+                return self.expression(exp.PartitionRange, this=low, expression=high) if high else low
 
-            partition = self.expression(
-                exp.Partition, expressions=self._parse_wrapped_csv(parse_range)
-            )
+            partition = self.expression(exp.Partition, expressions=self._parse_wrapped_csv(parse_range))
 
             self._match_r_paren()
 
@@ -1033,14 +981,10 @@ class TSQL(Dialect):
                 ]
             ),
             exp.Stddev: rename_func("STDEV"),
-            exp.StrPosition: lambda self, e: strposition_sql(
-                self, e, func_name="CHARINDEX", supports_position=True
-            ),
+            exp.StrPosition: lambda self, e: strposition_sql(self, e, func_name="CHARINDEX", supports_position=True),
             exp.Subquery: transforms.preprocess([qualify_derived_table_outputs]),
             exp.SHA: lambda self, e: self.func("HASHBYTES", exp.Literal.string("SHA1"), e.this),
-            exp.SHA2: lambda self, e: self.func(
-                "HASHBYTES", exp.Literal.string(f"SHA2_{e.args.get('length', 256)}"), e.this
-            ),
+            exp.SHA2: lambda self, e: self.func("HASHBYTES", exp.Literal.string(f"SHA2_{e.args.get('length', 256)}"), e.this),
             exp.TemporaryProperty: lambda self, e: "",
             exp.TimeStrToTime: _timestrtotime_sql,
             exp.TimeToStr: _format_sql,
@@ -1088,9 +1032,7 @@ class TSQL(Dialect):
 
         def convert_sql(self, expression: exp.Convert) -> str:
             name = "TRY_CONVERT" if expression.args.get("safe") else "CONVERT"
-            return self.func(
-                name, expression.this, expression.expression, expression.args.get("style")
-            )
+            return self.func(name, expression.this, expression.expression, expression.args.get("style"))
 
         def queryoption_sql(self, expression: exp.QueryOption) -> str:
             option = self.sql(expression, "this")
@@ -1117,20 +1059,11 @@ class TSQL(Dialect):
             delimiter = expression.args.get("delimiter")
             part_index = expression.args.get("part_index")
 
-            if (
-                not all(isinstance(arg, exp.Literal) for arg in (this, delimiter, part_index))
-                or (delimiter and delimiter.name != ".")
-                or not part_index
-                or split_count > 4
-            ):
-                self.unsupported(
-                    "SPLIT_PART can be transpiled to PARSENAME only for '.' delimiter and literal values"
-                )
+            if not all(isinstance(arg, exp.Literal) for arg in (this, delimiter, part_index)) or (delimiter and delimiter.name != ".") or not part_index or split_count > 4:
+                self.unsupported("SPLIT_PART can be transpiled to PARSENAME only for '.' delimiter and literal values")
                 return ""
 
-            return self.func(
-                "PARSENAME", this, exp.Literal.number(split_count + 1 - part_index.to_py())
-            )
+            return self.func("PARSENAME", this, exp.Literal.number(split_count + 1 - part_index.to_py()))
 
         def timefromparts_sql(self, expression: exp.TimeFromParts) -> str:
             nano = expression.args.get("nano")
@@ -1170,9 +1103,7 @@ class TSQL(Dialect):
             return super().setitem_sql(expression)
 
         def boolean_sql(self, expression: exp.Boolean) -> str:
-            if type(expression.parent) in BIT_TYPES or isinstance(
-                expression.find_ancestor(exp.Values, exp.Select), exp.Values
-            ):
+            if type(expression.parent) in BIT_TYPES or isinstance(expression.find_ancestor(exp.Values, exp.Select), exp.Values):
                 return "1" if expression.this else "0"
 
             return "(1 = 1)" if expression.this else "(1 = 0)"
@@ -1186,10 +1117,7 @@ class TSQL(Dialect):
             sql = self.sql(expression, "this")
             properties = expression.args.get("properties")
 
-            if sql[:1] != "#" and any(
-                isinstance(prop, exp.TemporaryProperty)
-                for prop in (properties.expressions if properties else [])
-            ):
+            if sql[:1] != "#" and any(isinstance(prop, exp.TemporaryProperty) for prop in (properties.expressions if properties else [])):
                 sql = f"[#{sql[1:]}" if sql.startswith("[") else f"#{sql}"
 
             return sql
@@ -1308,11 +1236,7 @@ class TSQL(Dialect):
             this = self.sql(expression, "this")
             this = f" {this}" if this else ""
             durability = expression.args.get("durability")
-            durability = (
-                f" WITH (DELAYED_DURABILITY = {'ON' if durability else 'OFF'})"
-                if durability is not None
-                else ""
-            )
+            durability = f" WITH (DELAYED_DURABILITY = {'ON' if durability else 'OFF'})" if durability is not None else ""
             return f"COMMIT TRANSACTION{this}{durability}"
 
         def rollback_sql(self, expression: exp.Rollback) -> str:
@@ -1372,9 +1296,7 @@ class TSQL(Dialect):
             return f" OPTION{self.wrap(options)}" if options else ""
 
         def dpipe_sql(self, expression: exp.DPipe) -> str:
-            return self.sql(
-                reduce(lambda x, y: exp.Add(this=x, expression=y), expression.flatten())
-            )
+            return self.sql(reduce(lambda x, y: exp.Add(this=x, expression=y), expression.flatten()))
 
         def isascii_sql(self, expression: exp.IsAscii) -> str:
             return f"(PATINDEX(CONVERT(VARCHAR(MAX), 0x255b5e002d7f5d25) COLLATE Latin1_General_BIN, {self.sql(expression.this)}) = 0)"

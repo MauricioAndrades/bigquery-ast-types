@@ -4,9 +4,7 @@ from tests.dialects.test_dialect import Validator
 class TestPipeSyntax(Validator):
     def test_select(self):
         self.validate_identity("FROM x", "SELECT * FROM x")
-        self.validate_identity(
-            "FROM x |> SELECT x1, x2", "WITH __tmp1 AS (SELECT x1, x2 FROM x) SELECT * FROM __tmp1"
-        )
+        self.validate_identity("FROM x |> SELECT x1, x2", "WITH __tmp1 AS (SELECT x1, x2 FROM x) SELECT * FROM __tmp1")
         self.validate_identity(
             "FROM x |> SELECT x.x1, x.x2",
             "WITH __tmp1 AS (SELECT x.x1, x.x2 FROM x) SELECT * FROM __tmp1",
@@ -66,9 +64,7 @@ class TestPipeSyntax(Validator):
 
     def test_order_by(self):
         self.validate_identity("FROM x |> ORDER BY x1", "SELECT * FROM x ORDER BY x1")
-        self.validate_identity(
-            "FROM x |> ORDER BY x1 |> ORDER BY x2", "SELECT * FROM x ORDER BY x2"
-        )
+        self.validate_identity("FROM x |> ORDER BY x1 |> ORDER BY x2", "SELECT * FROM x ORDER BY x2")
         self.validate_identity(
             "FROM x |> ORDER BY x1 |> WHERE x1 > 0 OR x1 != 1 |> ORDER BY x2 |> WHERE x2 > 0 AND x2 != 1 |> SELECT x1, x2",
             "WITH __tmp1 AS (SELECT x1, x2 FROM x WHERE (x1 > 0 OR x1 <> 1) AND (x2 > 0 AND x2 <> 1) ORDER BY x2) SELECT * FROM __tmp1",
@@ -151,9 +147,7 @@ class TestPipeSyntax(Validator):
                         "bigquery": f"FROM x |> AGGREGATE SUM(x1) AS x_s {order_option} GROUP BY x1 AS g_x1",
                     },
                 )
-            with self.subTest(
-                f"Testing pipe syntax AGGREGATE with GROUP AND ORDER BY for order option: {order_option}"
-            ):
+            with self.subTest(f"Testing pipe syntax AGGREGATE with GROUP AND ORDER BY for order option: {order_option}"):
                 self.validate_all(
                     f"WITH __tmp1 AS (SELECT SUM(x1) AS x_s, x1 AS g_x1 FROM x GROUP BY g_x1 ORDER BY g_x1 {order_option}), __tmp2 AS (SELECT g_x1, x_s FROM __tmp1) SELECT * FROM __tmp2",
                     read={
@@ -176,9 +170,7 @@ class TestPipeSyntax(Validator):
             with self.subTest(f"Testing pipe syntax SET OPERATORS: {op_operator}"):
                 self.validate_all(
                     f"FROM x|> {op_operator} (SELECT y1 FROM y), (SELECT z1 FROM z)",
-                    write={
-                        "bigquery": f"WITH __tmp1 AS (SELECT * FROM x), __tmp2 AS (SELECT * FROM __tmp1 {op_operator} SELECT y1 FROM y {op_operator} SELECT z1 FROM z) SELECT * FROM __tmp2"
-                    },
+                    write={"bigquery": f"WITH __tmp1 AS (SELECT * FROM x), __tmp2 AS (SELECT * FROM __tmp1 {op_operator} SELECT y1 FROM y {op_operator} SELECT z1 FROM z) SELECT * FROM __tmp2"},
                 )
 
         for op_prefix in ("LEFT OUTER", "FULL OUTER"):

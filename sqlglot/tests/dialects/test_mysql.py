@@ -31,70 +31,32 @@ class TestMySQL(Validator):
         self.validate_identity("ALTER TABLE test_table MODIFY COLUMN test_column LONGTEXT")
         self.validate_identity("ALTER VIEW v AS SELECT a, b, c, d FROM foo")
         self.validate_identity("ALTER VIEW v AS SELECT * FROM foo WHERE c > 100")
-        self.validate_identity(
-            "ALTER ALGORITHM = MERGE VIEW v AS SELECT * FROM foo", check_command_warning=True
-        )
+        self.validate_identity("ALTER ALGORITHM = MERGE VIEW v AS SELECT * FROM foo", check_command_warning=True)
         self.validate_identity(
             "ALTER DEFINER = 'admin'@'localhost' VIEW v AS SELECT * FROM foo",
             check_command_warning=True,
         )
-        self.validate_identity(
-            "ALTER SQL SECURITY = DEFINER VIEW v AS SELECT * FROM foo", check_command_warning=True
-        )
-        self.validate_identity(
-            "INSERT INTO things (a, b) VALUES (1, 2) AS new_data ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), a = new_data.a, b = new_data.b"
-        )
-        self.validate_identity(
-            "CREATE TABLE `oauth_consumer` (`key` VARCHAR(32) NOT NULL, UNIQUE `OAUTH_CONSUMER_KEY` (`key`))"
-        )
-        self.validate_identity(
-            "CREATE TABLE `x` (`username` VARCHAR(200), PRIMARY KEY (`username`(16)))"
-        )
-        self.validate_identity(
-            "UPDATE items SET items.price = 0 WHERE items.id >= 5 ORDER BY items.id LIMIT 10"
-        )
-        self.validate_identity(
-            "CREATE TABLE foo (a BIGINT, INDEX b USING HASH (c) COMMENT 'd' VISIBLE ENGINE_ATTRIBUTE = 'e' WITH PARSER foo)"
-        )
-        self.validate_identity(
-            "DELETE t1 FROM t1 LEFT JOIN t2 ON t1.id = t2.id WHERE t2.id IS NULL"
-        )
-        self.validate_identity(
-            "DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id = t2.id AND t2.id = t3.id"
-        )
-        self.validate_identity(
-            "DELETE FROM t1, t2 USING t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id = t2.id AND t2.id = t3.id"
-        )
-        self.validate_identity(
-            "INSERT IGNORE INTO subscribers (email) VALUES ('john.doe@gmail.com'), ('jane.smith@ibm.com')"
-        )
-        self.validate_identity(
-            "INSERT INTO t1 (a, b, c) VALUES (1, 2, 3), (4, 5, 6) ON DUPLICATE KEY UPDATE c = VALUES(a) + VALUES(b)"
-        )
-        self.validate_identity(
-            "INSERT INTO t1 (a, b) SELECT c, d FROM t2 UNION SELECT e, f FROM t3 ON DUPLICATE KEY UPDATE b = b + c"
-        )
-        self.validate_identity(
-            "INSERT INTO t1 (a, b, c) VALUES (1, 2, 3) ON DUPLICATE KEY UPDATE c = c + 1"
-        )
-        self.validate_identity(
-            "INSERT INTO x VALUES (1, 'a', 2.0) ON DUPLICATE KEY UPDATE x.id = 1"
-        )
+        self.validate_identity("ALTER SQL SECURITY = DEFINER VIEW v AS SELECT * FROM foo", check_command_warning=True)
+        self.validate_identity("INSERT INTO things (a, b) VALUES (1, 2) AS new_data ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id), a = new_data.a, b = new_data.b")
+        self.validate_identity("CREATE TABLE `oauth_consumer` (`key` VARCHAR(32) NOT NULL, UNIQUE `OAUTH_CONSUMER_KEY` (`key`))")
+        self.validate_identity("CREATE TABLE `x` (`username` VARCHAR(200), PRIMARY KEY (`username`(16)))")
+        self.validate_identity("UPDATE items SET items.price = 0 WHERE items.id >= 5 ORDER BY items.id LIMIT 10")
+        self.validate_identity("CREATE TABLE foo (a BIGINT, INDEX b USING HASH (c) COMMENT 'd' VISIBLE ENGINE_ATTRIBUTE = 'e' WITH PARSER foo)")
+        self.validate_identity("DELETE t1 FROM t1 LEFT JOIN t2 ON t1.id = t2.id WHERE t2.id IS NULL")
+        self.validate_identity("DELETE t1, t2 FROM t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id = t2.id AND t2.id = t3.id")
+        self.validate_identity("DELETE FROM t1, t2 USING t1 INNER JOIN t2 INNER JOIN t3 WHERE t1.id = t2.id AND t2.id = t3.id")
+        self.validate_identity("INSERT IGNORE INTO subscribers (email) VALUES ('john.doe@gmail.com'), ('jane.smith@ibm.com')")
+        self.validate_identity("INSERT INTO t1 (a, b, c) VALUES (1, 2, 3), (4, 5, 6) ON DUPLICATE KEY UPDATE c = VALUES(a) + VALUES(b)")
+        self.validate_identity("INSERT INTO t1 (a, b) SELECT c, d FROM t2 UNION SELECT e, f FROM t3 ON DUPLICATE KEY UPDATE b = b + c")
+        self.validate_identity("INSERT INTO t1 (a, b, c) VALUES (1, 2, 3) ON DUPLICATE KEY UPDATE c = c + 1")
+        self.validate_identity("INSERT INTO x VALUES (1, 'a', 2.0) ON DUPLICATE KEY UPDATE x.id = 1")
         self.validate_identity(
             "CREATE OR REPLACE VIEW my_view AS SELECT column1 AS `boo`, column2 AS `foo` FROM my_table WHERE column3 = 'some_value' UNION SELECT q.* FROM fruits_table, JSON_TABLE(Fruits, '$[*]' COLUMNS(id VARCHAR(255) PATH '$.$id', value VARCHAR(255) PATH '$.value')) AS q",
         )
-        self.validate_identity(
-            "CREATE TABLE test_table (id INT AUTO_INCREMENT, PRIMARY KEY (id) USING BTREE)"
-        )
-        self.validate_identity(
-            "CREATE TABLE test_table (id INT AUTO_INCREMENT, PRIMARY KEY (id) USING HASH)"
-        )
-        self.validate_identity(
-            "CREATE TABLE test (a INT, b INT GENERATED ALWAYS AS (a + a) STORED)"
-        )
-        self.validate_identity(
-            "CREATE TABLE test (a INT, b INT GENERATED ALWAYS AS (a + a) VIRTUAL)"
-        )
+        self.validate_identity("CREATE TABLE test_table (id INT AUTO_INCREMENT, PRIMARY KEY (id) USING BTREE)")
+        self.validate_identity("CREATE TABLE test_table (id INT AUTO_INCREMENT, PRIMARY KEY (id) USING HASH)")
+        self.validate_identity("CREATE TABLE test (a INT, b INT GENERATED ALWAYS AS (a + a) STORED)")
+        self.validate_identity("CREATE TABLE test (a INT, b INT GENERATED ALWAYS AS (a + a) VIRTUAL)")
         self.validate_identity(
             "CREATE TABLE test (a INT, b INT AS (a + a) STORED)",
             "CREATE TABLE test (a INT, b INT GENERATED ALWAYS AS (a + a) STORED)",
@@ -209,18 +171,10 @@ class TestMySQL(Validator):
         self.validate_identity("CREATE TABLE A LIKE B")
         self.validate_identity("SELECT * FROM t1, t2 FOR SHARE OF t1, t2 SKIP LOCKED")
         self.validate_identity("SELECT a || b", "SELECT a OR b")
-        self.validate_identity(
-            "SELECT * FROM x ORDER BY BINARY a", "SELECT * FROM x ORDER BY CAST(a AS BINARY)"
-        )
-        self.validate_identity(
-            """SELECT * FROM foo WHERE 3 MEMBER OF(JSON_EXTRACT(info, '$.value'))"""
-        )
-        self.validate_identity(
-            "SELECT * FROM t1, t2, t3 FOR SHARE OF t1 NOWAIT FOR UPDATE OF t2, t3 SKIP LOCKED"
-        )
-        self.validate_identity(
-            "REPLACE INTO table SELECT id FROM table2 WHERE cnt > 100", check_command_warning=True
-        )
+        self.validate_identity("SELECT * FROM x ORDER BY BINARY a", "SELECT * FROM x ORDER BY CAST(a AS BINARY)")
+        self.validate_identity("""SELECT * FROM foo WHERE 3 MEMBER OF(JSON_EXTRACT(info, '$.value'))""")
+        self.validate_identity("SELECT * FROM t1, t2, t3 FOR SHARE OF t1 NOWAIT FOR UPDATE OF t2, t3 SKIP LOCKED")
+        self.validate_identity("REPLACE INTO table SELECT id FROM table2 WHERE cnt > 100", check_command_warning=True)
         self.validate_identity(
             "CAST(x AS VARCHAR)",
             "CAST(x AS CHAR)",
@@ -235,20 +189,12 @@ class TestMySQL(Validator):
         )
 
         # Index hints
-        self.validate_identity(
-            "SELECT * FROM table1 USE INDEX (col1_index, col2_index) WHERE col1 = 1 AND col2 = 2 AND col3 = 3"
-        )
-        self.validate_identity(
-            "SELECT * FROM table1 IGNORE INDEX (col3_index) WHERE col1 = 1 AND col2 = 2 AND col3 = 3"
-        )
-        self.validate_identity(
-            "SELECT * FROM t1 USE INDEX (i1) IGNORE INDEX FOR ORDER BY (i2) ORDER BY a"
-        )
+        self.validate_identity("SELECT * FROM table1 USE INDEX (col1_index, col2_index) WHERE col1 = 1 AND col2 = 2 AND col3 = 3")
+        self.validate_identity("SELECT * FROM table1 IGNORE INDEX (col3_index) WHERE col1 = 1 AND col2 = 2 AND col3 = 3")
+        self.validate_identity("SELECT * FROM t1 USE INDEX (i1) IGNORE INDEX FOR ORDER BY (i2) ORDER BY a")
         self.validate_identity("SELECT * FROM t1 USE INDEX (i1) USE INDEX (i1, i1)")
         self.validate_identity("SELECT * FROM t1 USE INDEX FOR JOIN (i1) FORCE INDEX FOR JOIN (i2)")
-        self.validate_identity(
-            "SELECT * FROM t1 USE INDEX () IGNORE INDEX (i2) USE INDEX (i1) USE INDEX (i2)"
-        )
+        self.validate_identity("SELECT * FROM t1 USE INDEX () IGNORE INDEX (i2) USE INDEX (i1) USE INDEX (i2)")
 
         # SET Commands
         self.validate_identity("SET @var_name = expr")
@@ -283,12 +229,8 @@ class TestMySQL(Validator):
         self.validate_identity("SET TRANSACTION READ ONLY")
         self.validate_identity("SET GLOBAL TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ WRITE")
         self.validate_identity("DATABASE()", "SCHEMA()")
-        self.validate_identity(
-            "SET GLOBAL sort_buffer_size = 1000000, SESSION sort_buffer_size = 1000000"
-        )
-        self.validate_identity(
-            "SET @@GLOBAL.sort_buffer_size = 1000000, @@LOCAL.sort_buffer_size = 1000000"
-        )
+        self.validate_identity("SET GLOBAL sort_buffer_size = 1000000, SESSION sort_buffer_size = 1000000")
+        self.validate_identity("SET @@GLOBAL.sort_buffer_size = 1000000, @@LOCAL.sort_buffer_size = 1000000")
         self.validate_identity("INTERVAL '1' YEAR")
         self.validate_identity("DATE_ADD(x, INTERVAL '1' YEAR)")
         self.validate_identity("CHAR(0)")
@@ -299,9 +241,7 @@ class TestMySQL(Validator):
         self.validate_identity("SELECT @var1, @var2 := @var1")
         self.validate_identity("SELECT @var1 := COUNT(*) FROM t1")
 
-        self.validate_identity(
-            "SELECT DISTINCTROW tbl.col FROM tbl", "SELECT DISTINCT tbl.col FROM tbl"
-        )
+        self.validate_identity("SELECT DISTINCTROW tbl.col FROM tbl", "SELECT DISTINCT tbl.col FROM tbl")
 
     def test_types(self):
         for char_type in MySQL.Generator.CHAR_CAST_MAPPING:
@@ -351,14 +291,10 @@ class TestMySQL(Validator):
         self.validate_identity("SELECT INSTR('str', 'substr')", "SELECT LOCATE('substr', 'str')")
         self.validate_identity("SELECT UCASE('foo')", "SELECT UPPER('foo')")
         self.validate_identity("SELECT LCASE('foo')", "SELECT LOWER('foo')")
-        self.validate_identity(
-            "SELECT DAY_OF_MONTH('2023-01-01')", "SELECT DAYOFMONTH('2023-01-01')"
-        )
+        self.validate_identity("SELECT DAY_OF_MONTH('2023-01-01')", "SELECT DAYOFMONTH('2023-01-01')")
         self.validate_identity("SELECT DAY_OF_WEEK('2023-01-01')", "SELECT DAYOFWEEK('2023-01-01')")
         self.validate_identity("SELECT DAY_OF_YEAR('2023-01-01')", "SELECT DAYOFYEAR('2023-01-01')")
-        self.validate_identity(
-            "SELECT WEEK_OF_YEAR('2023-01-01')", "SELECT WEEKOFYEAR('2023-01-01')"
-        )
+        self.validate_identity("SELECT WEEK_OF_YEAR('2023-01-01')", "SELECT WEEKOFYEAR('2023-01-01')")
         self.validate_all(
             "CHAR(10)",
             write={
@@ -549,9 +485,7 @@ class TestMySQL(Validator):
         )
         self.validate_all(
             "MATCH(col1, col2) AGAINST('abc' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)",
-            write={
-                "mysql": "MATCH(col1, col2) AGAINST('abc' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)"
-            },
+            write={"mysql": "MATCH(col1, col2) AGAINST('abc' IN NATURAL LANGUAGE MODE WITH QUERY EXPANSION)"},
         )
         self.validate_all(
             "MATCH(col1, col2) AGAINST('abc' IN BOOLEAN MODE)",
@@ -703,9 +637,7 @@ class TestMySQL(Validator):
             "STR_TO_DATE(x, '%Y-%m-%d')",
             write={"presto": "CAST(DATE_PARSE(x, '%Y-%m-%d') AS DATE)"},
         )
-        self.validate_all(
-            "STR_TO_DATE(x, '%Y-%m-%dT%T')", write={"presto": "DATE_PARSE(x, '%Y-%m-%dT%T')"}
-        )
+        self.validate_all("STR_TO_DATE(x, '%Y-%m-%dT%T')", write={"presto": "DATE_PARSE(x, '%Y-%m-%dT%T')"})
         self.validate_all(
             "SELECT FROM_UNIXTIME(col)",
             read={
@@ -904,9 +836,7 @@ class TestMySQL(Validator):
                 "mysql": "SELECT DATE_ADD('2023-06-23 12:00:00', INTERVAL (2 * 2) MONTH) FROM foo",
             },
         )
-        self.validate_all(
-            "SELECT * FROM t LOCK IN SHARE MODE", write={"mysql": "SELECT * FROM t FOR SHARE"}
-        )
+        self.validate_all("SELECT * FROM t LOCK IN SHARE MODE", write={"mysql": "SELECT * FROM t FOR SHARE"})
         self.validate_all(
             "SELECT DATE(DATE_SUB(`dt`, INTERVAL DAYOFMONTH(`dt`) - 1 DAY)) AS __timestamp FROM tableT",
             write={
@@ -1016,15 +946,9 @@ class TestMySQL(Validator):
                 "postgres": "STRING_AGG(DISTINCT CONCAT(a, b, c), '' ORDER BY d NULLS FIRST)",
             },
         )
-        self.validate_identity(
-            "CREATE TABLE z (a INT) ENGINE=InnoDB AUTO_INCREMENT=1 CHARACTER SET=utf8 COLLATE=utf8_bin COMMENT='x'"
-        )
-        self.validate_identity(
-            "CREATE TABLE z (a INT) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARACTER SET=utf8 COLLATE=utf8_bin COMMENT='x'"
-        )
-        self.validate_identity(
-            "CREATE TABLE z (a INT DEFAULT NULL, PRIMARY KEY (a)) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARACTER SET=utf8 COLLATE=utf8_bin COMMENT='x'"
-        )
+        self.validate_identity("CREATE TABLE z (a INT) ENGINE=InnoDB AUTO_INCREMENT=1 CHARACTER SET=utf8 COLLATE=utf8_bin COMMENT='x'")
+        self.validate_identity("CREATE TABLE z (a INT) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARACTER SET=utf8 COLLATE=utf8_bin COMMENT='x'")
+        self.validate_identity("CREATE TABLE z (a INT DEFAULT NULL, PRIMARY KEY (a)) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARACTER SET=utf8 COLLATE=utf8_bin COMMENT='x'")
 
         self.validate_all(
             """
@@ -1190,9 +1114,7 @@ COMMENT='客户账户表'"""
         show = self.validate_identity("SHOW INDEX FROM foo FROM bar")
         self.assertEqual(show.text("db"), "bar")
 
-        self.validate_all(
-            "SHOW INDEX FROM bar.foo", write={"mysql": "SHOW INDEX FROM foo FROM bar"}
-        )
+        self.validate_all("SHOW INDEX FROM bar.foo", write={"mysql": "SHOW INDEX FROM foo FROM bar"})
 
     def test_show_db_like_or_where_sql(self):
         for key in [
@@ -1236,9 +1158,7 @@ COMMENT='客户账户表'"""
         show = self.validate_identity("SHOW PROFILE BLOCK IO")
         self.assertEqual(show.args["types"][0].name, "BLOCK IO")
 
-        show = self.validate_identity(
-            "SHOW PROFILE BLOCK IO, PAGE FAULTS FOR QUERY 1 OFFSET 2 LIMIT 3"
-        )
+        show = self.validate_identity("SHOW PROFILE BLOCK IO, PAGE FAULTS FOR QUERY 1 OFFSET 2 LIMIT 3")
         self.assertEqual(show.args["types"][0].name, "BLOCK IO")
         self.assertEqual(show.args["types"][1].name, "PAGE FAULTS")
         self.assertEqual(show.text("query"), "1")
@@ -1301,9 +1221,7 @@ COMMENT='客户账户表'"""
         self.validate_identity("SELECT JSON_OBJECT('id', 87, 'name', 'carrot')")
 
     def test_is_null(self):
-        self.validate_all(
-            "SELECT ISNULL(x)", write={"": "SELECT (x IS NULL)", "mysql": "SELECT (x IS NULL)"}
-        )
+        self.validate_all("SELECT ISNULL(x)", write={"": "SELECT (x IS NULL)", "mysql": "SELECT (x IS NULL)"})
 
     def test_monthname(self):
         self.validate_all(
@@ -1349,11 +1267,7 @@ COMMENT='客户账户表'"""
                 "YEAR",
             ):
                 with self.subTest(f"MySQL -> {dialect} Timestamp Trunc with unit {unit}: "):
-                    cast = (
-                        "TIMESTAMP('2001-02-16 20:38:40')"
-                        if dialect in hive_dialects
-                        else "CAST('2001-02-16 20:38:40' AS DATETIME)"
-                    )
+                    cast = "TIMESTAMP('2001-02-16 20:38:40')" if dialect in hive_dialects else "CAST('2001-02-16 20:38:40' AS DATETIME)"
                     self.validate_all(
                         f"DATE_ADD('0000-01-01 00:00:00', INTERVAL (TIMESTAMPDIFF({unit}, '0000-01-01 00:00:00', {cast})) {unit})",
                         read={
@@ -1376,14 +1290,10 @@ COMMENT='客户账户表'"""
     def test_json_value(self):
         json_doc = """'{"item": "shoes", "price": "49.95"}'"""
         self.validate_identity(f"""SELECT JSON_VALUE({json_doc}, '$.price')""")
-        self.validate_identity(
-            f"""SELECT JSON_VALUE({json_doc}, '$.price' RETURNING DECIMAL(4, 2))"""
-        )
+        self.validate_identity(f"""SELECT JSON_VALUE({json_doc}, '$.price' RETURNING DECIMAL(4, 2))""")
 
         for on_option in ("NULL", "ERROR", "DEFAULT 1"):
-            self.validate_identity(
-                f"""SELECT JSON_VALUE({json_doc}, '$.price' RETURNING DECIMAL(4, 2) {on_option} ON EMPTY {on_option} ON ERROR) AS price"""
-            )
+            self.validate_identity(f"""SELECT JSON_VALUE({json_doc}, '$.price' RETURNING DECIMAL(4, 2) {on_option} ON EMPTY {on_option} ON ERROR) AS price""")
 
     def test_grant(self):
         grant_cmds = [
@@ -1401,9 +1311,7 @@ COMMENT='客户账户表'"""
                 self.validate_identity(sql, check_command_warning=True)
 
     def test_explain(self):
-        self.validate_identity(
-            "EXPLAIN ANALYZE SELECT * FROM t", "DESCRIBE ANALYZE SELECT * FROM t"
-        )
+        self.validate_identity("EXPLAIN ANALYZE SELECT * FROM t", "DESCRIBE ANALYZE SELECT * FROM t")
 
         expression = self.parse_one("EXPLAIN ANALYZE SELECT * FROM t")
         self.assertIsInstance(expression, exp.Describe)

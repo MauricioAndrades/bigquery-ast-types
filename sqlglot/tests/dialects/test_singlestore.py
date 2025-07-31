@@ -28,9 +28,7 @@ class TestSingleStore(Validator):
     def test_restricted_keywords(self):
         self.validate_identity("SELECT * FROM abs", "SELECT * FROM `abs`")
         self.validate_identity("SELECT * FROM ABS", "SELECT * FROM `ABS`")
-        self.validate_identity(
-            "SELECT * FROM security_lists_intersect", "SELECT * FROM `security_lists_intersect`"
-        )
+        self.validate_identity("SELECT * FROM security_lists_intersect", "SELECT * FROM `security_lists_intersect`")
         self.validate_identity("SELECT * FROM vacuum", "SELECT * FROM `vacuum`")
 
     def test_time_formatting(self):

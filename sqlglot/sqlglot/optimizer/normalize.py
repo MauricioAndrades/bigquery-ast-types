@@ -39,15 +39,11 @@ def normalize(expression: exp.Expression, dnf: bool = False, max_distance: int =
             distance = normalization_distance(node, dnf=dnf, max_=max_distance)
 
             if distance > max_distance:
-                logger.info(
-                    f"Skipping normalization because distance {distance} exceeds max {max_distance}"
-                )
+                logger.info(f"Skipping normalization because distance {distance} exceeds max {max_distance}")
                 return expression
 
             try:
-                node = node.replace(
-                    while_changing(node, lambda e: distributive_law(e, dnf, max_distance))
-                )
+                node = node.replace(while_changing(node, lambda e: distributive_law(e, dnf, max_distance)))
             except OptimizeError as e:
                 logger.info(e)
                 node.replace(original)
@@ -80,14 +76,10 @@ def normalized(expression: exp.Expression, dnf: bool = False) -> bool:
             Default: False, i.e. we check if it's in Conjunctive Normal Form (CNF).
     """
     ancestor, root = (exp.And, exp.Or) if dnf else (exp.Or, exp.And)
-    return not any(
-        connector.find_ancestor(ancestor) for connector in find_all_in_scope(expression, root)
-    )
+    return not any(connector.find_ancestor(ancestor) for connector in find_all_in_scope(expression, root))
 
 
-def normalization_distance(
-    expression: exp.Expression, dnf: bool = False, max_: float = float("inf")
-) -> int:
+def normalization_distance(expression: exp.Expression, dnf: bool = False, max_: float = float("inf")) -> int:
     """
     The difference in the number of predicates between a given expression and its normalized form.
 

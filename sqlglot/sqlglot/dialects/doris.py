@@ -56,9 +56,7 @@ class Doris(MySQL):
             number = self._parse_number()
             unit = self._parse_var(any_token=True)
             every = self.expression(exp.Interval, this=number, unit=unit)
-            return self.expression(
-                exp.PartitionByRangePropertyDynamic, start=start, end=end, every=every
-            )
+            return self.expression(exp.PartitionByRangePropertyDynamic, start=start, end=end, every=every)
 
         def _parse_partition_definition(self) -> exp.Partition:
             self._match_text_seq("PARTITION")
@@ -139,9 +137,7 @@ class Doris(MySQL):
             exp.ArrayUniqueAgg: rename_func("COLLECT_SET"),
             exp.CurrentTimestamp: lambda self, _: self.func("NOW"),
             exp.DateTrunc: lambda self, e: self.func("DATE_TRUNC", e.this, unit_to_str(e)),
-            exp.GroupConcat: lambda self, e: self.func(
-                "GROUP_CONCAT", e.this, e.args.get("separator") or exp.Literal.string(",")
-            ),
+            exp.GroupConcat: lambda self, e: self.func("GROUP_CONCAT", e.this, e.args.get("separator") or exp.Literal.string(",")),
             exp.JSONExtractScalar: lambda self, e: self.func("JSON_EXTRACT", e.this, e.expression),
             exp.Lag: _lag_lead_sql,
             exp.Lead: _lag_lead_sql,
@@ -158,9 +154,7 @@ class Doris(MySQL):
             exp.TsOrDsToDate: lambda self, e: self.func("TO_DATE", e.this),
             exp.TimeToUnix: rename_func("UNIX_TIMESTAMP"),
             exp.TimestampTrunc: lambda self, e: self.func("DATE_TRUNC", e.this, unit_to_str(e)),
-            exp.UnixToStr: lambda self, e: self.func(
-                "FROM_UNIXTIME", e.this, time_format("doris")(self, e)
-            ),
+            exp.UnixToStr: lambda self, e: self.func("FROM_UNIXTIME", e.this, time_format("doris")(self, e)),
             exp.UnixToTime: rename_func("FROM_UNIXTIME"),
         }
 
@@ -651,9 +645,7 @@ class Doris(MySQL):
             if len(values) != 1:
                 # Multiple values: use VALUES [ ... )
                 if values and isinstance(values[0], list):
-                    values_sql = ", ".join(
-                        f"({', '.join(self.sql(v) for v in inner)})" for inner in values
-                    )
+                    values_sql = ", ".join(f"({', '.join(self.sql(v) for v in inner)})" for inner in values)
                 else:
                     values_sql = ", ".join(f"({self.sql(v)})" for v in values)
 
@@ -676,9 +668,7 @@ class Doris(MySQL):
             return f"FROM ({start}) TO ({end}) {interval}"
 
         def partitionbyrangeproperty_sql(self, expression):
-            partition_expressions = ", ".join(
-                self.sql(e) for e in expression.args.get("partition_expressions") or []
-            )
+            partition_expressions = ", ".join(self.sql(e) for e in expression.args.get("partition_expressions") or [])
             create_expressions = expression.args.get("create_expressions") or []
             # Handle both static and dynamic partition definitions
             create_sql = ", ".join(self.sql(e) for e in create_expressions)

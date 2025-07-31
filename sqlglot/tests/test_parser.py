@@ -130,9 +130,7 @@ class TestParser(unittest.TestCase):
 
     def test_union(self):
         self.assertIsInstance(parse_one("SELECT * FROM (SELECT 1) UNION SELECT 2"), exp.Union)
-        self.assertIsInstance(
-            parse_one("SELECT x FROM y HAVING x > (SELECT 1) UNION SELECT 2"), exp.Union
-        )
+        self.assertIsInstance(parse_one("SELECT x FROM y HAVING x > (SELECT 1) UNION SELECT 2"), exp.Union)
 
         # Check that modifiers are attached to the topmost union node and not the rightmost query
         single_union = "SELECT x FROM t1 UNION ALL SELECT x FROM t2 LIMIT 1"
@@ -141,9 +139,7 @@ class TestParser(unittest.TestCase):
         self.assertIsInstance(limit, exp.Limit)
         self.assertEqual(expr.sql(), single_union)
 
-        two_unions = (
-            "SELECT x FROM t1 UNION ALL SELECT x FROM t2 UNION ALL SELECT x FROM t3 LIMIT 1"
-        )
+        two_unions = "SELECT x FROM t1 UNION ALL SELECT x FROM t2 UNION ALL SELECT x FROM t3 LIMIT 1"
         expr = parse_one(two_unions)
         limit = expr.assert_is(exp.Union).args.get("limit")
         self.assertIsInstance(limit, exp.Limit)
@@ -156,17 +152,13 @@ class TestParser(unittest.TestCase):
     def test_select(self):
         self.assertIsNotNone(parse_one("select 1 natural"))
         self.assertIsNotNone(parse_one("select * from (select 1) x order by x.y").args["order"])
-        self.assertIsNotNone(
-            parse_one("select * from x where a = (select 1) order by x.y").args["order"]
-        )
+        self.assertIsNotNone(parse_one("select * from x where a = (select 1) order by x.y").args["order"])
         self.assertEqual(len(parse_one("select * from (select 1) x cross join y").args["joins"]), 1)
         self.assertEqual(
             parse_one("""SELECT * FROM x CROSS JOIN y, z LATERAL VIEW EXPLODE(y)""").sql(),
             """SELECT * FROM x CROSS JOIN y, z LATERAL VIEW EXPLODE(y)""",
         )
-        self.assertIsNone(
-            parse_one("create table a as (select b from c) index").find(exp.TableAlias)
-        )
+        self.assertIsNone(parse_one("create table a as (select b from c) index").find(exp.TableAlias))
 
     def test_command(self):
         with self.assertLogs(parser_logger) as cm:
@@ -203,9 +195,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(expression.args["modes"], [])
         self.assertEqual(expression.sql(), "BEGIN")
 
-        expression = parse_one(
-            "START TRANSACTION READ WRITE, ISOLATION LEVEL SERIALIZABLE", read="presto"
-        )
+        expression = parse_one("START TRANSACTION READ WRITE, ISOLATION LEVEL SERIALIZABLE", read="presto")
         self.assertIsNone(expression.this)
         self.assertEqual(expression.args["modes"][0], "READ WRITE")
         self.assertEqual(expression.args["modes"][1], "ISOLATION LEVEL SERIALIZABLE")
@@ -475,12 +465,8 @@ class TestParser(unittest.TestCase):
     def test_type_literals(self):
         self.assertEqual(parse_one("int 1"), parse_one("CAST(1 AS INT)"))
         self.assertEqual(parse_one("int.5"), parse_one("CAST(0.5 AS INT)"))
-        self.assertEqual(
-            parse_one("TIMESTAMP '2022-01-01'").sql(), "CAST('2022-01-01' AS TIMESTAMP)"
-        )
-        self.assertEqual(
-            parse_one("TIMESTAMP(1) '2022-01-01'").sql(), "CAST('2022-01-01' AS TIMESTAMP(1))"
-        )
+        self.assertEqual(parse_one("TIMESTAMP '2022-01-01'").sql(), "CAST('2022-01-01' AS TIMESTAMP)")
+        self.assertEqual(parse_one("TIMESTAMP(1) '2022-01-01'").sql(), "CAST('2022-01-01' AS TIMESTAMP(1))")
         self.assertEqual(
             parse_one("TIMESTAMP WITH TIME ZONE '2022-01-01'").sql(),
             "CAST('2022-01-01' AS TIMESTAMPTZ)",
@@ -767,9 +753,7 @@ class TestParser(unittest.TestCase):
                 with self.subTest(f"Testing query '{query}' for dialect {dialect}"):
                     expr = parse_one(query, read=dialect)
                     columns = expr.args["from"].this.args["pivots"][0].args["columns"]
-                    self.assertEqual(
-                        expected_columns, [col.sql(dialect=dialect) for col in columns]
-                    )
+                    self.assertEqual(expected_columns, [col.sql(dialect=dialect) for col in columns])
 
     def test_parse_nested(self):
         def warn_over_threshold(query: str, max_threshold: float = 0.2):
@@ -779,18 +763,14 @@ class TestParser(unittest.TestCase):
 
             self.assertIsNotNone(ast)
             if end >= max_threshold:
-                parser_logger.warning(
-                    f"Query {query[:100]}... surpassed the time threshold of {max_threshold} seconds"
-                )
+                parser_logger.warning(f"Query {query[:100]}... surpassed the time threshold of {max_threshold} seconds")
 
         warn_over_threshold("SELECT * FROM a " + ("LEFT JOIN b ON a.id = b.id " * 38))
         warn_over_threshold("SELECT * FROM a " + ("LEFT JOIN UNNEST(ARRAY[]) " * 15))
         warn_over_threshold("SELECT * FROM a " + ("OUTER APPLY (SELECT * FROM b) " * 30))
 
     def test_parse_properties(self):
-        self.assertEqual(
-            parse_one("create materialized table x").sql(), "CREATE MATERIALIZED TABLE x"
-        )
+        self.assertEqual(parse_one("create materialized table x").sql(), "CREATE MATERIALIZED TABLE x")
 
     def test_parse_floats(self):
         self.assertTrue(parse_one("1. ").is_number)
@@ -807,9 +787,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_parse_intervals(self):
-        ast = parse_one(
-            "SELECT a FROM tbl WHERE a <= DATE '1998-12-01' - INTERVAL '71 days' GROUP BY b"
-        )
+        ast = parse_one("SELECT a FROM tbl WHERE a <= DATE '1998-12-01' - INTERVAL '71 days' GROUP BY b")
 
         self.assertEqual(ast.find(exp.Interval).this.sql(), "'71'")
         self.assertEqual(ast.find(exp.Interval).unit.assert_is(exp.Var).sql(), "DAYS")
@@ -907,9 +885,7 @@ class TestParser(unittest.TestCase):
             """
         )
 
-        self.assertEqual(
-            ";\n".join(e.sql() for e in expressions), "SELECT * FROM x;\n/* my comment */"
-        )
+        self.assertEqual(";\n".join(e.sql() for e in expressions), "SELECT * FROM x;\n/* my comment */")
 
     def test_parse_prop_eq(self):
         self.assertIsInstance(parse_one("x(a := b and c)").expressions[0], exp.PropertyEQ)
@@ -923,9 +899,7 @@ class TestParser(unittest.TestCase):
         ]
 
         for collate_pair in collates:
-            collate_node = parse_one(
-                f"""SELECT * FROM t WHERE foo LIKE '%bar%' COLLATE {collate_pair[0]}"""
-            ).find(exp.Collate)
+            collate_node = parse_one(f"""SELECT * FROM t WHERE foo LIKE '%bar%' COLLATE {collate_pair[0]}""").find(exp.Collate)
             self.assertIsInstance(collate_node, exp.Collate)
             self.assertIsInstance(collate_node.expression, collate_pair[1])
 
@@ -958,9 +932,7 @@ class TestParser(unittest.TestCase):
         self.assertIsInstance(ast, exp.Year)
 
     def test_token_position_meta(self):
-        ast = parse_one(
-            "SELECT a, b FROM test_schema.test_table_a UNION ALL SELECT c, d FROM test_catalog.test_schema.test_table_b"
-        )
+        ast = parse_one("SELECT a, b FROM test_schema.test_table_a UNION ALL SELECT c, d FROM test_catalog.test_schema.test_table_b")
         for identifier in ast.find_all(exp.Identifier):
             self.assertEqual(set(identifier.meta), {"line", "col", "start", "end"})
 

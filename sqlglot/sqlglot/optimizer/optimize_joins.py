@@ -43,9 +43,7 @@ def optimize_joins(expression):
                     for predicate in on.flatten():
                         if name in exp.column_table_names(predicate):
                             predicate.replace(exp.true())
-                            predicate = exp._combine(
-                                [join.args.get("on"), predicate], operator, copy=False
-                            )
+                            predicate = exp._combine([join.args.get("on"), predicate], operator, copy=False)
                             join.on(predicate, append=False, copy=False)
 
     expression = reorder_joins(expression)

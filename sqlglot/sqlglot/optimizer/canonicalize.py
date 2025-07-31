@@ -40,13 +40,7 @@ def add_text_to_concat(node: exp.Expression) -> exp.Expression:
 
 
 def replace_date_funcs(node: exp.Expression, dialect: DialectType) -> exp.Expression:
-    if (
-        isinstance(node, (exp.Date, exp.TsOrDsToDate))
-        and not node.expressions
-        and not node.args.get("zone")
-        and node.this.is_string
-        and is_iso_date(node.this.name)
-    ):
+    if isinstance(node, (exp.Date, exp.TsOrDsToDate)) and not node.expressions and not node.args.get("zone") and node.this.is_string and is_iso_date(node.this.name):
         return exp.cast(node.this, to=exp.DataType.Type.DATE)
     if isinstance(node, exp.Timestamp) and not node.args.get("zone"):
         if not node.type:
@@ -77,9 +71,7 @@ def coerce_type(node: exp.Expression, promote_to_inferred_datetime_type: bool) -
         _coerce_date(node.left, node.right, promote_to_inferred_datetime_type)
     elif isinstance(node, exp.Between):
         _coerce_date(node.this, node.args["low"], promote_to_inferred_datetime_type)
-    elif isinstance(node, exp.Extract) and not node.expression.type.is_type(
-        *exp.DataType.TEMPORAL_TYPES
-    ):
+    elif isinstance(node, exp.Extract) and not node.expression.type.is_type(*exp.DataType.TEMPORAL_TYPES):
         _replace_cast(node.expression, exp.DataType.Type.DATETIME)
     elif isinstance(node, (exp.DateAdd, exp.DateSub, exp.DateTrunc)):
         _coerce_timeunit_arg(node.this, node.unit)
@@ -90,36 +82,23 @@ def coerce_type(node: exp.Expression, promote_to_inferred_datetime_type: bool) -
 
 
 def remove_redundant_casts(expression: exp.Expression) -> exp.Expression:
-    if (
-        isinstance(expression, exp.Cast)
-        and expression.this.type
-        and expression.to == expression.this.type
-    ):
+    if isinstance(expression, exp.Cast) and expression.this.type and expression.to == expression.this.type:
         return expression.this
 
-    if (
-        isinstance(expression, (exp.Date, exp.TsOrDsToDate))
-        and expression.this.type
-        and expression.this.type.this == exp.DataType.Type.DATE
-        and not expression.this.type.expressions
-    ):
+    if isinstance(expression, (exp.Date, exp.TsOrDsToDate)) and expression.this.type and expression.this.type.this == exp.DataType.Type.DATE and not expression.this.type.expressions:
         return expression.this
 
     return expression
 
 
-def ensure_bools(
-    expression: exp.Expression, replace_func: t.Callable[[exp.Expression], None]
-) -> exp.Expression:
+def ensure_bools(expression: exp.Expression, replace_func: t.Callable[[exp.Expression], None]) -> exp.Expression:
     if isinstance(expression, exp.Connector):
         replace_func(expression.left)
         replace_func(expression.right)
     elif isinstance(expression, exp.Not):
         replace_func(expression.this)
         # We can't replace num in CASE x WHEN num ..., because it's not the full predicate
-    elif isinstance(expression, exp.If) and not (
-        isinstance(expression.parent, exp.Case) and expression.parent.this
-    ):
+    elif isinstance(expression, exp.If) and not (isinstance(expression.parent, exp.Case) and expression.parent.this):
         replace_func(expression.this)
     elif isinstance(expression, (exp.Where, exp.Having)):
         replace_func(expression.this)
@@ -145,12 +124,7 @@ def _coerce_date(
             a = _coerce_timeunit_arg(a, b.unit)
 
         a_type = a.type
-        if (
-            not a_type
-            or a_type.this not in exp.DataType.TEMPORAL_TYPES
-            or not b.type
-            or b.type.this not in exp.DataType.TEXT_TYPES
-        ):
+        if not a_type or a_type.this not in exp.DataType.TEMPORAL_TYPES or not b.type or b.type.this not in exp.DataType.TEXT_TYPES:
             continue
 
         if promote_to_inferred_datetime_type:
@@ -167,9 +141,7 @@ def _coerce_date(
                 # in order to ensure there are no surprising truncations due to downcasting
                 b_type = exp.DataType.Type.DATETIME
 
-            target_type = (
-                b_type if b_type in TypeAnnotator.COERCES_TO.get(a_type.this, {}) else a_type
-            )
+            target_type = b_type if b_type in TypeAnnotator.COERCES_TO.get(a_type.this, {}) else a_type
         else:
             target_type = a_type
 

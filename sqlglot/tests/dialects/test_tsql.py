@@ -39,21 +39,11 @@ class TestTSQL(Validator):
         self.validate_identity("1 AND true", "1 <> 0 AND (1 = 1)")
         self.validate_identity("CAST(x AS int) OR y", "CAST(x AS INTEGER) <> 0 OR y <> 0")
         self.validate_identity("TRUNCATE TABLE t1 WITH (PARTITIONS(1, 2 TO 5, 10 TO 20, 84))")
-        self.validate_identity(
-            "SELECT TOP 10 s.RECORDID, n.c.VALUE('(/*:FORM_ROOT/*:SOME_TAG)[1]', 'float') AS SOME_TAG_VALUE FROM source_table.dbo.source_data AS s(nolock) CROSS APPLY FormContent.nodes('/*:FORM_ROOT') AS N(C)"
-        )
-        self.validate_identity(
-            "CREATE CLUSTERED INDEX [IX_OfficeTagDetail_TagDetailID] ON [dbo].[OfficeTagDetail]([TagDetailID] ASC)"
-        )
-        self.validate_identity(
-            "CREATE INDEX [x] ON [y]([z] ASC) WITH (allow_page_locks=on) ON X([y])"
-        )
-        self.validate_identity(
-            "CREATE INDEX [x] ON [y]([z] ASC) WITH (allow_page_locks=on) ON PRIMARY"
-        )
-        self.validate_identity(
-            "COPY INTO test_1 FROM 'path' WITH (FORMAT_NAME = test, FILE_TYPE = 'CSV', CREDENTIAL = (IDENTITY='Shared Access Signature', SECRET='token'), FIELDTERMINATOR = ';', ROWTERMINATOR = '0X0A', ENCODING = 'UTF8', DATEFORMAT = 'ymd', MAXERRORS = 10, ERRORFILE = 'errorsfolder', IDENTITY_INSERT = 'ON')"
-        )
+        self.validate_identity("SELECT TOP 10 s.RECORDID, n.c.VALUE('(/*:FORM_ROOT/*:SOME_TAG)[1]', 'float') AS SOME_TAG_VALUE FROM source_table.dbo.source_data AS s(nolock) CROSS APPLY FormContent.nodes('/*:FORM_ROOT') AS N(C)")
+        self.validate_identity("CREATE CLUSTERED INDEX [IX_OfficeTagDetail_TagDetailID] ON [dbo].[OfficeTagDetail]([TagDetailID] ASC)")
+        self.validate_identity("CREATE INDEX [x] ON [y]([z] ASC) WITH (allow_page_locks=on) ON X([y])")
+        self.validate_identity("CREATE INDEX [x] ON [y]([z] ASC) WITH (allow_page_locks=on) ON PRIMARY")
+        self.validate_identity("COPY INTO test_1 FROM 'path' WITH (FORMAT_NAME = test, FILE_TYPE = 'CSV', CREDENTIAL = (IDENTITY='Shared Access Signature', SECRET='token'), FIELDTERMINATOR = ';', ROWTERMINATOR = '0X0A', ENCODING = 'UTF8', DATEFORMAT = 'ymd', MAXERRORS = 10, ERRORFILE = 'errorsfolder', IDENTITY_INSERT = 'ON')")
         self.validate_identity(
             'SELECT 1 AS "[x]"',
             "SELECT 1 AS [[x]]]",
@@ -279,18 +269,14 @@ class TestTSQL(Validator):
             },
         )
 
-        self.validate_identity(
-            "CREATE TABLE tbl (a AS (x + 1) PERSISTED, b AS (y + 2), c AS (y / 3) PERSISTED NOT NULL)"
-        )
+        self.validate_identity("CREATE TABLE tbl (a AS (x + 1) PERSISTED, b AS (y + 2), c AS (y / 3) PERSISTED NOT NULL)")
 
         self.validate_identity(
             "CREATE TABLE [db].[tbl]([a] [int])",
             "CREATE TABLE [db].[tbl] ([a] INTEGER)",
         )
 
-        self.validate_identity("SELECT a = 1", "SELECT 1 AS a").selects[0].assert_is(
-            exp.Alias
-        ).args["alias"].assert_is(exp.Identifier)
+        self.validate_identity("SELECT a = 1", "SELECT 1 AS a").selects[0].assert_is(exp.Alias).args["alias"].assert_is(exp.Identifier)
 
         self.validate_all(
             "IF OBJECT_ID('tempdb.dbo.#TempTableName', 'U') IS NOT NULL DROP TABLE #TempTableName",
@@ -300,10 +286,7 @@ class TestTSQL(Validator):
             },
         )
 
-        self.validate_identity(
-            "MERGE INTO mytable WITH (HOLDLOCK) AS T USING mytable_merge AS S "
-            "ON (T.user_id = S.user_id) WHEN NOT MATCHED THEN INSERT (c1, c2) VALUES (S.c1, S.c2)"
-        )
+        self.validate_identity("MERGE INTO mytable WITH (HOLDLOCK) AS T USING mytable_merge AS S " "ON (T.user_id = S.user_id) WHEN NOT MATCHED THEN INSERT (c1, c2) VALUES (S.c1, S.c2)")
         self.validate_identity("UPDATE STATISTICS x", check_command_warning=True)
         self.validate_identity("UPDATE x SET y = 1 OUTPUT x.a, x.b INTO @y FROM y")
         self.validate_identity("UPDATE x SET y = 1 OUTPUT x.a, x.b FROM y")
@@ -326,15 +309,9 @@ class TestTSQL(Validator):
         self.validate_identity(
             "DECLARE @TestVariable AS VARCHAR(100) = 'Save Our Planet'",
         )
-        self.validate_identity(
-            "SELECT a = 1 UNION ALL SELECT a = b", "SELECT 1 AS a UNION ALL SELECT b AS a"
-        )
-        self.validate_identity(
-            "SELECT x FROM @MyTableVar AS m JOIN Employee ON m.EmployeeID = Employee.EmployeeID"
-        )
-        self.validate_identity(
-            "SELECT DISTINCT DepartmentName, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY BaseRate) OVER (PARTITION BY DepartmentName) AS MedianCont FROM dbo.DimEmployee"
-        )
+        self.validate_identity("SELECT a = 1 UNION ALL SELECT a = b", "SELECT 1 AS a UNION ALL SELECT b AS a")
+        self.validate_identity("SELECT x FROM @MyTableVar AS m JOIN Employee ON m.EmployeeID = Employee.EmployeeID")
+        self.validate_identity("SELECT DISTINCT DepartmentName, PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY BaseRate) OVER (PARTITION BY DepartmentName) AS MedianCont FROM dbo.DimEmployee")
         self.validate_identity(
             'SELECT "x"."y" FROM foo',
             "SELECT [x].[y] FROM foo",
@@ -474,9 +451,7 @@ class TestTSQL(Validator):
         self.validate_identity(
             "CREATE TABLE db.t1 (a INTEGER, b VARCHAR(50), CONSTRAINT c PRIMARY KEY (a DESC))",
         )
-        self.validate_identity(
-            "CREATE TABLE db.t1 (a INTEGER, b INTEGER, CONSTRAINT c PRIMARY KEY (a DESC, b))"
-        )
+        self.validate_identity("CREATE TABLE db.t1 (a INTEGER, b INTEGER, CONSTRAINT c PRIMARY KEY (a DESC, b))")
 
         self.validate_all(
             "SCHEMA_NAME(id)",
@@ -495,9 +470,7 @@ class TestTSQL(Validator):
         self.validate_identity("DECLARE @v1 AS INTEGER = 1, @v2 AS CHAR(1) = 'c'")
 
         for output in ("OUT", "OUTPUT", "READONLY"):
-            self.validate_identity(
-                f"CREATE PROCEDURE test(@v1 INTEGER = 1 {output}, @v2 CHAR(1) {output})"
-            )
+            self.validate_identity(f"CREATE PROCEDURE test(@v1 INTEGER = 1 {output}, @v2 CHAR(1) {output})")
 
         self.validate_identity(
             "CREATE PROCEDURE test(@v1 AS INTEGER = 1, @v2 AS CHAR(1) = 'c')",
@@ -558,9 +531,7 @@ class TestTSQL(Validator):
                 is_query_options = map(lambda o: isinstance(o, exp.QueryOption), options)
                 self.assertTrue(all(is_query_options), f"When parsing query {query}")
 
-            self.validate_identity(
-                f"{statement} OPTION(RECOMPILE, USE PLAN N'<xml_plan>', MAX_GRANT_PERCENT = 5)"
-            )
+            self.validate_identity(f"{statement} OPTION(RECOMPILE, USE PLAN N'<xml_plan>', MAX_GRANT_PERCENT = 5)")
 
         raising_queries = [
             # Missing parentheses
@@ -758,9 +729,7 @@ FOR XML
             write={"tsql": "CAST(x AS FLOAT(64))", "spark": "CAST(x AS DOUBLE)"},
         )
 
-        self.validate_all(
-            "CAST(x as FLOAT(6))", write={"tsql": "CAST(x AS FLOAT(6))", "hive": "CAST(x AS FLOAT)"}
-        )
+        self.validate_all("CAST(x as FLOAT(6))", write={"tsql": "CAST(x AS FLOAT(6))", "hive": "CAST(x AS FLOAT)"})
 
         self.validate_all(
             "CAST(x as FLOAT(36))",
@@ -956,9 +925,7 @@ FOR XML
 
         self.validate_all("SELECT TRUE AS a, FALSE AS b", write={"tsql": "SELECT 1 AS a, 0 AS b"})
 
-        self.validate_all(
-            "SELECT 1 FROM a WHERE TRUE", write={"tsql": "SELECT 1 FROM a WHERE (1 = 1)"}
-        )
+        self.validate_all("SELECT 1 FROM a WHERE TRUE", write={"tsql": "SELECT 1 FROM a WHERE (1 = 1)"})
 
         self.validate_all(
             "CASE WHEN TRUE THEN 'y' WHEN FALSE THEN 'n' ELSE NULL END",
@@ -972,20 +939,12 @@ FOR XML
         for view_attr in ("ENCRYPTION", "SCHEMABINDING", "VIEW_METADATA"):
             self.validate_identity(f"CREATE VIEW a.b WITH {view_attr} AS SELECT * FROM x")
 
-        self.validate_identity("ALTER TABLE dbo.DocExe DROP CONSTRAINT FK_Column_B").assert_is(
-            exp.Alter
-        ).args["actions"][0].assert_is(exp.Drop)
+        self.validate_identity("ALTER TABLE dbo.DocExe DROP CONSTRAINT FK_Column_B").assert_is(exp.Alter).args["actions"][0].assert_is(exp.Drop)
 
         for clustered_keyword in ("CLUSTERED", "NONCLUSTERED"):
             self.validate_identity(
-                'CREATE TABLE "dbo"."benchmark" ('
-                '"name" CHAR(7) NOT NULL, '
-                '"internal_id" VARCHAR(10) NOT NULL, '
-                f'UNIQUE {clustered_keyword} ("internal_id" ASC))',
-                "CREATE TABLE [dbo].[benchmark] ("
-                "[name] CHAR(7) NOT NULL, "
-                "[internal_id] VARCHAR(10) NOT NULL, "
-                f"UNIQUE {clustered_keyword} ([internal_id] ASC))",
+                'CREATE TABLE "dbo"."benchmark" (' '"name" CHAR(7) NOT NULL, ' '"internal_id" VARCHAR(10) NOT NULL, ' f'UNIQUE {clustered_keyword} ("internal_id" ASC))',
+                "CREATE TABLE [dbo].[benchmark] (" "[name] CHAR(7) NOT NULL, " "[internal_id] VARCHAR(10) NOT NULL, " f"UNIQUE {clustered_keyword} ([internal_id] ASC))",
             )
 
         self.validate_identity("CREATE SCHEMA testSchema")
@@ -994,15 +953,9 @@ FOR XML
         self.validate_identity("ALTER TABLE tbl SET (FILESTREAM_ON = 'test')")
         self.validate_identity("ALTER TABLE tbl SET (DATA_DELETION=ON)")
         self.validate_identity("ALTER TABLE tbl SET (DATA_DELETION=OFF)")
-        self.validate_identity(
-            "ALTER TABLE tbl SET (SYSTEM_VERSIONING=ON(HISTORY_TABLE=db.tbl, DATA_CONSISTENCY_CHECK=OFF, HISTORY_RETENTION_PERIOD=5 DAYS))"
-        )
-        self.validate_identity(
-            "ALTER TABLE tbl SET (SYSTEM_VERSIONING=ON(HISTORY_TABLE=db.tbl, HISTORY_RETENTION_PERIOD=INFINITE))"
-        )
-        self.validate_identity(
-            "ALTER TABLE tbl SET (DATA_DELETION=ON(FILTER_COLUMN=col, RETENTION_PERIOD=5 MONTHS))"
-        )
+        self.validate_identity("ALTER TABLE tbl SET (SYSTEM_VERSIONING=ON(HISTORY_TABLE=db.tbl, DATA_CONSISTENCY_CHECK=OFF, HISTORY_RETENTION_PERIOD=5 DAYS))")
+        self.validate_identity("ALTER TABLE tbl SET (SYSTEM_VERSIONING=ON(HISTORY_TABLE=db.tbl, HISTORY_RETENTION_PERIOD=INFINITE))")
+        self.validate_identity("ALTER TABLE tbl SET (DATA_DELETION=ON(FILTER_COLUMN=col, RETENTION_PERIOD=5 MONTHS))")
 
         self.validate_identity("ALTER VIEW v AS SELECT a, b, c, d FROM foo")
         self.validate_identity("ALTER VIEW v AS SELECT * FROM foo WHERE c > 100")
@@ -1126,9 +1079,7 @@ WHERE
         )
         self.validate_all(
             "IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'baz' AND TABLE_SCHEMA = 'bar' AND TABLE_CATALOG = 'foo') EXEC('WITH cte1 AS (SELECT 1 AS col_a), cte2 AS (SELECT 1 AS col_b) SELECT * INTO foo.bar.baz FROM (SELECT col_a FROM cte1 UNION ALL SELECT col_b FROM cte2) AS temp')",
-            read={
-                "": "CREATE TABLE IF NOT EXISTS foo.bar.baz AS WITH cte1 AS (SELECT 1 AS col_a), cte2 AS (SELECT 1 AS col_b) SELECT col_a FROM cte1 UNION ALL SELECT col_b FROM cte2"
-            },
+            read={"": "CREATE TABLE IF NOT EXISTS foo.bar.baz AS WITH cte1 AS (SELECT 1 AS col_a), cte2 AS (SELECT 1 AS col_b) SELECT col_a FROM cte1 UNION ALL SELECT col_b FROM cte2"},
         )
         self.validate_all(
             "CREATE OR ALTER VIEW a.b AS SELECT 1",
@@ -1167,9 +1118,7 @@ WHERE
             },
         )
 
-        constraint = self.validate_identity(
-            "ALTER TABLE tbl ADD CONSTRAINT cnstr PRIMARY KEY CLUSTERED (ID), CONSTRAINT cnstr2 UNIQUE CLUSTERED (ID)"
-        ).find(exp.AddConstraint)
+        constraint = self.validate_identity("ALTER TABLE tbl ADD CONSTRAINT cnstr PRIMARY KEY CLUSTERED (ID), CONSTRAINT cnstr2 UNIQUE CLUSTERED (ID)").find(exp.AddConstraint)
         assert constraint
         assert len(list(constraint.find_all(exp.Constraint))) == 2
 
@@ -1187,12 +1136,8 @@ WHERE
         self.validate_identity("COMMIT TRANSACTION transaction_name")
         self.validate_identity("COMMIT TRANSACTION @tran_name_variable")
 
-        self.validate_identity(
-            "COMMIT TRANSACTION @tran_name_variable WITH (DELAYED_DURABILITY = ON)"
-        )
-        self.validate_identity(
-            "COMMIT TRANSACTION transaction_name WITH (DELAYED_DURABILITY = OFF)"
-        )
+        self.validate_identity("COMMIT TRANSACTION @tran_name_variable WITH (DELAYED_DURABILITY = ON)")
+        self.validate_identity("COMMIT TRANSACTION transaction_name WITH (DELAYED_DURABILITY = OFF)")
 
     def test_rollback(self):
         self.validate_all("ROLLBACK", write={"tsql": "ROLLBACK TRANSACTION"})
@@ -1205,12 +1150,8 @@ WHERE
         self.validate_identity(
             "DECLARE @DWH_DateCreated AS DATETIME2 = CONVERT(DATETIME2, GETDATE(), 104)",
         )
-        self.validate_identity(
-            "CREATE PROCEDURE foo @a INTEGER, @b INTEGER AS SELECT @a = SUM(bla) FROM baz AS bar"
-        )
-        self.validate_identity(
-            "CREATE PROC foo @ID INTEGER, @AGE INTEGER AS SELECT DB_NAME(@ID) AS ThatDB"
-        )
+        self.validate_identity("CREATE PROCEDURE foo @a INTEGER, @b INTEGER AS SELECT @a = SUM(bla) FROM baz AS bar")
+        self.validate_identity("CREATE PROC foo @ID INTEGER, @AGE INTEGER AS SELECT DB_NAME(@ID) AS ThatDB")
         self.validate_identity("CREATE PROC foo AS SELECT BAR() AS baz")
         self.validate_identity("CREATE PROCEDURE foo AS SELECT BAR() AS baz")
 
@@ -1220,9 +1161,7 @@ WHERE
         self.validate_identity("CREATE PROCEDURE foo WITH NATIVE_COMPILATION AS SELECT 1")
         self.validate_identity("CREATE PROCEDURE foo WITH EXECUTE AS OWNER AS SELECT 1")
         self.validate_identity("CREATE PROCEDURE foo WITH EXECUTE AS 'username' AS SELECT 1")
-        self.validate_identity(
-            "CREATE PROCEDURE foo WITH EXECUTE AS OWNER, SCHEMABINDING, NATIVE_COMPILATION AS SELECT 1"
-        )
+        self.validate_identity("CREATE PROCEDURE foo WITH EXECUTE AS OWNER, SCHEMABINDING, NATIVE_COMPILATION AS SELECT 1")
 
         self.validate_identity("CREATE FUNCTION foo(@bar INTEGER) RETURNS TABLE AS RETURN SELECT 1")
         self.validate_identity("CREATE FUNCTION dbo.ISOweek(@DATE DATETIME2) RETURNS INTEGER")
@@ -1232,12 +1171,8 @@ WHERE
         #
         # See also "Transact-SQL Multi-Statement Table-Valued Function Syntax"
         # https://learn.microsoft.com/en-us/sql/t-sql/statements/create-function-transact-sql?view=sql-server-ver16
-        self.validate_identity(
-            "CREATE FUNCTION foo(@bar INTEGER) RETURNS @foo TABLE (x INTEGER, y NUMERIC) AS RETURN SELECT 1"
-        )
-        self.validate_identity(
-            "CREATE FUNCTION foo() RETURNS @contacts TABLE (first_name VARCHAR(50), phone VARCHAR(25)) AS SELECT @fname, @phone"
-        )
+        self.validate_identity("CREATE FUNCTION foo(@bar INTEGER) RETURNS @foo TABLE (x INTEGER, y NUMERIC) AS RETURN SELECT 1")
+        self.validate_identity("CREATE FUNCTION foo() RETURNS @contacts TABLE (first_name VARCHAR(50), phone VARCHAR(25)) AS SELECT @fname, @phone")
 
         self.validate_all(
             """
@@ -1332,9 +1267,7 @@ WHERE
             self.assertEqual(expr.sql(dialect="tsql"), expected_sql)
 
     def test_charindex(self):
-        self.validate_identity(
-            "SELECT CAST(SUBSTRING('ABCD~1234', CHARINDEX('~', 'ABCD~1234') + 1, LEN('ABCD~1234')) AS BIGINT)"
-        )
+        self.validate_identity("SELECT CAST(SUBSTRING('ABCD~1234', CHARINDEX('~', 'ABCD~1234') + 1, LEN('ABCD~1234')) AS BIGINT)")
 
         self.validate_all(
             "CHARINDEX(x, y, 9)",
@@ -1378,9 +1311,7 @@ WHERE
         )
 
     def test_len(self):
-        self.validate_all(
-            "LEN(x)", read={"": "LENGTH(x)"}, write={"spark": "LENGTH(CAST(x AS STRING))"}
-        )
+        self.validate_all("LEN(x)", read={"": "LENGTH(x)"}, write={"spark": "LENGTH(CAST(x AS STRING))"})
         self.validate_all(
             "RIGHT(x, 1)",
             read={"": "RIGHT(CAST(x AS STRING), 1)"},
@@ -1969,23 +1900,11 @@ WHERE
         )
 
     def test_identifier_prefixes(self):
-        self.assertTrue(
-            self.validate_identity("#x")
-            .assert_is(exp.Column)
-            .this.assert_is(exp.Identifier)
-            .args.get("temporary")
-        )
-        self.assertTrue(
-            self.validate_identity("##x")
-            .assert_is(exp.Column)
-            .this.assert_is(exp.Identifier)
-            .args.get("global")
-        )
+        self.assertTrue(self.validate_identity("#x").assert_is(exp.Column).this.assert_is(exp.Identifier).args.get("temporary"))
+        self.assertTrue(self.validate_identity("##x").assert_is(exp.Column).this.assert_is(exp.Identifier).args.get("global"))
 
         self.validate_identity("@x").assert_is(exp.Parameter).this.assert_is(exp.Var)
-        self.validate_identity("SELECT * FROM @x").args["from"].this.assert_is(
-            exp.Table
-        ).this.assert_is(exp.Parameter).this.assert_is(exp.Var)
+        self.validate_identity("SELECT * FROM @x").args["from"].this.assert_is(exp.Table).this.assert_is(exp.Parameter).this.assert_is(exp.Var)
 
         self.validate_all(
             "SELECT @x",
@@ -2018,21 +1937,11 @@ WHERE
             """CREATE TABLE test ("data" CHAR(7), "valid_from" DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, "valid_to" DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ("valid_from", "valid_to")) WITH(SYSTEM_VERSIONING=ON)""",
             "CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON)",
         )
-        self.validate_identity(
-            """CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START HIDDEN NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END HIDDEN NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history], DATA_CONSISTENCY_CHECK=ON))"""
-        )
-        self.validate_identity(
-            """CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history], DATA_CONSISTENCY_CHECK=ON))"""
-        )
-        self.validate_identity(
-            """CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history], DATA_CONSISTENCY_CHECK=OFF))"""
-        )
-        self.validate_identity(
-            """CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history]))"""
-        )
-        self.validate_identity(
-            """CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history]))"""
-        )
+        self.validate_identity("""CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START HIDDEN NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END HIDDEN NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history], DATA_CONSISTENCY_CHECK=ON))""")
+        self.validate_identity("""CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history], DATA_CONSISTENCY_CHECK=ON))""")
+        self.validate_identity("""CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history], DATA_CONSISTENCY_CHECK=OFF))""")
+        self.validate_identity("""CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history]))""")
+        self.validate_identity("""CREATE TABLE test ([data] CHAR(7), [valid_from] DATETIME2(2) GENERATED ALWAYS AS ROW START NOT NULL, [valid_to] DATETIME2(2) GENERATED ALWAYS AS ROW END NOT NULL, PERIOD FOR SYSTEM_TIME ([valid_from], [valid_to])) WITH(SYSTEM_VERSIONING=ON(HISTORY_TABLE=[dbo].[benchmark_history]))""")
 
     def test_system_time(self):
         self.validate_identity("SELECT [x] FROM [a].[b] FOR SYSTEM_TIME AS OF 'foo'")
@@ -2175,9 +2084,7 @@ FROM OPENJSON(@json) WITH (
         # supported cases
         self.validate_identity("DECLARE @X INT", "DECLARE @X AS INTEGER")
         self.validate_identity("DECLARE @X INT = 1", "DECLARE @X AS INTEGER = 1")
-        self.validate_identity(
-            "DECLARE @X INT, @Y VARCHAR(10)", "DECLARE @X AS INTEGER, @Y AS VARCHAR(10)"
-        )
+        self.validate_identity("DECLARE @X INT, @Y VARCHAR(10)", "DECLARE @X AS INTEGER, @Y AS VARCHAR(10)")
         self.validate_identity(
             "declare @X int = (select col from table where id = 1)",
             "DECLARE @X AS INTEGER = (SELECT col FROM table WHERE id = 1)",
@@ -2256,9 +2163,7 @@ FROM OPENJSON(@json) WITH (
     def test_grant(self):
         self.validate_identity("GRANT EXECUTE ON TestProc TO User2")
         self.validate_identity("GRANT EXECUTE ON TestProc TO TesterRole WITH GRANT OPTION")
-        self.validate_identity(
-            "GRANT EXECUTE ON TestProc TO User2 AS TesterRole", check_command_warning=True
-        )
+        self.validate_identity("GRANT EXECUTE ON TestProc TO User2 AS TesterRole", check_command_warning=True)
 
     def test_parsename(self):
         for i in range(4):
@@ -2297,9 +2202,7 @@ FROM OPENJSON(@json) WITH (
         )
 
     def test_next_value_for(self):
-        self.validate_identity(
-            "SELECT NEXT VALUE FOR db.schema.sequence_name OVER (ORDER BY foo), col"
-        )
+        self.validate_identity("SELECT NEXT VALUE FOR db.schema.sequence_name OVER (ORDER BY foo), col")
         self.validate_all(
             "SELECT NEXT VALUE FOR db.schema.sequence_name",
             read={
@@ -2336,6 +2239,4 @@ FROM OPENJSON(@json) WITH (
         )
 
     def test_collation_parse(self):
-        self.validate_identity("ALTER TABLE a ALTER COLUMN b CHAR(10) COLLATE abc").assert_is(
-            exp.Alter
-        ).args.get("actions")[0].args.get("collate").this.assert_is(exp.Var)
+        self.validate_identity("ALTER TABLE a ALTER COLUMN b CHAR(10) COLLATE abc").assert_is(exp.Alter).args.get("actions")[0].args.get("collate").this.assert_is(exp.Var)

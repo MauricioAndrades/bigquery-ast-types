@@ -105,9 +105,7 @@ def diff(
     """
     matchings = matchings or []
 
-    def compute_node_mappings(
-        old_nodes: tuple[exp.Expression, ...], new_nodes: tuple[exp.Expression, ...]
-    ) -> t.Dict[int, exp.Expression]:
+    def compute_node_mappings(old_nodes: tuple[exp.Expression, ...], new_nodes: tuple[exp.Expression, ...]) -> t.Dict[int, exp.Expression]:
         node_mapping = {}
         for old_node, new_node in zip(reversed(old_nodes), reversed(new_nodes)):
             new_node._hash = hash(new_node)
@@ -122,11 +120,7 @@ def diff(
     source_ids = {id(n) for n in source_nodes}
     target_ids = {id(n) for n in target_nodes}
 
-    copy = (
-        len(source_nodes) != len(source_ids)
-        or len(target_nodes) != len(target_ids)
-        or source_ids & target_ids
-    )
+    copy = len(source_nodes) != len(source_ids) or len(target_nodes) != len(target_ids) or source_ids & target_ids
 
     source_copy = source.copy() if copy else source
     target_copy = target.copy() if copy else target
@@ -195,12 +189,8 @@ class ChangeDistiller:
 
         self._source = source
         self._target = target
-        self._source_index = {
-            id(n): n for n in self._source.bfs() if not isinstance(n, IGNORED_LEAF_EXPRESSION_TYPES)
-        }
-        self._target_index = {
-            id(n): n for n in self._target.bfs() if not isinstance(n, IGNORED_LEAF_EXPRESSION_TYPES)
-        }
+        self._source_index = {id(n): n for n in self._source.bfs() if not isinstance(n, IGNORED_LEAF_EXPRESSION_TYPES)}
+        self._target_index = {id(n): n for n in self._target.bfs() if not isinstance(n, IGNORED_LEAF_EXPRESSION_TYPES)}
         self._unmatched_source_nodes = set(self._source_index) - set(pre_matched_nodes)
         self._unmatched_target_nodes = set(self._target_index) - set(pre_matched_nodes.values())
         self._bigram_histo_cache: t.Dict[int, t.DefaultDict[str, int]] = {}
@@ -225,20 +215,10 @@ class ChangeDistiller:
                     source_parent = source_node.parent
                     target_parent = target_node.parent
 
-                    if (
-                        (source_parent and not target_parent)
-                        or (not source_parent and target_parent)
-                        or (
-                            source_parent
-                            and target_parent
-                            and matchings.get(id(source_parent)) != id(target_parent)
-                        )
-                    ):
+                    if (source_parent and not target_parent) or (not source_parent and target_parent) or (source_parent and target_parent and matchings.get(id(source_parent)) != id(target_parent)):
                         edit_script.append(Move(source=source_node, target=target_node))
                 else:
-                    edit_script.extend(
-                        self._generate_move_edits(source_node, target_node, matchings)
-                    )
+                    edit_script.extend(self._generate_move_edits(source_node, target_node, matchings))
 
                 source_non_expression_leaves = dict(_get_non_expression_leaves(source_node))
                 target_non_expression_leaves = dict(_get_non_expression_leaves(target_node))
@@ -252,22 +232,16 @@ class ChangeDistiller:
 
         return edit_script
 
-    def _generate_move_edits(
-        self, source: exp.Expression, target: exp.Expression, matchings: t.Dict[int, int]
-    ) -> t.List[Move]:
+    def _generate_move_edits(self, source: exp.Expression, target: exp.Expression, matchings: t.Dict[int, int]) -> t.List[Move]:
         source_args = [id(e) for e in _expression_only_args(source)]
         target_args = [id(e) for e in _expression_only_args(target)]
 
-        args_lcs = set(
-            _lcs(source_args, target_args, lambda l, r: matchings.get(t.cast(int, l)) == r)
-        )
+        args_lcs = set(_lcs(source_args, target_args, lambda l, r: matchings.get(t.cast(int, l)) == r))
 
         move_edits = []
         for a in source_args:
             if a not in args_lcs and a not in self._unmatched_source_nodes:
-                move_edits.append(
-                    Move(source=self._source_index[a], target=self._target_index[matchings[a]])
-                )
+                move_edits.append(Move(source=self._source_index[a], target=self._target_index[matchings[a]]))
 
         return move_edits
 
@@ -275,12 +249,8 @@ class ChangeDistiller:
         leaves_matching_set = self._compute_leaf_matching_set()
         matching_set = leaves_matching_set.copy()
 
-        ordered_unmatched_source_nodes = {
-            id(n): None for n in self._source.bfs() if id(n) in self._unmatched_source_nodes
-        }
-        ordered_unmatched_target_nodes = {
-            id(n): None for n in self._target.bfs() if id(n) in self._unmatched_target_nodes
-        }
+        ordered_unmatched_source_nodes = {id(n): None for n in self._source.bfs() if id(n) in self._unmatched_source_nodes}
+        ordered_unmatched_target_nodes = {id(n): None for n in self._target.bfs() if id(n) in self._unmatched_target_nodes}
 
         for source_node_id in ordered_unmatched_source_nodes:
             for target_node_id in ordered_unmatched_target_nodes:
@@ -292,22 +262,14 @@ class ChangeDistiller:
 
                     max_leaves_num = max(len(source_leaf_ids), len(target_leaf_ids))
                     if max_leaves_num:
-                        common_leaves_num = sum(
-                            1 if s in source_leaf_ids and t in target_leaf_ids else 0
-                            for s, t in leaves_matching_set
-                        )
+                        common_leaves_num = sum(1 if s in source_leaf_ids and t in target_leaf_ids else 0 for s, t in leaves_matching_set)
                         leaf_similarity_score = common_leaves_num / max_leaves_num
                     else:
                         leaf_similarity_score = 0.0
 
-                    adjusted_t = (
-                        self.t if min(len(source_leaf_ids), len(target_leaf_ids)) > 4 else 0.4
-                    )
+                    adjusted_t = self.t if min(len(source_leaf_ids), len(target_leaf_ids)) > 4 else 0.4
 
-                    if leaf_similarity_score >= 0.8 or (
-                        leaf_similarity_score >= adjusted_t
-                        and self._dice_coefficient(source_node, target_node) >= self.f
-                    ):
+                    if leaf_similarity_score >= 0.8 or (leaf_similarity_score >= adjusted_t and self._dice_coefficient(source_node, target_node) >= self.f):
                         matching_set.add((source_node_id, target_node_id))
                         self._unmatched_source_nodes.remove(source_node_id)
                         self._unmatched_target_nodes.remove(target_node_id)
@@ -340,10 +302,7 @@ class ChangeDistiller:
         matching_set = set()
         while candidate_matchings:
             _, _, _, source_leaf, target_leaf = heappop(candidate_matchings)
-            if (
-                id(source_leaf) in self._unmatched_source_nodes
-                and id(target_leaf) in self._unmatched_target_nodes
-            ):
+            if id(source_leaf) in self._unmatched_source_nodes and id(target_leaf) in self._unmatched_target_nodes:
                 matching_set.add((id(source_leaf), id(target_leaf)))
                 self._unmatched_source_nodes.remove(id(source_leaf))
                 self._unmatched_target_nodes.remove(id(target_leaf))
@@ -393,9 +352,7 @@ def _get_expression_leaves(expression: exp.Expression) -> t.Iterator[exp.Express
 
 def _get_non_expression_leaves(expression: exp.Expression) -> t.Iterator[t.Tuple[str, t.Any]]:
     for arg, value in expression.args.items():
-        if isinstance(value, exp.Expression) or (
-            isinstance(value, list) and isinstance(seq_get(value, 0), exp.Expression)
-        ):
+        if isinstance(value, exp.Expression) or (isinstance(value, list) and isinstance(seq_get(value, 0), exp.Expression)):
             continue
 
         yield (arg, value)
@@ -414,9 +371,7 @@ def _is_same_type(source: exp.Expression, target: exp.Expression) -> bool:
     return False
 
 
-def _parent_similarity_score(
-    source: t.Optional[exp.Expression], target: t.Optional[exp.Expression]
-) -> int:
+def _parent_similarity_score(source: t.Optional[exp.Expression], target: t.Optional[exp.Expression]) -> int:
     if source is None or target is None or type(source) is not type(target):
         return 0
 
@@ -424,16 +379,10 @@ def _parent_similarity_score(
 
 
 def _expression_only_args(expression: exp.Expression) -> t.Iterator[exp.Expression]:
-    yield from (
-        arg
-        for arg in expression.iter_expressions()
-        if not isinstance(arg, IGNORED_LEAF_EXPRESSION_TYPES)
-    )
+    yield from (arg for arg in expression.iter_expressions() if not isinstance(arg, IGNORED_LEAF_EXPRESSION_TYPES))
 
 
-def _lcs(
-    seq_a: t.Sequence[T], seq_b: t.Sequence[T], equal: t.Callable[[T, T], bool]
-) -> t.Sequence[t.Optional[T]]:
+def _lcs(seq_a: t.Sequence[T], seq_b: t.Sequence[T], equal: t.Callable[[T, T], bool]) -> t.Sequence[t.Optional[T]]:
     """Calculates the longest common subsequence"""
 
     len_a = len(seq_a)
@@ -447,10 +396,6 @@ def _lcs(
             elif equal(seq_a[i - 1], seq_b[j - 1]):
                 lcs_result[i][j] = lcs_result[i - 1][j - 1] + [seq_a[i - 1]]  # type: ignore
             else:
-                lcs_result[i][j] = (
-                    lcs_result[i - 1][j]
-                    if len(lcs_result[i - 1][j]) > len(lcs_result[i][j - 1])  # type: ignore
-                    else lcs_result[i][j - 1]
-                )
+                lcs_result[i][j] = lcs_result[i - 1][j] if len(lcs_result[i - 1][j]) > len(lcs_result[i][j - 1]) else lcs_result[i][j - 1]  # type: ignore
 
     return lcs_result[len_a][len_b]  # type: ignore

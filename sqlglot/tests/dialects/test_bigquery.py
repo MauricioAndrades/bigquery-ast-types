@@ -145,39 +145,17 @@ class TestBigQuery(Validator):
         self.validate_identity("CAST(x AS TIMESTAMPTZ)", "CAST(x AS TIMESTAMP)")
         self.validate_identity("CAST(x AS RECORD)", "CAST(x AS STRUCT)")
         self.validate_identity("SELECT * FROM x WHERE x.y >= (SELECT MAX(a) FROM b-c) - 20")
-        self.validate_identity(
-            "SELECT FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', CURRENT_TIMESTAMP(), 'Europe/Berlin') AS ts"
-        )
-        self.validate_identity(
-            "SELECT cars, apples FROM some_table PIVOT(SUM(total_counts) FOR products IN ('general.cars' AS cars, 'food.apples' AS apples))"
-        )
-        self.validate_identity(
-            "MERGE INTO dataset.NewArrivals USING (SELECT * FROM UNNEST([('microwave', 10, 'warehouse #1'), ('dryer', 30, 'warehouse #1'), ('oven', 20, 'warehouse #2')])) ON FALSE WHEN NOT MATCHED THEN INSERT ROW WHEN NOT MATCHED BY SOURCE THEN DELETE"
-        )
-        self.validate_identity(
-            "SELECT * FROM test QUALIFY a IS DISTINCT FROM b WINDOW c AS (PARTITION BY d)"
-        )
-        self.validate_identity(
-            "FOR record IN (SELECT word, word_count FROM bigquery-public-data.samples.shakespeare LIMIT 5) DO SELECT record.word, record.word_count"
-        )
-        self.validate_identity(
-            "DATE(CAST('2016-12-25 05:30:00+07' AS DATETIME), 'America/Los_Angeles')"
-        )
-        self.validate_identity(
-            """CREATE TABLE x (a STRING OPTIONS (description='x')) OPTIONS (table_expiration_days=1)"""
-        )
-        self.validate_identity(
-            "SELECT * FROM (SELECT * FROM `t`) AS a UNPIVOT((c) FOR c_name IN (v1, v2))"
-        )
-        self.validate_identity(
-            "CREATE TABLE IF NOT EXISTS foo AS SELECT * FROM bla EXCEPT DISTINCT (SELECT * FROM bar) LIMIT 0"
-        )
-        self.validate_identity(
-            "SELECT ROW() OVER (y ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM x WINDOW y AS (PARTITION BY CATEGORY)"
-        )
-        self.validate_identity(
-            "SELECT item, purchases, LAST_VALUE(item) OVER (item_window ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) AS most_popular FROM Produce WINDOW item_window AS (ORDER BY purchases)"
-        )
+        self.validate_identity("SELECT FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', CURRENT_TIMESTAMP(), 'Europe/Berlin') AS ts")
+        self.validate_identity("SELECT cars, apples FROM some_table PIVOT(SUM(total_counts) FOR products IN ('general.cars' AS cars, 'food.apples' AS apples))")
+        self.validate_identity("MERGE INTO dataset.NewArrivals USING (SELECT * FROM UNNEST([('microwave', 10, 'warehouse #1'), ('dryer', 30, 'warehouse #1'), ('oven', 20, 'warehouse #2')])) ON FALSE WHEN NOT MATCHED THEN INSERT ROW WHEN NOT MATCHED BY SOURCE THEN DELETE")
+        self.validate_identity("SELECT * FROM test QUALIFY a IS DISTINCT FROM b WINDOW c AS (PARTITION BY d)")
+        self.validate_identity("FOR record IN (SELECT word, word_count FROM bigquery-public-data.samples.shakespeare LIMIT 5) DO SELECT record.word, record.word_count")
+        self.validate_identity("DATE(CAST('2016-12-25 05:30:00+07' AS DATETIME), 'America/Los_Angeles')")
+        self.validate_identity("""CREATE TABLE x (a STRING OPTIONS (description='x')) OPTIONS (table_expiration_days=1)""")
+        self.validate_identity("SELECT * FROM (SELECT * FROM `t`) AS a UNPIVOT((c) FOR c_name IN (v1, v2))")
+        self.validate_identity("CREATE TABLE IF NOT EXISTS foo AS SELECT * FROM bla EXCEPT DISTINCT (SELECT * FROM bar) LIMIT 0")
+        self.validate_identity("SELECT ROW() OVER (y ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) FROM x WINDOW y AS (PARTITION BY CATEGORY)")
+        self.validate_identity("SELECT item, purchases, LAST_VALUE(item) OVER (item_window ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) AS most_popular FROM Produce WINDOW item_window AS (ORDER BY purchases)")
         self.validate_identity(
             "SELECT LAST_VALUE(a IGNORE NULLS) OVER y FROM x WINDOW y AS (PARTITION BY CATEGORY)",
         )
@@ -977,9 +955,7 @@ LANGUAGE js AS
         )
         self.validate_all(
             "WITH cte AS (SELECT [1, 2, 3] AS arr) SELECT IF(pos = pos_2, col, NULL) AS col FROM cte CROSS JOIN UNNEST(GENERATE_ARRAY(0, GREATEST(ARRAY_LENGTH(arr)) - 1)) AS pos CROSS JOIN UNNEST(arr) AS col WITH OFFSET AS pos_2 WHERE pos = pos_2 OR (pos > (ARRAY_LENGTH(arr) - 1) AND pos_2 = (ARRAY_LENGTH(arr) - 1))",
-            read={
-                "spark": "WITH cte AS (SELECT ARRAY(1, 2, 3) AS arr) SELECT EXPLODE(arr) FROM cte"
-            },
+            read={"spark": "WITH cte AS (SELECT ARRAY(1, 2, 3) AS arr) SELECT EXPLODE(arr) FROM cte"},
         )
         self.validate_all(
             "SELECT IF(pos = pos_2, col, NULL) AS col FROM UNNEST(GENERATE_ARRAY(0, GREATEST(ARRAY_LENGTH(IF(ARRAY_LENGTH(COALESCE([], [])) = 0, [[][SAFE_ORDINAL(0)]], []))) - 1)) AS pos CROSS JOIN UNNEST(IF(ARRAY_LENGTH(COALESCE([], [])) = 0, [[][SAFE_ORDINAL(0)]], [])) AS col WITH OFFSET AS pos_2 WHERE pos = pos_2 OR (pos > (ARRAY_LENGTH(IF(ARRAY_LENGTH(COALESCE([], [])) = 0, [[][SAFE_ORDINAL(0)]], [])) - 1) AND pos_2 = (ARRAY_LENGTH(IF(ARRAY_LENGTH(COALESCE([], [])) = 0, [[][SAFE_ORDINAL(0)]], [])) - 1))",
@@ -1173,9 +1149,7 @@ LANGUAGE js AS
         )
         self.validate_all(
             "SELECT ARRAY(SELECT DISTINCT x FROM UNNEST(some_numbers) AS x) AS unique_numbers",
-            write={
-                "bigquery": "SELECT ARRAY(SELECT DISTINCT x FROM UNNEST(some_numbers) AS x) AS unique_numbers"
-            },
+            write={"bigquery": "SELECT ARRAY(SELECT DISTINCT x FROM UNNEST(some_numbers) AS x) AS unique_numbers"},
         )
         self.validate_all(
             "SELECT ARRAY(SELECT * FROM foo JOIN bla ON x = y)",
@@ -1688,9 +1662,7 @@ WHERE
             },
         )
 
-        self.validate_identity(
-            "CONTAINS_SUBSTR(a, b, json_scope => 'JSON_KEYS_AND_VALUES')"
-        ).assert_is(exp.Anonymous)
+        self.validate_identity("CONTAINS_SUBSTR(a, b, json_scope => 'JSON_KEYS_AND_VALUES')").assert_is(exp.Anonymous)
 
         self.validate_all(
             """CONTAINS_SUBSTR(a, b)""",
@@ -1713,17 +1685,11 @@ WHERE
             },
         )
 
-        self.validate_identity(
-            "SELECT * FROM ML.FEATURES_AT_TIME(TABLE mydataset.feature_table, time => '2022-06-11 10:00:00+00', num_rows => 1, ignore_feature_nulls => TRUE)"
-        )
+        self.validate_identity("SELECT * FROM ML.FEATURES_AT_TIME(TABLE mydataset.feature_table, time => '2022-06-11 10:00:00+00', num_rows => 1, ignore_feature_nulls => TRUE)")
         self.validate_identity("SELECT * FROM ML.FEATURES_AT_TIME((SELECT 1), num_rows => 1)")
 
-        self.validate_identity(
-            "EXPORT DATA OPTIONS (URI='gs://path*.csv.gz', FORMAT='CSV') AS SELECT * FROM all_rows"
-        )
-        self.validate_identity(
-            "EXPORT DATA WITH CONNECTION myproject.us.myconnection OPTIONS (URI='gs://path*.csv.gz', FORMAT='CSV') AS SELECT * FROM all_rows"
-        )
+        self.validate_identity("EXPORT DATA OPTIONS (URI='gs://path*.csv.gz', FORMAT='CSV') AS SELECT * FROM all_rows")
+        self.validate_identity("EXPORT DATA WITH CONNECTION myproject.us.myconnection OPTIONS (URI='gs://path*.csv.gz', FORMAT='CSV') AS SELECT * FROM all_rows")
 
         self.validate_all(
             "SELECT * FROM t1, UNNEST(`t1`) AS `col`",
@@ -1924,14 +1890,10 @@ WHERE
             self.assertIn("'END FOR'", cm.output[0])
 
     def test_user_defined_functions(self):
-        self.validate_identity(
-            "CREATE TEMPORARY FUNCTION a(x FLOAT64, y FLOAT64) RETURNS FLOAT64 NOT DETERMINISTIC LANGUAGE js AS 'return x*y;'"
-        )
+        self.validate_identity("CREATE TEMPORARY FUNCTION a(x FLOAT64, y FLOAT64) RETURNS FLOAT64 NOT DETERMINISTIC LANGUAGE js AS 'return x*y;'")
         self.validate_identity("CREATE TEMPORARY FUNCTION udf(x ANY TYPE) AS (x)")
         self.validate_identity("CREATE TEMPORARY FUNCTION a(x FLOAT64, y FLOAT64) AS ((x + 4) / y)")
-        self.validate_identity(
-            "CREATE TABLE FUNCTION a(x INT64) RETURNS TABLE <q STRING, r INT64> AS SELECT s, t"
-        )
+        self.validate_identity("CREATE TABLE FUNCTION a(x INT64) RETURNS TABLE <q STRING, r INT64> AS SELECT s, t")
         self.validate_identity(
             '''CREATE TEMPORARY FUNCTION string_length_0(strings ARRAY<STRING>) RETURNS FLOAT64 LANGUAGE js AS """'use strict'; function string_length(strings) { return _.sum(_.map(strings, ((x) => x.length))); } return string_length(strings);""" OPTIONS (library=['gs://ibis-testing-libraries/lodash.min.js'])''',
             "CREATE TEMPORARY FUNCTION string_length_0(strings ARRAY<STRING>) RETURNS FLOAT64 LANGUAGE js OPTIONS (library=['gs://ibis-testing-libraries/lodash.min.js']) AS '\\'use strict\\'; function string_length(strings) { return _.sum(_.map(strings, ((x) => x.length))); } return string_length(strings);'",
@@ -1957,47 +1919,21 @@ WHERE
         )
 
     def test_gap_fill(self):
-        self.validate_identity(
-            "SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'locf')]) ORDER BY time"
-        )
-        self.validate_identity(
-            "SELECT a, b, c, d, e FROM GAP_FILL(TABLE foo, ts_column => 'b', partitioning_columns => ['a'], value_columns => [('c', 'bar'), ('d', 'baz'), ('e', 'bla')], bucket_width => INTERVAL '1' DAY)"
-        )
-        self.validate_identity(
-            "SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'linear')], ignore_null_values => FALSE) ORDER BY time"
-        )
-        self.validate_identity(
-            "SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE) ORDER BY time"
-        )
-        self.validate_identity(
-            "SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'null')], origin => CAST('2023-11-01 09:30:01' AS DATETIME)) ORDER BY time"
-        )
-        self.validate_identity(
-            "SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'locf')]) ORDER BY time"
-        )
+        self.validate_identity("SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'locf')]) ORDER BY time")
+        self.validate_identity("SELECT a, b, c, d, e FROM GAP_FILL(TABLE foo, ts_column => 'b', partitioning_columns => ['a'], value_columns => [('c', 'bar'), ('d', 'baz'), ('e', 'bla')], bucket_width => INTERVAL '1' DAY)")
+        self.validate_identity("SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'linear')], ignore_null_values => FALSE) ORDER BY time")
+        self.validate_identity("SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE) ORDER BY time")
+        self.validate_identity("SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'null')], origin => CAST('2023-11-01 09:30:01' AS DATETIME)) ORDER BY time")
+        self.validate_identity("SELECT * FROM GAP_FILL(TABLE device_data, ts_column => 'time', bucket_width => INTERVAL '1' MINUTE, value_columns => [('signal', 'locf')]) ORDER BY time")
 
     def test_models(self):
-        self.validate_identity(
-            "SELECT * FROM ML.PREDICT(MODEL mydataset.mymodel, (SELECT label, column1, column2 FROM mydataset.mytable))"
-        )
-        self.validate_identity(
-            "SELECT label, predicted_label1, predicted_label AS predicted_label2 FROM ML.PREDICT(MODEL mydataset.mymodel2, (SELECT * EXCEPT (predicted_label), predicted_label AS predicted_label1 FROM ML.PREDICT(MODEL mydataset.mymodel1, TABLE mydataset.mytable)))"
-        )
-        self.validate_identity(
-            "SELECT * FROM ML.PREDICT(MODEL mydataset.mymodel, (SELECT custom_label, column1, column2 FROM mydataset.mytable), STRUCT(0.55 AS threshold))"
-        )
-        self.validate_identity(
-            "SELECT * FROM ML.PREDICT(MODEL `my_project`.my_dataset.my_model, (SELECT * FROM input_data))"
-        )
-        self.validate_identity(
-            "SELECT * FROM ML.PREDICT(MODEL my_dataset.vision_model, (SELECT uri, ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data), 480, 480, FALSE) AS input FROM my_dataset.object_table))"
-        )
-        self.validate_identity(
-            "SELECT * FROM ML.PREDICT(MODEL my_dataset.vision_model, (SELECT uri, ML.CONVERT_COLOR_SPACE(ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data), 224, 280, TRUE), 'YIQ') AS input FROM my_dataset.object_table WHERE content_type = 'image/jpeg'))"
-        )
-        self.validate_identity(
-            "CREATE OR REPLACE MODEL foo OPTIONS (model_type='linear_reg') AS SELECT bla FROM foo WHERE cond"
-        )
+        self.validate_identity("SELECT * FROM ML.PREDICT(MODEL mydataset.mymodel, (SELECT label, column1, column2 FROM mydataset.mytable))")
+        self.validate_identity("SELECT label, predicted_label1, predicted_label AS predicted_label2 FROM ML.PREDICT(MODEL mydataset.mymodel2, (SELECT * EXCEPT (predicted_label), predicted_label AS predicted_label1 FROM ML.PREDICT(MODEL mydataset.mymodel1, TABLE mydataset.mytable)))")
+        self.validate_identity("SELECT * FROM ML.PREDICT(MODEL mydataset.mymodel, (SELECT custom_label, column1, column2 FROM mydataset.mytable), STRUCT(0.55 AS threshold))")
+        self.validate_identity("SELECT * FROM ML.PREDICT(MODEL `my_project`.my_dataset.my_model, (SELECT * FROM input_data))")
+        self.validate_identity("SELECT * FROM ML.PREDICT(MODEL my_dataset.vision_model, (SELECT uri, ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data), 480, 480, FALSE) AS input FROM my_dataset.object_table))")
+        self.validate_identity("SELECT * FROM ML.PREDICT(MODEL my_dataset.vision_model, (SELECT uri, ML.CONVERT_COLOR_SPACE(ML.RESIZE_IMAGE(ML.DECODE_IMAGE(data), 224, 280, TRUE), 'YIQ') AS input FROM my_dataset.object_table WHERE content_type = 'image/jpeg'))")
+        self.validate_identity("CREATE OR REPLACE MODEL foo OPTIONS (model_type='linear_reg') AS SELECT bla FROM foo WHERE cond")
         self.validate_identity(
             """CREATE OR REPLACE MODEL m
 TRANSFORM(
@@ -2179,9 +2115,7 @@ OPTIONS (
                 "CAST('2023-01-01 12:13:14+00:00' AS TIMESTAMP)",
             ),
             (
-                pytz.timezone("America/Los_Angeles").localize(
-                    datetime.datetime(2023, 1, 1, 12, 13, 14)
-                ),
+                pytz.timezone("America/Los_Angeles").localize(datetime.datetime(2023, 1, 1, 12, 13, 14)),
                 "CAST('2023-01-01 12:13:14-08:00' AS TIMESTAMP)",
             ),
         ]:
@@ -2252,16 +2186,10 @@ OPTIONS (
 
                 self.assertEqual(self.parse_one(type), exp.DataType.build(type, dialect="bigquery"))
 
-        self.validate_identity(
-            "SELECT RANGE(CAST('2022-12-01' AS DATE), CAST('2022-12-31' AS DATE))"
-        )
+        self.validate_identity("SELECT RANGE(CAST('2022-12-01' AS DATE), CAST('2022-12-31' AS DATE))")
         self.validate_identity("SELECT RANGE(NULL, CAST('2022-12-31' AS DATE))")
-        self.validate_identity(
-            "SELECT RANGE(CAST('2022-10-01 14:53:27' AS DATETIME), CAST('2022-10-01 16:00:00' AS DATETIME))"
-        )
-        self.validate_identity(
-            "SELECT RANGE(CAST('2022-10-01 14:53:27 America/Los_Angeles' AS TIMESTAMP), CAST('2022-10-01 16:00:00 America/Los_Angeles' AS TIMESTAMP))"
-        )
+        self.validate_identity("SELECT RANGE(CAST('2022-10-01 14:53:27' AS DATETIME), CAST('2022-10-01 16:00:00' AS DATETIME))")
+        self.validate_identity("SELECT RANGE(CAST('2022-10-01 14:53:27 America/Los_Angeles' AS TIMESTAMP), CAST('2022-10-01 16:00:00 America/Los_Angeles' AS TIMESTAMP))")
 
     def test_null_ordering(self):
         # Aggregate functions allow "NULLS FIRST" only with ascending order and
@@ -2269,9 +2197,7 @@ OPTIONS (
         for sort_order, null_order in (("ASC", "NULLS LAST"), ("DESC", "NULLS FIRST")):
             self.validate_all(
                 f"SELECT color, ARRAY_AGG(id ORDER BY id {sort_order}) AS ids FROM colors GROUP BY 1",
-                read={
-                    "": f"SELECT color, ARRAY_AGG(id ORDER BY id {sort_order} {null_order}) AS ids FROM colors GROUP BY 1"
-                },
+                read={"": f"SELECT color, ARRAY_AGG(id ORDER BY id {sort_order} {null_order}) AS ids FROM colors GROUP BY 1"},
                 write={
                     "bigquery": f"SELECT color, ARRAY_AGG(id ORDER BY id {sort_order}) AS ids FROM colors GROUP BY 1",
                 },
@@ -2325,21 +2251,15 @@ OPTIONS (
                     },
                 )
 
-                self.assertEqual(
-                    self.parse_one(sql).sql("bigquery", normalize_functions="upper"), sql
-                )
+                self.assertEqual(self.parse_one(sql).sql("bigquery", normalize_functions="upper"), sql)
 
         # Test double quote escaping
         for func in ("JSON_VALUE", "JSON_QUERY", "JSON_QUERY_ARRAY"):
-            self.validate_identity(
-                f"{func}(doc, '$. a b c .d')", f"""{func}(doc, '$." a b c ".d')"""
-            )
+            self.validate_identity(f"{func}(doc, '$. a b c .d')", f"""{func}(doc, '$." a b c ".d')""")
 
         # Test single quote & bracket escaping
         for func in ("JSON_EXTRACT", "JSON_EXTRACT_SCALAR", "JSON_EXTRACT_ARRAY"):
-            self.validate_identity(
-                f"{func}(doc, '$. a b c .d')", f"""{func}(doc, '$[\\' a b c \\'].d')"""
-            )
+            self.validate_identity(f"{func}(doc, '$. a b c .d')", f"""{func}(doc, '$[\\' a b c \\'].d')""")
 
     def test_json_extract_array(self):
         for func in ("JSON_QUERY_ARRAY", "JSON_EXTRACT_ARRAY"):
@@ -2354,9 +2274,7 @@ OPTIONS (
                     },
                 )
 
-                self.assertEqual(
-                    self.parse_one(sql).sql("bigquery", normalize_functions="upper"), sql
-                )
+                self.assertEqual(self.parse_one(sql).sql("bigquery", normalize_functions="upper"), sql)
 
     def test_unix_seconds(self):
         self.validate_all(
@@ -2583,9 +2501,7 @@ OPTIONS (
         ast = parse_one(information_schema_sql, dialect="bigquery")
         meta = ast.args["from"].this.this.meta
         self.assertEqual(meta, {"line": 1, "col": 50, "start": 24, "end": 49})
-        assert (
-            information_schema_sql[meta["start"] : meta["end"] + 1] == "INFORMATION_SCHEMA.COLUMNS"
-        )
+        assert information_schema_sql[meta["start"] : meta["end"] + 1] == "INFORMATION_SCHEMA.COLUMNS"
 
     def test_quoted_identifier_meta(self):
         sql = "SELECT `a` FROM `test_schema`.`test_table_a`"
@@ -2598,10 +2514,7 @@ OPTIONS (
         information_schema_sql = "SELECT a, b FROM `region.INFORMATION_SCHEMA.COLUMNS`"
         ast = parse_one(information_schema_sql, dialect="bigquery")
         table_meta = ast.args["from"].this.this.meta
-        assert (
-            information_schema_sql[table_meta["start"] : table_meta["end"] + 1]
-            == "`region.INFORMATION_SCHEMA.COLUMNS`"
-        )
+        assert information_schema_sql[table_meta["start"] : table_meta["end"] + 1] == "`region.INFORMATION_SCHEMA.COLUMNS`"
 
     def test_override_normalization_strategy(self):
         sql = "SELECT * FROM p.d.t"
@@ -2753,6 +2666,4 @@ OPTIONS (
         self.validate_identity("DECLARE X, Y, Z INT64 DEFAULT 42")
         self.validate_identity("DECLARE X, Y, Z INT64 DEFAULT (SELECT 42)")
         self.validate_identity("DECLARE START_DATE DATE DEFAULT CURRENT_DATE - 1")
-        self.validate_identity(
-            "DECLARE TS TIMESTAMP DEFAULT CURRENT_TIMESTAMP() - INTERVAL '1' HOUR"
-        )
+        self.validate_identity("DECLARE TS TIMESTAMP DEFAULT CURRENT_TIMESTAMP() - INTERVAL '1' HOUR")

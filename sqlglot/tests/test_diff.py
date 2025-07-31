@@ -49,26 +49,18 @@ class TestDiff(unittest.TestCase):
 
     def test_lambda(self):
         self._validate_delta_only(
-            diff_delta_only(
-                parse_one("SELECT a, b, c, x(a -> a)"), parse_one("SELECT a, b, c, x(b -> b)")
-            ),
+            diff_delta_only(parse_one("SELECT a, b, c, x(a -> a)"), parse_one("SELECT a, b, c, x(b -> b)")),
             [
                 Update(
-                    source=exp.Lambda(
-                        this=exp.to_identifier("a"), expressions=[exp.to_identifier("a")]
-                    ),
-                    target=exp.Lambda(
-                        this=exp.to_identifier("b"), expressions=[exp.to_identifier("b")]
-                    ),
+                    source=exp.Lambda(this=exp.to_identifier("a"), expressions=[exp.to_identifier("a")]),
+                    target=exp.Lambda(this=exp.to_identifier("b"), expressions=[exp.to_identifier("b")]),
                 ),
             ],
         )
 
     def test_udf(self):
         self._validate_delta_only(
-            diff_delta_only(
-                parse_one('SELECT a, b, "my.udf1"()'), parse_one('SELECT a, b, "my.udf2"()')
-            ),
+            diff_delta_only(parse_one('SELECT a, b, "my.udf1"()'), parse_one('SELECT a, b, "my.udf2"()')),
             [
                 Insert(expression=parse_one('"my.udf2"()')),
                 Remove(expression=parse_one('"my.udf1"()')),
@@ -241,9 +233,7 @@ class TestDiff(unittest.TestCase):
         )
 
         self._validate_delta_only(
-            diff_delta_only(
-                expr_src, expr_tgt, matchings=[(expr_src, expr_tgt), (expr_src, expr_tgt)]
-            ),
+            diff_delta_only(expr_src, expr_tgt, matchings=[(expr_src, expr_tgt), (expr_src, expr_tgt)]),
             [
                 Insert(expression=exp.Literal.number(2)),
                 Insert(expression=exp.Literal.number(3)),
@@ -296,9 +286,7 @@ class TestDiff(unittest.TestCase):
             logger.warning("Dummy warning")
 
             expression = parse_one("SELECT foo FROM bar FOR UPDATE", dialect="oracle")
-            self._validate_delta_only(
-                diff_delta_only(expression, expression.copy(), dialect="oracle"), []
-            )
+            self._validate_delta_only(diff_delta_only(expression, expression.copy(), dialect="oracle"), [])
 
         self.assertEqual(["WARNING:sqlglot:Dummy warning"], cm.output)
 

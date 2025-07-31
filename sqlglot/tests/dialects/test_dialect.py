@@ -21,9 +21,7 @@ class Validator(unittest.TestCase):
     def parse_one(self, sql, **kwargs):
         return parse_one(sql, read=self.dialect, **kwargs)
 
-    def validate_identity(
-        self, sql, write_sql=None, pretty=False, check_command_warning=False, identify=False
-    ):
+    def validate_identity(self, sql, write_sql=None, pretty=False, check_command_warning=False, identify=False):
         if check_command_warning:
             with self.assertLogs(parser_logger) as cm:
                 expression = self.parse_one(sql)
@@ -31,9 +29,7 @@ class Validator(unittest.TestCase):
         else:
             expression = self.parse_one(sql)
 
-        self.assertEqual(
-            write_sql or sql, expression.sql(dialect=self.dialect, pretty=pretty, identify=identify)
-        )
+        self.assertEqual(write_sql or sql, expression.sql(dialect=self.dialect, pretty=pretty, identify=identify))
         return expression
 
     def validate_all(self, sql, read=None, write=None, pretty=False, identify=False):
@@ -131,9 +127,7 @@ class TestDialect(Validator):
 
         self.assertEqual(str(cm.exception), "Unknown dialect 'asdfjasodiufjsd'.")
 
-        oracle_with_settings = Dialect.get_or_raise(
-            "oracle, normalization_strategy = lowercase, version = 19.5"
-        )
+        oracle_with_settings = Dialect.get_or_raise("oracle, normalization_strategy = lowercase, version = 19.5")
         self.assertEqual(oracle_with_settings.normalization_strategy.value, "LOWERCASE")
         self.assertEqual(oracle_with_settings.version, Version("19.5"))
 
@@ -182,9 +176,7 @@ class TestDialect(Validator):
 
     def test_compare_dialect_versions(self):
         ddb_v1 = Dialect.get_or_raise("duckdb, version=1.0")
-        ddb_v1_2 = Dialect.get_or_raise(
-            "duckdb, normalization_strategy=case_sensitive, version=1.0"
-        )
+        ddb_v1_2 = Dialect.get_or_raise("duckdb, normalization_strategy=case_sensitive, version=1.0")
         ddb_v2 = Dialect.get_or_raise("duckdb, version=2.2.4")
         ddb_latest = Dialect.get_or_raise("duckdb")
 
@@ -462,16 +454,8 @@ class TestDialect(Validator):
             "CAST('127.0.0.1/32' AS INET)",
             read={"postgres": "INET '127.0.0.1/32'"},
         )
-        self.assertIsNotNone(
-            self.validate_identity("CREATE TABLE foo (bar INT AS (foo))").find(
-                exp.ComputedColumnConstraint
-            )
-        )
-        self.assertIsNotNone(
-            self.validate_identity(
-                "CREATE TABLE foo (t1 INT, t2 INT, bar INT AS (t1 * t2 * 2))"
-            ).find(exp.ComputedColumnConstraint)
-        )
+        self.assertIsNotNone(self.validate_identity("CREATE TABLE foo (bar INT AS (foo))").find(exp.ComputedColumnConstraint))
+        self.assertIsNotNone(self.validate_identity("CREATE TABLE foo (t1 INT, t2 INT, bar INT AS (t1 * t2 * 2))").find(exp.ComputedColumnConstraint))
 
     def test_ddl(self):
         self.validate_all(
@@ -1674,12 +1658,8 @@ class TestDialect(Validator):
         )
 
     def test_lateral_subquery(self):
-        self.validate_identity(
-            "SELECT art FROM tbl1 INNER JOIN LATERAL (SELECT art FROM tbl2) AS tbl2 ON tbl1.art = tbl2.art"
-        )
-        self.validate_identity(
-            "SELECT * FROM tbl AS t LEFT JOIN LATERAL (SELECT * FROM b WHERE b.t_id = t.t_id) AS t ON TRUE"
-        )
+        self.validate_identity("SELECT art FROM tbl1 INNER JOIN LATERAL (SELECT art FROM tbl2) AS tbl2 ON tbl1.art = tbl2.art")
+        self.validate_identity("SELECT * FROM tbl AS t LEFT JOIN LATERAL (SELECT * FROM b WHERE b.t_id = t.t_id) AS t ON TRUE")
 
     def test_set_operators(self):
         self.validate_all(
@@ -2796,9 +2776,7 @@ SELECT
     def test_count_if(self):
         self.validate_identity("COUNT_IF(DISTINCT cond)")
 
-        self.validate_all(
-            "SELECT COUNT_IF(cond) FILTER", write={"": "SELECT COUNT_IF(cond) AS FILTER"}
-        )
+        self.validate_all("SELECT COUNT_IF(cond) FILTER", write={"": "SELECT COUNT_IF(cond) AS FILTER"})
         self.validate_all(
             "SELECT COUNT_IF(col % 2 = 0) FROM foo",
             write={
@@ -3044,15 +3022,9 @@ FROM subquery2""",
             (with_large_nulls, False, False, sql_nulls_last),
             (with_large_nulls, True, False, sql),
         ):
-            with self.subTest(
-                f"read: {read_dialect}, descending: {desc}, nulls first: {nulls_first}"
-            ):
+            with self.subTest(f"read: {read_dialect}, descending: {desc}, nulls first: {nulls_first}"):
                 sort_order = " DESC" if desc else ""
-                null_order = (
-                    " NULLS FIRST"
-                    if nulls_first
-                    else (" NULLS LAST" if nulls_first is not None else "")
-                )
+                null_order = " NULLS FIRST" if nulls_first else (" NULLS LAST" if nulls_first is not None else "")
 
                 expected_sql = f"{expected_sql}{sort_order}"
                 expression = parse_one(f"{sql}{sort_order}{null_order}", read=read_dialect)
@@ -3134,25 +3106,13 @@ FROM subquery2""",
 
     def test_create_sequence(self):
         self.validate_identity("CREATE SEQUENCE seq")
-        self.validate_identity(
-            "CREATE TEMPORARY SEQUENCE seq AS SMALLINT START WITH 3 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10 CACHE 1 NO CYCLE OWNED BY table.col"
-        )
-        self.validate_identity(
-            "CREATE SEQUENCE seq START WITH 1 NO MINVALUE NO MAXVALUE CYCLE NO CACHE"
-        )
+        self.validate_identity("CREATE TEMPORARY SEQUENCE seq AS SMALLINT START WITH 3 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10 CACHE 1 NO CYCLE OWNED BY table.col")
+        self.validate_identity("CREATE SEQUENCE seq START WITH 1 NO MINVALUE NO MAXVALUE CYCLE NO CACHE")
         self.validate_identity("CREATE OR REPLACE TEMPORARY SEQUENCE seq INCREMENT BY 1 NO CYCLE")
-        self.validate_identity(
-            "CREATE OR REPLACE SEQUENCE IF NOT EXISTS seq COMMENT='test comment' ORDER"
-        )
-        self.validate_identity(
-            "CREATE SEQUENCE schema.seq SHARING=METADATA NOORDER NOKEEP SCALE EXTEND SHARD EXTEND SESSION"
-        )
-        self.validate_identity(
-            "CREATE SEQUENCE schema.seq SHARING=DATA ORDER KEEP NOSCALE NOSHARD GLOBAL"
-        )
-        self.validate_identity(
-            "CREATE SEQUENCE schema.seq SHARING=DATA NOCACHE NOCYCLE SCALE NOEXTEND"
-        )
+        self.validate_identity("CREATE OR REPLACE SEQUENCE IF NOT EXISTS seq COMMENT='test comment' ORDER")
+        self.validate_identity("CREATE SEQUENCE schema.seq SHARING=METADATA NOORDER NOKEEP SCALE EXTEND SHARD EXTEND SESSION")
+        self.validate_identity("CREATE SEQUENCE schema.seq SHARING=DATA ORDER KEEP NOSCALE NOSHARD GLOBAL")
+        self.validate_identity("CREATE SEQUENCE schema.seq SHARING=DATA NOCACHE NOCYCLE SCALE NOEXTEND")
         self.validate_identity(
             """CREATE TEMPORARY SEQUENCE seq AS BIGINT INCREMENT BY 2 MINVALUE 1 CACHE 1 NOMAXVALUE NO CYCLE OWNED BY NONE""",
             """CREATE TEMPORARY SEQUENCE seq AS BIGINT INCREMENT BY 2 MINVALUE 1 CACHE 1 NOMAXVALUE NO CYCLE""",
@@ -3553,9 +3513,7 @@ FROM subquery2""",
                 "redshift",
             ):
                 with self.subTest(f"Testing hex string -> INTEGER evaluation for {read_dialect}"):
-                    self.assertEqual(
-                        parse_one("SELECT 0xCC", read=read_dialect).sql(write_dialect), "SELECT 204"
-                    )
+                    self.assertEqual(parse_one("SELECT 0xCC", read=read_dialect).sql(write_dialect), "SELECT 204")
 
             for other_integer_dialects in integer_dialects:
                 self.assertEqual(

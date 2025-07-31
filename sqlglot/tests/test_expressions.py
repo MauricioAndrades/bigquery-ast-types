@@ -15,12 +15,8 @@ class TestExpressions(unittest.TestCase):
         self.assertEqual(repr(parse_one("True")), "Boolean(this=True)")
         self.assertEqual(repr(parse_one("'  x'")), "Literal(this='  x', is_string=True)")
         self.assertEqual(repr(parse_one("' \n  x'")), "Literal(this=' \\n  x', is_string=True)")
-        self.assertEqual(
-            repr(parse_one("   x ")), "Column(\n  this=Identifier(this=x, quoted=False))"
-        )
-        self.assertEqual(
-            repr(parse_one('"   x "')), "Column(\n  this=Identifier(this='   x ', quoted=True))"
-        )
+        self.assertEqual(repr(parse_one("   x ")), "Column(\n  this=Identifier(this=x, quoted=False))")
+        self.assertEqual(repr(parse_one('"   x "')), "Column(\n  this=Identifier(this='   x ', quoted=True))")
 
     def test_arg_key(self):
         self.assertEqual(parse_one("sum(1)").find(exp.Literal).arg_key, "this")
@@ -48,9 +44,7 @@ class TestExpressions(unittest.TestCase):
 
         self.assertNotEqual(exp.to_identifier("a", quoted=True), exp.to_identifier("A"))
         self.assertNotEqual(exp.to_identifier("A", quoted=True), exp.to_identifier("A"))
-        self.assertNotEqual(
-            exp.to_identifier("A", quoted=True), exp.to_identifier("a", quoted=True)
-        )
+        self.assertNotEqual(exp.to_identifier("A", quoted=True), exp.to_identifier("a", quoted=True))
         self.assertNotEqual(parse_one("'x'"), parse_one("'X'"))
         self.assertNotEqual(parse_one("'1'"), parse_one("1"))
         self.assertEqual(parse_one("`a`", read="hive"), parse_one('"a"'))
@@ -70,9 +64,7 @@ class TestExpressions(unittest.TestCase):
         )
         self.assertEqual(exp.Table(pivots=[]), exp.Table())
         self.assertNotEqual(exp.Table(pivots=[None]), exp.Table())
-        self.assertEqual(
-            exp.DataType.build("int"), exp.DataType(this=exp.DataType.Type.INT, nested=False)
-        )
+        self.assertEqual(exp.DataType.build("int"), exp.DataType(this=exp.DataType.Type.INT, nested=False))
 
     def test_find(self):
         expression = parse_one("CREATE TABLE x STORED AS PARQUET AS SELECT * FROM y")
@@ -181,9 +173,7 @@ class TestExpressions(unittest.TestCase):
         self.assertIs(ast, ast.find(exp.Column).root())
 
     def test_alias_or_name(self):
-        expression = parse_one(
-            "SELECT a, b AS B, c + d AS e, *, 'zz', 'zz' AS z FROM foo as bar, baz"
-        )
+        expression = parse_one("SELECT a, b AS B, c + d AS e, *, 'zz', 'zz' AS z FROM foo as bar, baz")
         self.assertEqual(
             [e.alias_or_name for e in expression.expressions],
             ["a", "B", "e", "*", "zz", "z"],
@@ -233,9 +223,7 @@ class TestExpressions(unittest.TestCase):
             exp.table_name(parse_one("foo.`{bar,er}`", read="databricks"), dialect="databricks"),
             "foo.`{bar,er}`",
         )
-        self.assertEqual(
-            exp.table_name(parse_one("/*c*/foo.bar", into=exp.Table), identify=True), '"foo"."bar"'
-        )
+        self.assertEqual(exp.table_name(parse_one("/*c*/foo.bar", into=exp.Table), identify=True), '"foo"."bar"')
 
     def test_table(self):
         self.assertEqual(exp.table_("a", alias="b"), parse_one("select * from a b").find(exp.Table))
@@ -245,9 +233,7 @@ class TestExpressions(unittest.TestCase):
     def test_replace_tables(self):
         self.assertEqual(
             exp.replace_tables(
-                parse_one(
-                    'select * from a AS a, b, c.a, d.a cross join e.a cross join "f-F"."A" cross join G'
-                ),
+                parse_one('select * from a AS a, b, c.a, d.a cross join e.a cross join "f-F"."A" cross join G'),
                 {
                     "a": "a1",
                     "b": "b.a",
@@ -332,9 +318,7 @@ class TestExpressions(unittest.TestCase):
             "SELECT * FROM foo WHERE ? > 100",
         )
         self.assertEqual(
-            exp.replace_placeholders(
-                parse_one("select * from :name WHERE ? > 100"), another_name="bla"
-            ).sql(),
+            exp.replace_placeholders(parse_one("select * from :name WHERE ? > 100"), another_name="bla").sql(),
             "SELECT * FROM :name WHERE ? > 100",
         )
         self.assertEqual(
@@ -350,15 +334,11 @@ class TestExpressions(unittest.TestCase):
             "SELECT * FROM (SELECT a FROM tbl1) WHERE b > 100",
         )
         self.assertEqual(
-            exp.replace_placeholders(
-                parse_one("select * from foo WHERE x > ? AND y IS ?"), 0, False
-            ).sql(),
+            exp.replace_placeholders(parse_one("select * from foo WHERE x > ? AND y IS ?"), 0, False).sql(),
             "SELECT * FROM foo WHERE x > 0 AND y IS FALSE",
         )
         self.assertEqual(
-            exp.replace_placeholders(
-                parse_one("select * from foo WHERE x > :int1 AND y IS :bool1"), int1=0, bool1=False
-            ).sql(),
+            exp.replace_placeholders(parse_one("select * from foo WHERE x > :int1 AND y IS :bool1"), int1=0, bool1=False).sql(),
             "SELECT * FROM foo WHERE x > 0 AND y IS FALSE",
         )
 
@@ -369,9 +349,7 @@ class TestExpressions(unittest.TestCase):
         self.assertEqual(exp.func("COUNT", exp.Star()).sql(), "COUNT(*)")
         self.assertEqual(exp.func("bloo").sql(), "BLOO()")
         self.assertEqual(exp.func("concat", exp.convert("a")).sql("duckdb"), "CONCAT('a')")
-        self.assertEqual(
-            exp.func("locate", "'x'", "'xo'", dialect="hive").sql("hive"), "LOCATE('x', 'xo')"
-        )
+        self.assertEqual(exp.func("locate", "'x'", "'xo'", dialect="hive").sql("hive"), "LOCATE('x', 'xo')")
         self.assertEqual(
             exp.func("log", exp.to_identifier("x"), 2, dialect="bigquery").sql("bigquery"),
             "LOG(x, 2)",
@@ -400,14 +378,11 @@ class TestExpressions(unittest.TestCase):
 
         self.assertEqual(
             str(cm.exception),
-            "Unable to convert 'to_hex' into a Func. Either manually construct the Func "
-            "expression of interest or parse the function call.",
+            "Unable to convert 'to_hex' into a Func. Either manually construct the Func " "expression of interest or parse the function call.",
         )
 
     def test_named_selects(self):
-        expression = parse_one(
-            "SELECT a, b AS B, c + d AS e, *, 'zz', 'zz' AS z FROM foo as bar, baz"
-        )
+        expression = parse_one("SELECT a, b AS B, c + d AS e, *, 'zz', 'zz' AS z FROM foo as bar, baz")
         self.assertEqual(expression.named_selects, ["a", "B", "e", "*", "zz", "z"])
 
         expression = parse_one(
@@ -485,9 +460,7 @@ class TestExpressions(unittest.TestCase):
         self.assertEqual(recast.sql(), "CAST(CAST(x AS DATE) AS VARCHAR)")
 
         # check that dialect is used when casting strings
-        self.assertEqual(
-            exp.cast("x", to="regtype", dialect="postgres").sql(), "CAST(x AS REGTYPE)"
-        )
+        self.assertEqual(exp.cast("x", to="regtype", dialect="postgres").sql(), "CAST(x AS REGTYPE)")
         self.assertEqual(exp.cast("`x`", to="date", dialect="hive").sql(), 'CAST("x" AS DATE)')
 
     def test_ctes(self):
@@ -730,9 +703,7 @@ class TestExpressions(unittest.TestCase):
         self.assertIsInstance(parse_one("TIME_TO_UNIX(a)"), exp.TimeToUnix)
         self.assertIsInstance(parse_one("TIME_STR_TO_DATE(a)"), exp.TimeStrToDate)
         (self.assertIsInstance(parse_one("TIME_STR_TO_TIME(a)"), exp.TimeStrToTime),)
-        self.assertIsInstance(
-            parse_one("TIME_STR_TO_TIME(a, 'America/Los_Angeles')"), exp.TimeStrToTime
-        )
+        self.assertIsInstance(parse_one("TIME_STR_TO_TIME(a, 'America/Los_Angeles')"), exp.TimeStrToTime)
         self.assertIsInstance(parse_one("TIME_STR_TO_UNIX(a)"), exp.TimeStrToUnix)
         self.assertIsInstance(parse_one("TRIM(LEADING 'b' FROM 'bla')"), exp.Trim)
         self.assertIsInstance(parse_one("TS_OR_DS_ADD(a, 1, 'day')"), exp.TsOrDsAdd)
@@ -855,9 +826,7 @@ class TestExpressions(unittest.TestCase):
             exp.Properties(
                 expressions=[
                     exp.FileFormatProperty(this=exp.Literal.string("parquet")),
-                    exp.PartitionedByProperty(
-                        this=exp.Tuple(expressions=[exp.to_identifier("a"), exp.to_identifier("b")])
-                    ),
+                    exp.PartitionedByProperty(this=exp.Tuple(expressions=[exp.to_identifier("a"), exp.to_identifier("b")])),
                     exp.Property(this=exp.Literal.string("custom"), value=exp.Literal.number(1)),
                     exp.EngineProperty(this=exp.null()),
                     exp.CollateProperty(this=exp.true()),
@@ -896,9 +865,7 @@ class TestExpressions(unittest.TestCase):
                 "TIME_STR_TO_TIME('2022-10-01 01:01:01+00:00', 'UTC')",
             ),
             (
-                pytz.timezone("America/Los_Angeles").localize(
-                    datetime.datetime(2022, 10, 1, 1, 1, 1)
-                ),
+                pytz.timezone("America/Los_Angeles").localize(datetime.datetime(2022, 10, 1, 1, 1, 1)),
                 "TIME_STR_TO_TIME('2022-10-01 01:01:01-07:00', 'America/Los_Angeles')",
             ),
             (datetime.date(2022, 10, 1), "DATE_STR_TO_DATE('2022-10-01')"),
@@ -921,9 +888,7 @@ class TestExpressions(unittest.TestCase):
 
         for value, expected in [
             (
-                datetime.datetime(
-                    2022, 10, 1, 1, 1, 1, tzinfo=zoneinfo.ZoneInfo("America/Los_Angeles")
-                ),
+                datetime.datetime(2022, 10, 1, 1, 1, 1, tzinfo=zoneinfo.ZoneInfo("America/Los_Angeles")),
                 "TIME_STR_TO_TIME('2022-10-01 01:01:01-07:00', 'America/Los_Angeles')",
             )
         ]:
@@ -986,9 +951,7 @@ FROM foo""",
 
         self.assertEqual(exp.to_interval(exp.Literal.string("1day")).sql(), "INTERVAL '1' DAY")
         self.assertEqual(exp.to_interval(exp.Literal.string("-2 day")).sql(), "INTERVAL '-2' DAY")
-        self.assertEqual(
-            exp.to_interval(exp.Literal.string("  5   months")).sql(), "INTERVAL '5' MONTHS"
-        )
+        self.assertEqual(exp.to_interval(exp.Literal.string("  5   months")).sql(), "INTERVAL '5' MONTHS")
 
     def test_to_table(self):
         table_only = exp.to_table("table_name")
@@ -1102,9 +1065,7 @@ FROM foo""",
         self.assertEqual(exp.DataType.build("varchar(100) collate 'en-ci'").sql(), "VARCHAR(100)")
         self.assertEqual(exp.DataType.build("int[3]").sql(dialect="duckdb"), "INT[3]")
         self.assertEqual(exp.DataType.build("int[3][3]").sql(dialect="duckdb"), "INT[3][3]")
-        self.assertEqual(
-            exp.DataType.build("struct<x int>", dialect="spark").sql(), "STRUCT<x INT>"
-        )
+        self.assertEqual(exp.DataType.build("struct<x int>", dialect="spark").sql(), "STRUCT<x INT>")
 
         with self.assertRaises(ParseError):
             exp.DataType.build("varchar(")
@@ -1224,9 +1185,7 @@ FROM foo""",
     def test_assert_is(self):
         parse_one("x").assert_is(exp.Column)
 
-        with self.assertRaisesRegex(
-            AssertionError, "x is not <class 'sqlglot.expressions.Identifier'>\\."
-        ):
+        with self.assertRaisesRegex(AssertionError, "x is not <class 'sqlglot.expressions.Identifier'>\\."):
             parse_one("x").assert_is(exp.Identifier)
 
     def test_parse_identifier(self):

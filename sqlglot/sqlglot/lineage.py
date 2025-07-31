@@ -43,9 +43,7 @@ class Node:
             else:
                 label = node.expression.sql(pretty=True, dialect=dialect)
                 source = node.source.transform(
-                    lambda n: (
-                        exp.Tag(this=n, prefix="<b>", postfix="</b>") if n is node.expression else n
-                    ),
+                    lambda n: (exp.Tag(this=n, prefix="<b>", postfix="</b>") if n is node.expression else n),
                     copy=False,
                 ).sql(pretty=True, dialect=dialect)
                 title = f"<pre>{source}</pre>"
@@ -160,11 +158,7 @@ def to_node(
             column
             if isinstance(column, int)
             else next(
-                (
-                    i
-                    for i, select in enumerate(scope.expression.selects)
-                    if select.alias_or_name == column or select.is_star
-                ),
+                (i for i, select in enumerate(scope.expression.selects) if select.alias_or_name == column or select.is_star),
                 -1,  # mypy will not allow a None here, but a negative index should never be returned
             )
         )
@@ -206,9 +200,7 @@ def to_node(
     if upstream:
         upstream.downstream.append(node)
 
-    subquery_scopes = {
-        id(subquery_scope.expression): subquery_scope for subquery_scope in scope.subquery_scopes
-    }
+    subquery_scopes = {id(subquery_scope.expression): subquery_scope for subquery_scope in scope.subquery_scopes}
 
     for subquery in find_all_in_scope(select, exp.UNWRAPPED_QUERIES):
         subquery_scope = subquery_scopes.get(id(subquery))
@@ -230,9 +222,7 @@ def to_node(
         for source in scope.sources.values():
             if isinstance(source, Scope):
                 source = source.expression
-            node.downstream.append(
-                Node(name=select.sql(comments=False), source=source, expression=source)
-            )
+            node.downstream.append(Node(name=select.sql(comments=False), source=source, expression=source))
 
     # Find all columns that went into creating this one to list their lineage nodes.
     source_columns = set(find_all_in_scope(select, exp.Column))
@@ -240,19 +230,11 @@ def to_node(
     # If the source is a UDTF find columns used in the UDTF to generate the table
     if isinstance(source, exp.UDTF):
         source_columns |= set(source.find_all(exp.Column))
-        derived_tables = [
-            source.expression.parent
-            for source in scope.sources.values()
-            if isinstance(source, Scope) and source.is_derived_table
-        ]
+        derived_tables = [source.expression.parent for source in scope.sources.values() if isinstance(source, Scope) and source.is_derived_table]
     else:
         derived_tables = scope.derived_tables
 
-    source_names = {
-        dt.alias: dt.comments[0].split()[1]
-        for dt in derived_tables
-        if dt.comments and dt.comments[0].startswith("source: ")
-    }
+    source_names = {dt.alias: dt.comments[0].split()[1] for dt in derived_tables if dt.comments and dt.comments[0].startswith("source: ")}
 
     pivots = scope.pivots
     pivot = pivots[0] if len(pivots) == 1 and not pivots[0].unpivot else None
@@ -338,9 +320,7 @@ def to_node(
             # is unknown. This can happen if the definition of a source used in a query is not
             # passed into the `sources` map.
             source = source or exp.Placeholder()
-            node.downstream.append(
-                Node(name=c.sql(comments=False), source=source, expression=source)
-            )
+            node.downstream.append(Node(name=c.sql(comments=False), source=source, expression=source))
 
     return node
 
@@ -351,9 +331,7 @@ class GraphHTML:
     https://visjs.github.io/vis-network/docs/network/
     """
 
-    def __init__(
-        self, nodes: t.Dict, edges: t.List, imports: bool = True, options: t.Optional[t.Dict] = None
-    ):
+    def __init__(self, nodes: t.Dict, edges: t.List, imports: bool = True, options: t.Optional[t.Dict] = None):
         self.imports = imports
 
         self.options = {

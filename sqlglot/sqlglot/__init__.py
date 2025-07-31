@@ -60,9 +60,7 @@ logger = logging.getLogger("sqlglot")
 try:
     from sqlglot._version import __version__, __version_tuple__
 except ImportError:
-    logger.error(
-        "Unable to set __version__, run `pip install -e .` or `python setup.py develop` first."
-    )
+    logger.error("Unable to set __version__, run `pip install -e .` or `python setup.py develop` first.")
 
 
 pretty = False
@@ -84,9 +82,7 @@ def tokenize(sql: str, read: DialectType = None, dialect: DialectType = None) ->
     return Dialect.get_or_raise(read or dialect).tokenize(sql)
 
 
-def parse(
-    sql: str, read: DialectType = None, dialect: DialectType = None, **opts
-) -> t.List[t.Optional[Expression]]:
+def parse(sql: str, read: DialectType = None, dialect: DialectType = None, **opts) -> t.List[t.Optional[Expression]]:
     """
     Parses the given SQL string into a collection of syntax trees, one per parsed SQL statement.
 
@@ -172,7 +168,4 @@ def transpile(
     """
     write = (read if write is None else write) if identity else write
     write = Dialect.get_or_raise(write)
-    return [
-        write.generate(expression, copy=False, **opts) if expression else ""
-        for expression in parse(sql, read, error_level=error_level)
-    ]
+    return [write.generate(expression, copy=False, **opts) if expression else "" for expression in parse(sql, read, error_level=error_level)]

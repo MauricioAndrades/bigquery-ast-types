@@ -49,9 +49,7 @@ def null_if_any(*required):
 
     def decorator(func):
         if required:
-            required_indices = [
-                i for i, param in enumerate(inspect.signature(func).parameters) if param in required
-            ]
+            required_indices = [i for i, param in enumerate(inspect.signature(func).parameters) if param in required]
 
             def predicate(*args):
                 return any(args[i] is None for i in required_indices)
@@ -205,9 +203,7 @@ ENV = {
     "INTERVAL": interval,
     "JSONEXTRACT": jsonextract,
     "LEFT": null_if_any(lambda this, e: this[:e]),
-    "LIKE": null_if_any(
-        lambda this, e: bool(re.match(e.replace("_", ".").replace("%", ".*"), this))
-    ),
+    "LIKE": null_if_any(lambda this, e: bool(re.match(e.replace("_", ".").replace("%", ".*"), this))),
     "LOWER": null_if_any(lambda arg: arg.lower()),
     "LT": null_if_any(lambda this, e: this < e),
     "LTE": null_if_any(lambda this, e: this <= e),
@@ -235,12 +231,6 @@ ENV = {
     "STRFTIME": null_if_any(lambda fmt, arg: datetime.datetime.fromisoformat(arg).strftime(fmt)),
     "STRTOTIME": null_if_any(lambda arg, format: datetime.datetime.strptime(arg, format)),
     "TRIM": null_if_any(lambda this, e=None: this.strip(e)),
-    "STRUCT": lambda *args: {
-        args[x]: args[x + 1]
-        for x in range(0, len(args), 2)
-        if (args[x + 1] is not None and args[x] is not None)
-    },
-    "UNIXTOTIME": null_if_any(
-        lambda arg: datetime.datetime.fromtimestamp(arg, datetime.timezone.utc)
-    ),
+    "STRUCT": lambda *args: {args[x]: args[x + 1] for x in range(0, len(args), 2) if (args[x + 1] is not None and args[x] is not None)},
+    "UNIXTOTIME": null_if_any(lambda arg: datetime.datetime.fromtimestamp(arg, datetime.timezone.utc)),
 }

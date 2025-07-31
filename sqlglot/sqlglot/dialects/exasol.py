@@ -105,9 +105,7 @@ class Exasol(Dialect):
             "BIT_LSHIFT": binary_from_function(exp.BitwiseLeftShift),
             "BIT_RSHIFT": binary_from_function(exp.BitwiseRightShift),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/date_trunc.htm#DATE_TRUNC
-            "DATE_TRUNC": lambda args: exp.TimestampTrunc(
-                this=seq_get(args, 1), unit=seq_get(args, 0)
-            ),
+            "DATE_TRUNC": lambda args: exp.TimestampTrunc(this=seq_get(args, 1), unit=seq_get(args, 0)),
             "EVERY": lambda args: exp.All(this=seq_get(args, 0)),
             "EDIT_DISTANCE": exp.Levenshtein.from_arg_list,
             "HASH_SHA": exp.SHA.from_arg_list,
@@ -122,12 +120,8 @@ class Exasol(Dialect):
                 position=seq_get(args, 3),
                 occurrence=seq_get(args, 4),
             ),
-            "HASH_SHA256": lambda args: exp.SHA2(
-                this=seq_get(args, 0), length=exp.Literal.number(256)
-            ),
-            "HASH_SHA512": lambda args: exp.SHA2(
-                this=seq_get(args, 0), length=exp.Literal.number(512)
-            ),
+            "HASH_SHA256": lambda args: exp.SHA2(this=seq_get(args, 0), length=exp.Literal.number(256)),
+            "HASH_SHA512": lambda args: exp.SHA2(this=seq_get(args, 0), length=exp.Literal.number(512)),
             "TRUNC": _build_trunc,
             "TRUNCATE": _build_trunc,
             "VAR_POP": exp.VariancePop.from_arg_list,
@@ -208,23 +202,17 @@ class Exasol(Dialect):
             exp.DateTrunc: lambda self, e: self.func("TRUNC", e.this, unit_to_str(e)),
             exp.DatetimeTrunc: timestamptrunc_sql(),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/edit_distance.htm#EDIT_DISTANCE
-            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(
-                rename_func("EDIT_DISTANCE")
-            ),
+            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(rename_func("EDIT_DISTANCE")),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/mod.htm
             exp.Mod: rename_func("MOD"),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/regexp_substr.htm
-            exp.RegexpExtract: unsupported_args("parameters", "group")(
-                rename_func("REGEXP_SUBSTR")
-            ),
+            exp.RegexpExtract: unsupported_args("parameters", "group")(rename_func("REGEXP_SUBSTR")),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/regexp_replace.htm
             exp.RegexpReplace: unsupported_args("modifiers")(rename_func("REGEXP_REPLACE")),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/var_pop.htm
             exp.VariancePop: rename_func("VAR_POP"),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/approximate_count_distinct.htm
-            exp.ApproxDistinct: unsupported_args("accuracy")(
-                rename_func("APPROXIMATE_COUNT_DISTINCT")
-            ),
+            exp.ApproxDistinct: unsupported_args("accuracy")(rename_func("APPROXIMATE_COUNT_DISTINCT")),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/to_char%20(datetime).htm
             exp.ToChar: lambda self, e: self.func("TO_CHAR", e.this, self.format_time(e)),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/to_date.htm
@@ -241,11 +229,7 @@ class Exasol(Dialect):
                 e.args.get("zone"),
             ),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/instr.htm
-            exp.StrPosition: lambda self, e: (
-                strposition_sql(
-                    self, e, func_name="INSTR", supports_position=True, supports_occurrence=True
-                )
-            ),
+            exp.StrPosition: lambda self, e: (strposition_sql(self, e, func_name="INSTR", supports_position=True, supports_occurrence=True)),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/hash_sha%5B1%5D.htm#HASH_SHA%5B1%5D
             exp.SHA: rename_func("HASH_SHA"),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/hash_sha256.htm

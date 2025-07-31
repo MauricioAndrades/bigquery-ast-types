@@ -75,11 +75,7 @@ class Oracle(Dialect):
     class Tokenizer(tokens.Tokenizer):
         VAR_SINGLE_TOKENS = {"@", "$", "#"}
 
-        UNICODE_STRINGS = [
-            (prefix + q, q)
-            for q in t.cast(t.List[str], tokens.Tokenizer.QUOTES)
-            for prefix in ("U", "u")
-        ]
+        UNICODE_STRINGS = [(prefix + q, q) for q in t.cast(t.List[str], tokens.Tokenizer.QUOTES) for prefix in ("U", "u")]
 
         NESTED_COMMENTS = False
 
@@ -144,10 +140,8 @@ class Oracle(Dialect):
 
         PROPERTY_PARSERS = {
             **parser.Parser.PROPERTY_PARSERS,
-            "GLOBAL": lambda self: self._match_text_seq("TEMPORARY")
-            and self.expression(exp.TemporaryProperty, this="GLOBAL"),
-            "PRIVATE": lambda self: self._match_text_seq("TEMPORARY")
-            and self.expression(exp.TemporaryProperty, this="PRIVATE"),
+            "GLOBAL": lambda self: self._match_text_seq("TEMPORARY") and self.expression(exp.TemporaryProperty, this="GLOBAL"),
+            "PRIVATE": lambda self: self._match_text_seq("TEMPORARY") and self.expression(exp.TemporaryProperty, this="PRIVATE"),
             "FORCE": lambda self: self.expression(exp.ForceProperty),
         }
 
@@ -157,11 +151,7 @@ class Oracle(Dialect):
             TokenType.WITH: lambda self: ("options", [self._parse_query_restrictions()]),
         }
 
-        TYPE_LITERAL_PARSERS = {
-            exp.DataType.Type.DATE: lambda self, this, _: self.expression(
-                exp.DateStrToDate, this=this
-            )
-        }
+        TYPE_LITERAL_PARSERS = {exp.DataType.Type.DATE: lambda self, this, _: self.expression(exp.DateStrToDate, this=this)}
 
         # SELECT UNIQUE .. is old-style Oracle syntax for SELECT DISTINCT ..
         # Reference: https://stackoverflow.com/a/336455
@@ -237,8 +227,7 @@ class Oracle(Dialect):
                 exp.JSONExists,
                 this=this,
                 path=self.dialect.to_json_path(self._parse_bitwise()),
-                passing=self._match_text_seq("PASSING")
-                and self._parse_csv(lambda: self._parse_alias(self._parse_bitwise())),
+                passing=self._match_text_seq("PASSING") and self._parse_csv(lambda: self._parse_alias(self._parse_bitwise())),
                 on_condition=self._parse_on_condition(),
             )
 
@@ -254,9 +243,7 @@ class Oracle(Dialect):
             if len(expressions) == 1:
                 self._retreat(index)
                 self._match(TokenType.TABLE)
-                return self.expression(
-                    exp.Into, this=self._parse_table(schema=True), bulk_collect=bulk_collect
-                )
+                return self.expression(exp.Into, this=self._parse_table(schema=True), bulk_collect=bulk_collect)
 
             return self.expression(exp.Into, bulk_collect=bulk_collect, expressions=expressions)
 
@@ -301,9 +288,7 @@ class Oracle(Dialect):
 
         TRANSFORMS = {
             **generator.Generator.TRANSFORMS,
-            exp.DateStrToDate: lambda self, e: self.func(
-                "TO_DATE", e.this, exp.Literal.string("YYYY-MM-DD")
-            ),
+            exp.DateStrToDate: lambda self, e: self.func("TO_DATE", e.this, exp.Literal.string("YYYY-MM-DD")),
             exp.DateTrunc: lambda self, e: self.func("TRUNC", e.this, e.unit),
             exp.Group: transforms.preprocess([transforms.unalias_group]),
             exp.ILike: no_ilike_sql,
@@ -317,11 +302,7 @@ class Oracle(Dialect):
                     transforms.eliminate_qualify,
                 ]
             ),
-            exp.StrPosition: lambda self, e: (
-                strposition_sql(
-                    self, e, func_name="INSTR", supports_position=True, supports_occurrence=True
-                )
-            ),
+            exp.StrPosition: lambda self, e: (strposition_sql(self, e, func_name="INSTR", supports_position=True, supports_occurrence=True)),
             exp.StrToTime: lambda self, e: self.func("TO_TIMESTAMP", e.this, self.format_time(e)),
             exp.StrToDate: lambda self, e: self.func("TO_DATE", e.this, self.format_time(e)),
             exp.Subquery: lambda self, e: self.subquery_sql(e, sep=" "),
@@ -334,8 +315,7 @@ class Oracle(Dialect):
             exp.ToNumber: to_number_with_nls_param,
             exp.Trim: _trim_sql,
             exp.Unicode: lambda self, e: f"ASCII(UNISTR({self.sql(e.this)}))",
-            exp.UnixToTime: lambda self,
-            e: f"TO_DATE('1970-01-01', 'YYYY-MM-DD') + ({self.sql(e, 'this')} / 86400)",
+            exp.UnixToTime: lambda self, e: f"TO_DATE('1970-01-01', 'YYYY-MM-DD') + ({self.sql(e, 'this')} / 86400)",
         }
 
         PROPERTIES_LOCATION = {

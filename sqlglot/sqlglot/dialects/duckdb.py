@@ -45,30 +45,20 @@ from sqlglot.helper import seq_get
 from sqlglot.tokens import TokenType
 from sqlglot.parser import binary_range_parser
 
-DATETIME_DELTA = t.Union[
-    exp.DateAdd, exp.TimeAdd, exp.DatetimeAdd, exp.TsOrDsAdd, exp.DateSub, exp.DatetimeSub
-]
+DATETIME_DELTA = t.Union[exp.DateAdd, exp.TimeAdd, exp.DatetimeAdd, exp.TsOrDsAdd, exp.DateSub, exp.DatetimeSub]
 
 
 def _date_delta_sql(self: DuckDB.Generator, expression: DATETIME_DELTA) -> str:
     this = expression.this
     unit = unit_to_var(expression)
-    op = (
-        "+"
-        if isinstance(expression, (exp.DateAdd, exp.TimeAdd, exp.DatetimeAdd, exp.TsOrDsAdd))
-        else "-"
-    )
+    op = "+" if isinstance(expression, (exp.DateAdd, exp.TimeAdd, exp.DatetimeAdd, exp.TsOrDsAdd)) else "-"
 
     to_type: t.Optional[DATA_TYPE] = None
     if isinstance(expression, exp.TsOrDsAdd):
         to_type = expression.return_type
     elif this.is_string:
         # Cast string literals (i.e function parameters) to the appropriate type for +/- interval to work
-        to_type = (
-            exp.DataType.Type.DATETIME
-            if isinstance(expression, (exp.DatetimeAdd, exp.DatetimeSub))
-            else exp.DataType.Type.DATE
-        )
+        to_type = exp.DataType.Type.DATETIME if isinstance(expression, (exp.DatetimeAdd, exp.DatetimeSub)) else exp.DataType.Type.DATE
 
     this = exp.cast(this, to_type) if to_type else this
 
@@ -166,14 +156,7 @@ def _struct_sql(self: DuckDB.Generator, expression: exp.Struct) -> str:
     #  1. The STRUCT itself does not have proper fields (key := value) as a "proper" STRUCT would
     #  2. A cast to STRUCT / ARRAY of STRUCTs is found
     ancestor_cast = expression.find_ancestor(exp.Cast)
-    is_bq_inline_struct = (
-        (expression.find(exp.PropertyEQ) is None)
-        and ancestor_cast
-        and any(
-            casted_type.is_type(exp.DataType.Type.STRUCT)
-            for casted_type in ancestor_cast.find_all(exp.DataType)
-        )
-    )
+    is_bq_inline_struct = (expression.find(exp.PropertyEQ) is None) and ancestor_cast and any(casted_type.is_type(exp.DataType.Type.STRUCT) for casted_type in ancestor_cast.find_all(exp.DataType))
 
     for i, expr in enumerate(expression.expressions):
         is_property_eq = isinstance(expr, exp.PropertyEQ)
@@ -202,9 +185,7 @@ def _datatype_sql(self: DuckDB.Generator, expression: exp.DataType) -> str:
         return f"{self.expressions(expression, flat=True)}[{self.expressions(expression, key='values', flat=True)}]"
 
     # Modifiers are not supported for TIME, [TIME | TIMESTAMP] WITH TIME ZONE
-    if expression.is_type(
-        exp.DataType.Type.TIME, exp.DataType.Type.TIMETZ, exp.DataType.Type.TIMESTAMPTZ
-    ):
+    if expression.is_type(exp.DataType.Type.TIME, exp.DataType.Type.TIMETZ, exp.DataType.Type.TIMESTAMPTZ):
         return expression.this.value
 
     return self.datatype_sql(expression)
@@ -234,16 +215,12 @@ WRAPPED_JSON_EXTRACT_EXPRESSIONS = (exp.Binary, exp.Bracket, exp.In)
 
 def _arrow_json_extract_sql(self: DuckDB.Generator, expression: JSON_EXTRACT_TYPE) -> str:
     arrow_sql = arrow_json_extract_sql(self, expression)
-    if not expression.same_parent and isinstance(
-        expression.parent, WRAPPED_JSON_EXTRACT_EXPRESSIONS
-    ):
+    if not expression.same_parent and isinstance(expression.parent, WRAPPED_JSON_EXTRACT_EXPRESSIONS):
         arrow_sql = self.wrap(arrow_sql)
     return arrow_sql
 
 
-def _implicit_datetime_cast(
-    arg: t.Optional[exp.Expression], type: exp.DataType.Type = exp.DataType.Type.DATE
-) -> t.Optional[exp.Expression]:
+def _implicit_datetime_cast(arg: t.Optional[exp.Expression], type: exp.DataType.Type = exp.DataType.Type.DATE) -> t.Optional[exp.Expression]:
     return exp.cast(arg, type) if isinstance(arg, exp.Literal) else arg
 
 
@@ -254,9 +231,7 @@ def _date_diff_sql(self: DuckDB.Generator, expression: exp.DateDiff) -> str:
     return self.func("DATE_DIFF", unit_to_str(expression), expr, this)
 
 
-def _generate_datetime_array_sql(
-    self: DuckDB.Generator, expression: t.Union[exp.GenerateDateArray, exp.GenerateTimestampArray]
-) -> str:
+def _generate_datetime_array_sql(self: DuckDB.Generator, expression: t.Union[exp.GenerateDateArray, exp.GenerateTimestampArray]) -> str:
     is_generate_date_array = isinstance(expression, exp.GenerateDateArray)
 
     type = exp.DataType.Type.DATE if is_generate_date_array else exp.DataType.Type.TIMESTAMP
@@ -264,9 +239,7 @@ def _generate_datetime_array_sql(
     end = _implicit_datetime_cast(expression.args.get("end"), type=type)
 
     # BQ's GENERATE_DATE_ARRAY & GENERATE_TIMESTAMP_ARRAY are transformed to DuckDB'S GENERATE_SERIES
-    gen_series: t.Union[exp.GenerateSeries, exp.Cast] = exp.GenerateSeries(
-        start=start, end=end, step=expression.args.get("step")
-    )
+    gen_series: t.Union[exp.GenerateSeries, exp.Cast] = exp.GenerateSeries(start=start, end=end, step=expression.args.get("step"))
 
     if is_generate_date_array:
         # The GENERATE_SERIES result type is TIMESTAMP array, so to match BQ's semantics for
@@ -276,9 +249,7 @@ def _generate_datetime_array_sql(
     return self.sql(gen_series)
 
 
-def _json_extract_value_array_sql(
-    self: DuckDB.Generator, expression: exp.JSONValueArray | exp.JSONExtractArray
-) -> str:
+def _json_extract_value_array_sql(self: DuckDB.Generator, expression: exp.JSONValueArray | exp.JSONExtractArray) -> str:
     json_extract = exp.JSONExtract(this=expression.this, expression=expression.expression)
     data_type = "ARRAY<STRING>" if isinstance(expression, exp.JSONValueArray) else "ARRAY<JSON>"
     return self.sql(exp.cast(json_extract, to=exp.DataType.build(data_type)))
@@ -402,17 +373,11 @@ class DuckDB(Dialect):
             "DATE_DIFF": _build_date_diff,
             "DATE_TRUNC": date_trunc_to_time,
             "DATETRUNC": date_trunc_to_time,
-            "DECODE": lambda args: exp.Decode(
-                this=seq_get(args, 0), charset=exp.Literal.string("utf-8")
-            ),
+            "DECODE": lambda args: exp.Decode(this=seq_get(args, 0), charset=exp.Literal.string("utf-8")),
             "EDITDIST3": exp.Levenshtein.from_arg_list,
-            "ENCODE": lambda args: exp.Encode(
-                this=seq_get(args, 0), charset=exp.Literal.string("utf-8")
-            ),
+            "ENCODE": lambda args: exp.Encode(this=seq_get(args, 0), charset=exp.Literal.string("utf-8")),
             "EPOCH": exp.TimeToUnix.from_arg_list,
-            "EPOCH_MS": lambda args: exp.UnixToTime(
-                this=seq_get(args, 0), scale=exp.UnixToTime.MILLIS
-            ),
+            "EPOCH_MS": lambda args: exp.UnixToTime(this=seq_get(args, 0), scale=exp.UnixToTime.MILLIS),
             "GENERATE_SERIES": _build_generate_series(),
             "JSON": exp.ParseJSON.from_arg_list,
             "JSON_EXTRACT_PATH": parser.build_extract_json_with_path(exp.JSONExtract),
@@ -457,9 +422,7 @@ class DuckDB(Dialect):
 
         FUNCTION_PARSERS = {
             **parser.Parser.FUNCTION_PARSERS,
-            **dict.fromkeys(
-                ("GROUP_CONCAT", "LISTAGG", "STRINGAGG"), lambda self: self._parse_string_agg()
-            ),
+            **dict.fromkeys(("GROUP_CONCAT", "LISTAGG", "STRINGAGG"), lambda self: self._parse_string_agg()),
         }
         FUNCTION_PARSERS.pop("DECODE")
 
@@ -476,11 +439,7 @@ class DuckDB(Dialect):
 
         PLACEHOLDER_PARSERS = {
             **parser.Parser.PLACEHOLDER_PARSERS,
-            TokenType.PARAMETER: lambda self: (
-                self.expression(exp.Placeholder, this=self._prev.text)
-                if self._match(TokenType.NUMBER) or self._match_set(self.ID_VAR_TOKENS)
-                else None
-            ),
+            TokenType.PARAMETER: lambda self: (self.expression(exp.Placeholder, this=self._prev.text) if self._match(TokenType.NUMBER) or self._match_set(self.ID_VAR_TOKENS) else None),
         }
 
         TYPE_CONVERTERS = {
@@ -543,9 +502,7 @@ class DuckDB(Dialect):
         ) -> t.Optional[exp.Expression]:
             # DuckDB supports prefix aliases, e.g. FROM foo: bar
             if self._next and self._next.token_type == TokenType.COLON:
-                alias = self._parse_table_alias(
-                    alias_tokens=alias_tokens or self.TABLE_ALIAS_TOKENS
-                )
+                alias = self._parse_table_alias(alias_tokens=alias_tokens or self.TABLE_ALIAS_TOKENS)
                 self._match(TokenType.COLON)
                 comments = self._prev_comments or []
             else:
@@ -579,9 +536,7 @@ class DuckDB(Dialect):
 
             return sample
 
-        def _parse_bracket(
-            self, this: t.Optional[exp.Expression] = None
-        ) -> t.Optional[exp.Expression]:
+        def _parse_bracket(self, this: t.Optional[exp.Expression] = None) -> t.Optional[exp.Expression]:
             bracket = super()._parse_bracket(this)
 
             if self.dialect.version < Version("1.2.0") and isinstance(bracket, exp.Bracket):
@@ -622,11 +577,7 @@ class DuckDB(Dialect):
             else:
                 expressions = None
 
-            return (
-                self.expression(exp.Attach, this=this, exists=exists, expressions=expressions)
-                if is_attach
-                else self.expression(exp.Detach, this=this, exists=exists)
-            )
+            return self.expression(exp.Attach, this=this, exists=exists, expressions=expressions) if is_attach else self.expression(exp.Detach, this=this, exists=exists)
 
         def _parse_show_duckdb(self, this: str) -> exp.Show:
             return self.expression(exp.Show, this=this)
@@ -694,11 +645,9 @@ class DuckDB(Dialect):
             exp.Datetime: no_datetime_sql,
             exp.DatetimeSub: _date_delta_sql,
             exp.DatetimeAdd: _date_delta_sql,
-            exp.DateToDi: lambda self,
-            e: f"CAST(STRFTIME({self.sql(e, 'this')}, {DuckDB.DATEINT_FORMAT}) AS INT)",
+            exp.DateToDi: lambda self, e: f"CAST(STRFTIME({self.sql(e, 'this')}, {DuckDB.DATEINT_FORMAT}) AS INT)",
             exp.Decode: lambda self, e: encode_decode_sql(self, e, "DECODE", replace=False),
-            exp.DiToDate: lambda self,
-            e: f"CAST(STRPTIME(CAST({self.sql(e, 'this')} AS TEXT), {DuckDB.DATEINT_FORMAT}) AS DATE)",
+            exp.DiToDate: lambda self, e: f"CAST(STRPTIME(CAST({self.sql(e, 'this')} AS TEXT), {DuckDB.DATEINT_FORMAT}) AS DATE)",
             exp.Encode: lambda self, e: encode_decode_sql(self, e, "ENCODE", replace=False),
             exp.GenerateDateArray: _generate_datetime_array_sql,
             exp.GenerateTimestampArray: _generate_datetime_array_sql,
@@ -738,9 +687,7 @@ class DuckDB(Dialect):
                 e.args.get("modifiers"),
             ),
             exp.RegexpLike: rename_func("REGEXP_MATCHES"),
-            exp.RegexpILike: lambda self, e: self.func(
-                "REGEXP_MATCHES", e.this, e.expression, exp.Literal.string("i")
-            ),
+            exp.RegexpILike: lambda self, e: self.func("REGEXP_MATCHES", e.this, e.expression, exp.Literal.string("i")),
             exp.RegexpSplit: rename_func("STR_SPLIT_REGEX"),
             exp.Return: lambda self, e: self.sql(e, "this"),
             exp.ReturnsProperty: lambda self, e: "TABLE" if isinstance(e.this, exp.Schema) else "",
@@ -750,28 +697,21 @@ class DuckDB(Dialect):
             exp.Split: rename_func("STR_SPLIT"),
             exp.SortArray: _sort_array_sql,
             exp.StrPosition: strposition_sql,
-            exp.StrToUnix: lambda self, e: self.func(
-                "EPOCH", self.func("STRPTIME", e.this, self.format_time(e))
-            ),
+            exp.StrToUnix: lambda self, e: self.func("EPOCH", self.func("STRPTIME", e.this, self.format_time(e))),
             exp.Struct: _struct_sql,
             exp.Transform: rename_func("LIST_TRANSFORM"),
             exp.TimeAdd: _date_delta_sql,
             exp.Time: no_time_sql,
             exp.TimeDiff: _timediff_sql,
             exp.Timestamp: no_timestamp_sql,
-            exp.TimestampDiff: lambda self, e: self.func(
-                "DATE_DIFF", exp.Literal.string(e.unit), e.expression, e.this
-            ),
+            exp.TimestampDiff: lambda self, e: self.func("DATE_DIFF", exp.Literal.string(e.unit), e.expression, e.this),
             exp.TimestampTrunc: timestamptrunc_sql(),
             exp.TimeStrToDate: lambda self, e: self.sql(exp.cast(e.this, exp.DataType.Type.DATE)),
             exp.TimeStrToTime: timestrtotime_sql,
-            exp.TimeStrToUnix: lambda self, e: self.func(
-                "EPOCH", exp.cast(e.this, exp.DataType.Type.TIMESTAMP)
-            ),
+            exp.TimeStrToUnix: lambda self, e: self.func("EPOCH", exp.cast(e.this, exp.DataType.Type.TIMESTAMP)),
             exp.TimeToStr: lambda self, e: self.func("STRFTIME", e.this, self.format_time(e)),
             exp.TimeToUnix: rename_func("EPOCH"),
-            exp.TsOrDiToDi: lambda self,
-            e: f"CAST(SUBSTR(REPLACE(CAST({self.sql(e, 'this')} AS TEXT), '-', ''), 1, 8) AS INT)",
+            exp.TsOrDiToDi: lambda self, e: f"CAST(SUBSTR(REPLACE(CAST({self.sql(e, 'this')} AS TEXT), '-', ''), 1, 8) AS INT)",
             exp.TsOrDsAdd: _date_delta_sql,
             exp.TsOrDsDiff: lambda self, e: self.func(
                 "DATE_DIFF",
@@ -779,20 +719,14 @@ class DuckDB(Dialect):
                 exp.cast(e.expression, exp.DataType.Type.TIMESTAMP),
                 exp.cast(e.this, exp.DataType.Type.TIMESTAMP),
             ),
-            exp.UnixToStr: lambda self, e: self.func(
-                "STRFTIME", self.func("TO_TIMESTAMP", e.this), self.format_time(e)
-            ),
-            exp.DatetimeTrunc: lambda self, e: self.func(
-                "DATE_TRUNC", unit_to_str(e), exp.cast(e.this, exp.DataType.Type.DATETIME)
-            ),
+            exp.UnixToStr: lambda self, e: self.func("STRFTIME", self.func("TO_TIMESTAMP", e.this), self.format_time(e)),
+            exp.DatetimeTrunc: lambda self, e: self.func("DATE_TRUNC", unit_to_str(e), exp.cast(e.this, exp.DataType.Type.DATETIME)),
             exp.UnixToTime: _unix_to_time_sql,
             exp.UnixToTimeStr: lambda self, e: f"CAST(TO_TIMESTAMP({self.sql(e, 'this')}) AS TEXT)",
             exp.VariancePop: rename_func("VAR_POP"),
             exp.WeekOfYear: rename_func("WEEKOFYEAR"),
             exp.Xor: bool_xor_sql,
-            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(
-                rename_func("LEVENSHTEIN")
-            ),
+            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(rename_func("LEVENSHTEIN")),
             exp.JSONObjectAgg: rename_func("JSON_GROUP_OBJECT"),
             exp.JSONBObjectAgg: rename_func("JSON_GROUP_OBJECT"),
             exp.DateBin: rename_func("TIME_BUCKET"),
@@ -910,10 +844,7 @@ class DuckDB(Dialect):
 
         # DuckDB doesn't generally support CREATE TABLE .. properties
         # https://duckdb.org/docs/sql/statements/create_table.html
-        PROPERTIES_LOCATION = {
-            prop: exp.Properties.Location.UNSUPPORTED
-            for prop in generator.Generator.PROPERTIES_LOCATION
-        }
+        PROPERTIES_LOCATION = {prop: exp.Properties.Location.UNSUPPORTED for prop in generator.Generator.PROPERTIES_LOCATION}
 
         # There are a few exceptions (e.g. temporary tables) which are supported or
         # can be transpiled to DuckDB, so we explicitly override them accordingly
@@ -929,9 +860,7 @@ class DuckDB(Dialect):
             exp.NthValue,
         )
 
-        def lambda_sql(
-            self, expression: exp.Lambda, arrow_sep: str = "->", wrap: bool = True
-        ) -> str:
+        def lambda_sql(self, expression: exp.Lambda, arrow_sep: str = "->", wrap: bool = True) -> str:
             if expression.args.get("colon"):
                 prefix = "LAMBDA "
                 arrow_sep = ":"
@@ -969,9 +898,7 @@ class DuckDB(Dialect):
         def timefromparts_sql(self, expression: exp.TimeFromParts) -> str:
             nano = expression.args.get("nano")
             if nano is not None:
-                expression.set(
-                    "sec", expression.args["sec"] + nano.pop() / exp.Literal.number(1000000000.0)
-                )
+                expression.set("sec", expression.args["sec"] + nano.pop() / exp.Literal.number(1000000000.0))
 
             return rename_func("MAKE_TIME")(self, expression)
 
@@ -1003,10 +930,7 @@ class DuckDB(Dialect):
             if expression.args.get("size"):
                 method = expression.args.get("method")
                 if method and method.name.upper() != "RESERVOIR":
-                    self.unsupported(
-                        f"Sampling method {method} is not supported with a discrete sample count, "
-                        "defaulting to reservoir sampling"
-                    )
+                    self.unsupported(f"Sampling method {method} is not supported with a discrete sample count, " "defaulting to reservoir sampling")
                     expression.set("method", exp.var("RESERVOIR"))
 
             return super().tablesample_sql(expression, tablesample_keyword=tablesample_keyword)
@@ -1017,11 +941,7 @@ class DuckDB(Dialect):
             return super().columndef_sql(expression, sep)
 
         def join_sql(self, expression: exp.Join) -> str:
-            if (
-                expression.side == "LEFT"
-                and not expression.args.get("on")
-                and isinstance(expression.this, exp.Unnest)
-            ):
+            if expression.side == "LEFT" and not expression.args.get("on") and isinstance(expression.this, exp.Unnest):
                 # Some dialects support `LEFT JOIN UNNEST(...)` without an explicit ON clause
                 # DuckDB doesn't, but we can just add a dummy ON clause that is always true
                 return super().join_sql(expression.on(exp.true()))
@@ -1100,13 +1020,7 @@ class DuckDB(Dialect):
             blob = exp.cast(arg, exp.DataType.Type.VARBINARY)
             varchar = exp.cast(arg, exp.DataType.Type.VARCHAR)
 
-            case = (
-                exp.case(self.func("TYPEOF", arg))
-                .when("'BLOB'", self.func("OCTET_LENGTH", blob))
-                .else_(
-                    exp.Anonymous(this="LENGTH", expressions=[varchar])
-                )  # anonymous to break length_sql recursion
-            )
+            case = exp.case(self.func("TYPEOF", arg)).when("'BLOB'", self.func("OCTET_LENGTH", blob)).else_(exp.Anonymous(this="LENGTH", expressions=[varchar]))  # anonymous to break length_sql recursion
 
             return self.sql(case)
 
@@ -1130,9 +1044,7 @@ class DuckDB(Dialect):
             if explode_array:
                 # In BigQuery, UNNESTing a nested array leads to explosion of the top-level array & struct
                 # This is transpiled to DDB by transforming "FROM UNNEST(...)" to "FROM (SELECT UNNEST(..., max_depth => 2))"
-                expression.expressions.append(
-                    exp.Kwarg(this=exp.var("max_depth"), expression=exp.Literal.number(2))
-                )
+                expression.expressions.append(exp.Kwarg(this=exp.var("max_depth"), expression=exp.Literal.number(2)))
 
                 # If BQ's UNNEST is aliased, we transform it from a column alias to a table alias in DDB
                 alias = expression.args.get("alias")
@@ -1180,15 +1092,9 @@ class DuckDB(Dialect):
 
             # Do not render group if there is no following argument,
             # and it's the default value for this dialect
-            if (
-                not params
-                and group
-                and group.name == str(self.dialect.REGEXP_EXTRACT_DEFAULT_GROUP)
-            ):
+            if not params and group and group.name == str(self.dialect.REGEXP_EXTRACT_DEFAULT_GROUP):
                 group = None
-            return self.func(
-                "REGEXP_EXTRACT", expression.this, expression.expression, group, params
-            )
+            return self.func("REGEXP_EXTRACT", expression.this, expression.expression, group, params)
 
         @unsupported_args("culture")
         def numbertostr_sql(self, expression: exp.NumberToStr) -> str:
@@ -1232,10 +1138,7 @@ class DuckDB(Dialect):
             unnest_sql = self.sql(exp.Unnest(expressions=[this], alias=col))
             gen_subscripts = self.sql(
                 exp.Alias(
-                    this=exp.Anonymous(
-                        this="GENERATE_SUBSCRIPTS", expressions=[this, exp.Literal.number(1)]
-                    )
-                    - exp.Literal.number(1),
+                    this=exp.Anonymous(this="GENERATE_SUBSCRIPTS", expressions=[this, exp.Literal.number(1)]) - exp.Literal.number(1),
                     alias=pos,
                 )
             )

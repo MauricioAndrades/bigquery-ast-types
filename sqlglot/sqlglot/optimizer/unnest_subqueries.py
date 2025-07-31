@@ -41,11 +41,7 @@ def unnest(select, parent_select, next_alias_name):
         return
 
     predicate = select.find_ancestor(exp.Condition)
-    if (
-        not predicate
-        or parent_select is not predicate.parent_select
-        or not parent_select.args.get("from")
-    ):
+    if not predicate or parent_select is not predicate.parent_select or not parent_select.args.get("from"):
         return
 
     if isinstance(select, exp.SetOperation):
@@ -60,13 +56,7 @@ def unnest(select, parent_select, next_alias_name):
 
         clause_parent_select = clause.parent_select if clause else None
 
-        if (isinstance(clause, exp.Having) and clause_parent_select is parent_select) or (
-            (not clause or clause_parent_select is not parent_select)
-            and (
-                parent_select.args.get("group")
-                or any(find_in_scope(select, exp.AggFunc) for select in parent_select.selects)
-            )
-        ):
+        if (isinstance(clause, exp.Having) and clause_parent_select is parent_select) or ((not clause or clause_parent_select is not parent_select) and (parent_select.args.get("group") or any(find_in_scope(select, exp.AggFunc) for select in parent_select.selects))):
             column = exp.Max(this=column)
         elif not isinstance(select.parent, exp.Subquery):
             return
@@ -100,11 +90,7 @@ def unnest(select, parent_select, next_alias_name):
 
     if group:
         if {value.this} != set(group.expressions):
-            select = (
-                exp.select(exp.alias_(exp.column(value.alias, "_q"), value.alias))
-                .from_(select.subquery("_q", copy=False), copy=False)
-                .group_by(exp.column(value.alias, "_q"), copy=False)
-            )
+            select = exp.select(exp.alias_(exp.column(value.alias, "_q"), value.alias)).from_(select.subquery("_q", copy=False), copy=False).group_by(exp.column(value.alias, "_q"), copy=False)
     elif not find_in_scope(value.this, exp.AggFunc):
         select = select.group_by(value.this, copy=False)
 
@@ -138,11 +124,7 @@ def decorrelate(select, parent_select, external_columns, next_alias_name):
             return
 
         if isinstance(predicate, exp.Binary):
-            key = (
-                predicate.right
-                if any(node is column for node in predicate.left.walk())
-                else predicate.left
-            )
+            key = predicate.right if any(node is column for node in predicate.left.walk()) else predicate.left
         else:
             return
 
@@ -151,11 +133,7 @@ def decorrelate(select, parent_select, external_columns, next_alias_name):
     if not any(isinstance(predicate, exp.EQ) for *_, predicate in keys):
         return
 
-    is_subquery_projection = any(
-        node is select.parent
-        for node in map(lambda s: s.unalias(), parent_select.selects)
-        if isinstance(node, exp.Subquery)
-    )
+    is_subquery_projection = any(node is select.parent for node in map(lambda s: s.unalias(), parent_select.selects) if isinstance(node, exp.Subquery))
 
     value = select.selects[0]
     key_aliases = {}
@@ -210,9 +188,7 @@ def decorrelate(select, parent_select, external_columns, next_alias_name):
     elif isinstance(parent_predicate, exp.All):
         assert issubclass(op_type, exp.Binary)
         predicate = op_type(this=other, expression=exp.column("_x"))
-        parent_predicate = _replace(
-            parent_predicate.parent, f"ARRAY_ALL({alias}, _x -> {predicate})"
-        )
+        parent_predicate = _replace(parent_predicate.parent, f"ARRAY_ALL({alias}, _x -> {predicate})")
     elif isinstance(parent_predicate, exp.Any):
         assert issubclass(op_type, exp.Binary)
         if value.this in group_by:
@@ -293,10 +269,6 @@ def _other_operand(expression):
         return _other_operand(expression.parent)
 
     if isinstance(expression, exp.Binary):
-        return (
-            expression.right
-            if isinstance(expression.left, (exp.Subquery, exp.Any, exp.Exists, exp.All))
-            else expression.left
-        )
+        return expression.right if isinstance(expression.left, (exp.Subquery, exp.Any, exp.Exists, exp.All)) else expression.left
 
     return None

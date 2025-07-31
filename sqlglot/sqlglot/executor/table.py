@@ -25,9 +25,7 @@ class Table:
     def add_columns(self, *columns: str) -> None:
         self.columns += columns
         if self.column_range:
-            self.column_range = range(
-                self.column_range.start, self.column_range.stop + len(columns)
-            )
+            self.column_range = range(self.column_range.start, self.column_range.stop + len(columns))
         self.reader = RowReader(self.columns, self.column_range)
 
     def append(self, row: t.List) -> None:
@@ -55,11 +53,7 @@ class Table:
         return self.reader
 
     def __repr__(self) -> str:
-        columns = tuple(
-            column
-            for i, column in enumerate(self.columns)
-            if not self.column_range or i in self.column_range
-        )
+        columns = tuple(column for i, column in enumerate(self.columns) if not self.column_range or i in self.column_range)
         widths = {column: len(column) for column in columns}
         lines = [" ".join(column for column in columns)]
 
@@ -67,11 +61,7 @@ class Table:
             if i > 10:
                 break
 
-            lines.append(
-                " ".join(
-                    str(row[column]).rjust(widths[column])[0 : widths[column]] for column in columns
-                )
-            )
+            lines.append(" ".join(str(row[column]).rjust(widths[column])[0 : widths[column]] for column in columns))
         return "\n".join(lines)
 
 
@@ -104,9 +94,7 @@ class RangeReader:
 
 class RowReader:
     def __init__(self, columns, column_range=None):
-        self.columns = {
-            column: i for i, column in enumerate(columns) if not column_range or i in column_range
-        }
+        self.columns = {column: i for i, column in enumerate(columns) if not column_range or i in column_range}
         self.row = None
 
     def __getitem__(self, column):
@@ -127,12 +115,7 @@ def _ensure_tables(d: t.Optional[t.Dict], dialect: DialectType = None) -> t.Dict
 
     depth = dict_depth(d)
     if depth > 1:
-        return {
-            normalize_name(k, dialect=dialect, is_table=True).name: _ensure_tables(
-                v, dialect=dialect
-            )
-            for k, v in d.items()
-        }
+        return {normalize_name(k, dialect=dialect, is_table=True).name: _ensure_tables(v, dialect=dialect) for k, v in d.items()}
 
     result = {}
     for table_name, table in d.items():
@@ -141,13 +124,7 @@ def _ensure_tables(d: t.Optional[t.Dict], dialect: DialectType = None) -> t.Dict
         if isinstance(table, Table):
             result[table_name] = table
         else:
-            table = [
-                {
-                    normalize_name(column_name, dialect=dialect).name: value
-                    for column_name, value in row.items()
-                }
-                for row in table
-            ]
+            table = [{normalize_name(column_name, dialect=dialect).name: value for column_name, value in row.items()} for row in table]
             column_names = tuple(column_name for column_name in table[0]) if table else ()
             rows = [tuple(row[name] for name in column_names) for row in table]
             result[table_name] = Table(columns=column_names, rows=rows)

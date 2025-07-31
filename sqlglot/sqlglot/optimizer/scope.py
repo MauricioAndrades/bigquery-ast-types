@@ -103,9 +103,7 @@ class Scope:
         self._references = None
         self._semi_anti_join_tables = None
 
-    def branch(
-        self, expression, scope_type, sources=None, cte_sources=None, lateral_sources=None, **kwargs
-    ):
+    def branch(self, expression, scope_type, sources=None, cte_sources=None, lateral_sources=None, **kwargs):
         """Branch from the current scope to a new, inner scope"""
         return Scope(
             expression=expression.unnest(),
@@ -114,8 +112,7 @@ class Scope:
             scope_type=scope_type,
             cte_sources={**self.cte_sources, **(cte_sources or {})},
             lateral_sources=lateral_sources.copy() if lateral_sources else None,
-            can_be_correlated=self.can_be_correlated
-            or scope_type in (ScopeType.SUBQUERY, ScopeType.UDTF),
+            can_be_correlated=self.can_be_correlated or scope_type in (ScopeType.SUBQUERY, ScopeType.UDTF),
             **kwargs,
         )
 
@@ -295,20 +292,7 @@ class Scope:
                     exp.Star,
                     exp.Distinct,
                 )
-                if (
-                    not ancestor
-                    or column.table
-                    or isinstance(ancestor, exp.Select)
-                    or (isinstance(ancestor, exp.Table) and not isinstance(ancestor.this, exp.Func))
-                    or (
-                        isinstance(ancestor, (exp.Order, exp.Distinct))
-                        and (
-                            isinstance(ancestor.parent, (exp.Window, exp.WithinGroup))
-                            or column.name not in named_selects
-                        )
-                    )
-                    or (isinstance(ancestor, exp.Star) and not column.arg_key == "except")
-                ):
+                if not ancestor or column.table or isinstance(ancestor, exp.Select) or (isinstance(ancestor, exp.Table) and not isinstance(ancestor.this, exp.Func)) or (isinstance(ancestor, (exp.Order, exp.Distinct)) and (isinstance(ancestor.parent, (exp.Window, exp.WithinGroup)) or column.name not in named_selects)) or (isinstance(ancestor, exp.Star) and not column.arg_key == "except"):
                     self._columns.append(column)
 
         return self._columns
@@ -379,12 +363,7 @@ class Scope:
                 left, right = self.union_scopes
                 self._external_columns = left.external_columns + right.external_columns
             else:
-                self._external_columns = [
-                    c
-                    for c in self.columns
-                    if c.table not in self.selected_sources
-                    and c.table not in self.semi_or_anti_join_tables
-                ]
+                self._external_columns = [c for c in self.columns if c.table not in self.selected_sources and c.table not in self.semi_or_anti_join_tables]
 
         return self._external_columns
 
@@ -413,9 +392,7 @@ class Scope:
     @property
     def pivots(self):
         if not self._pivots:
-            self._pivots = [
-                pivot for _, node in self.references for pivot in node.args.get("pivots") or []
-            ]
+            self._pivots = [pivot for _, node in self.references for pivot in node.args.get("pivots") or []]
 
         return self._pivots
 
@@ -696,9 +673,7 @@ def _is_derived_table(expression: exp.Subquery) -> bool:
     as it doesn't introduce a new scope. If an alias is present, it shadows all names
     under the Subquery, so that's one exception to this rule.
     """
-    return isinstance(expression, exp.Subquery) and bool(
-        expression.alias or isinstance(expression.this, exp.UNWRAPPED_QUERIES)
-    )
+    return isinstance(expression, exp.Subquery) and bool(expression.alias or isinstance(expression.this, exp.UNWRAPPED_QUERIES))
 
 
 def _is_from_or_join(expression: exp.Expression) -> bool:
@@ -857,9 +832,7 @@ def walk_in_scope(expression, bfs=True, prune=None):
     # Whenever we set it to True, we exclude a subtree from traversal.
     crossed_scope_boundary = False
 
-    for node in expression.walk(
-        bfs=bfs, prune=lambda n: crossed_scope_boundary or (prune and prune(n))
-    ):
+    for node in expression.walk(bfs=bfs, prune=lambda n: crossed_scope_boundary or (prune and prune(n))):
         crossed_scope_boundary = False
 
         yield node
@@ -867,15 +840,7 @@ def walk_in_scope(expression, bfs=True, prune=None):
         if node is expression:
             continue
 
-        if (
-            isinstance(node, exp.CTE)
-            or (
-                isinstance(node.parent, (exp.From, exp.Join, exp.Subquery))
-                and _is_derived_table(node)
-            )
-            or (isinstance(node.parent, exp.UDTF) and isinstance(node, exp.Query))
-            or isinstance(node, exp.UNWRAPPED_QUERIES)
-        ):
+        if isinstance(node, exp.CTE) or (isinstance(node.parent, (exp.From, exp.Join, exp.Subquery)) and _is_derived_table(node)) or (isinstance(node.parent, exp.UDTF) and isinstance(node, exp.Query)) or isinstance(node, exp.UNWRAPPED_QUERIES):
             crossed_scope_boundary = True
 
             if isinstance(node, (exp.Subquery, exp.UDTF)):

@@ -43,12 +43,8 @@ class StarRocks(MySQL):
         FUNCTIONS = {
             **MySQL.Parser.FUNCTIONS,
             "DATE_TRUNC": build_timestamp_trunc,
-            "DATEDIFF": lambda args: exp.DateDiff(
-                this=seq_get(args, 0), expression=seq_get(args, 1), unit=exp.Literal.string("DAY")
-            ),
-            "DATE_DIFF": lambda args: exp.DateDiff(
-                this=seq_get(args, 1), expression=seq_get(args, 2), unit=seq_get(args, 0)
-            ),
+            "DATEDIFF": lambda args: exp.DateDiff(this=seq_get(args, 0), expression=seq_get(args, 1), unit=exp.Literal.string("DAY")),
+            "DATE_DIFF": lambda args: exp.DateDiff(this=seq_get(args, 1), expression=seq_get(args, 2), unit=seq_get(args, 0)),
             "REGEXP": exp.RegexpLike.from_arg_list,
         }
 
@@ -81,9 +77,7 @@ class StarRocks(MySQL):
 
                 if not alias:
                     # Starrocks defaults to naming the table alias as "unnest"
-                    alias = exp.TableAlias(
-                        this=exp.to_identifier("unnest"), columns=[exp.to_identifier("unnest")]
-                    )
+                    alias = exp.TableAlias(this=exp.to_identifier("unnest"), columns=[exp.to_identifier("unnest")])
                     unnest.set("alias", alias)
                 elif not alias.args.get("columns"):
                     # Starrocks defaults to naming the UNNEST column as "unnest"
@@ -99,18 +93,14 @@ class StarRocks(MySQL):
             end = self._parse_wrapped(self._parse_string)
             self._match_text_seq("EVERY")
             every = self._parse_wrapped(lambda: self._parse_interval() or self._parse_number())
-            return self.expression(
-                exp.PartitionByRangePropertyDynamic, start=start, end=end, every=every
-            )
+            return self.expression(exp.PartitionByRangePropertyDynamic, start=start, end=end, every=every)
 
         def _parse_partition_by_opt_range(
             self,
         ) -> exp.PartitionedByProperty | exp.PartitionByRangeProperty:
             if self._match_text_seq("RANGE"):
                 partition_expressions = self._parse_wrapped_id_vars()
-                create_expressions = self._parse_wrapped_csv(
-                    self._parse_partitioning_granularity_dynamic
-                )
+                create_expressions = self._parse_wrapped_csv(self._parse_partitioning_granularity_dynamic)
                 return self.expression(
                     exp.PartitionByRangeProperty,
                     partition_expressions=partition_expressions,
@@ -149,9 +139,7 @@ class StarRocks(MySQL):
             exp.ArrayFilter: rename_func("ARRAY_FILTER"),
             exp.ArrayToString: rename_func("ARRAY_JOIN"),
             exp.ApproxDistinct: approx_count_distinct_sql,
-            exp.DateDiff: lambda self, e: self.func(
-                "DATE_DIFF", unit_to_str(e), e.this, e.expression
-            ),
+            exp.DateDiff: lambda self, e: self.func("DATE_DIFF", unit_to_str(e), e.this, e.expression),
             exp.JSONExtractScalar: arrow_json_extract_sql,
             exp.JSONExtract: arrow_json_extract_sql,
             exp.Property: property_sql,

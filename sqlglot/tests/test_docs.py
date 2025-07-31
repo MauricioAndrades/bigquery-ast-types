@@ -12,11 +12,7 @@ def load_tests(loader, tests, ignore):
     This finds and runs all the doctests
     """
 
-    modules = {
-        mod
-        for module in [sqlglot, sqlglot.transforms, sqlglot.optimizer]
-        for _, mod in inspect.getmembers(module, inspect.ismodule)
-    }
+    modules = {mod for module in [sqlglot, sqlglot.transforms, sqlglot.optimizer] for _, mod in inspect.getmembers(module, inspect.ismodule)}
 
     assert len(modules) >= 20
 

@@ -37,9 +37,7 @@ def pushdown_predicates(expression, dialect=None):
             where = select.args.get("where")
             if where:
                 selected_sources = scope.selected_sources
-                join_index = {
-                    join.alias_or_name: i for i, join in enumerate(select.args.get("joins") or [])
-                }
+                join_index = {join.alias_or_name: i for i, join in enumerate(select.args.get("joins") or [])}
 
                 # a right join can only push down to itself and not the source FROM table
                 # presto, trino and athena don't support inner joins where the RHS is an UNNEST expression
@@ -79,11 +77,7 @@ def pushdown(condition, sources, scope_ref_count, dialect, join_index=None):
     condition = condition.replace(simplify(condition, dialect=dialect))
     cnf_like = normalized(condition) or not normalized(condition, dnf=True)
 
-    predicates = list(
-        condition.flatten()
-        if isinstance(condition, exp.And if cnf_like else exp.Or)
-        else [condition]
-    )
+    predicates = list(condition.flatten() if isinstance(condition, exp.And if cnf_like else exp.Or) else [condition])
 
     if cnf_like:
         pushdown_cnf(predicates, sources, scope_ref_count, join_index=join_index)
@@ -146,9 +140,7 @@ def pushdown_dnf(predicates, sources, scope_ref_count):
             if table not in nodes:
                 continue
 
-            conditions[table] = (
-                exp.or_(conditions[table], predicate) if table in conditions else predicate
-            )
+            conditions[table] = exp.or_(conditions[table], predicate) if table in conditions else predicate
 
         for name, node in nodes.items():
             if name not in conditions:
@@ -192,16 +184,10 @@ def nodes_for_predicate(predicate, sources, scope_ref_count):
             nodes[table] = node
         elif isinstance(node, exp.Select) and len(tables) == 1:
             # We can't push down window expressions
-            has_window_expression = any(
-                select for select in node.selects if select.find(exp.Window)
-            )
+            has_window_expression = any(select for select in node.selects if select.find(exp.Window))
             # we can't push down predicates to select statements if they are referenced in
             # multiple places.
-            if (
-                not node.args.get("group")
-                and scope_ref_count[id(source)] < 2
-                and not has_window_expression
-            ):
+            if not node.args.get("group") and scope_ref_count[id(source)] < 2 and not has_window_expression:
                 nodes[table] = node
     return nodes
 

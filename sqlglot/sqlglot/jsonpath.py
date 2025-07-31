@@ -131,9 +131,7 @@ def parse(path: str, dialect: DialectType = None) -> exp.JSONPath:
             if len(indexes) == 1:
                 if isinstance(literal, str):
                     node: exp.JSONPathPart = exp.JSONPathKey(this=indexes[0])
-                elif isinstance(literal, exp.JSONPathPart) and isinstance(
-                    literal, (exp.JSONPathScript, exp.JSONPathFilter)
-                ):
+                elif isinstance(literal, exp.JSONPathPart) and isinstance(literal, (exp.JSONPathScript, exp.JSONPathFilter)):
                     node = exp.JSONPathSelector(this=indexes[0])
                 else:
                     node = exp.JSONPathSubscript(this=indexes[0])
@@ -213,14 +211,9 @@ JSON_PATH_PART_TRANSFORMS: t.Dict[t.Type[exp.Expression], t.Callable[..., str]] 
     exp.JSONPathRoot: lambda *_: "$",
     exp.JSONPathScript: lambda _, e: f"({e.this}",
     exp.JSONPathSelector: lambda self, e: f"[{self.json_path_part(e.this)}]",
-    exp.JSONPathSlice: lambda self, e: ":".join(
-        "" if p is False else self.json_path_part(p)
-        for p in [e.args.get("start"), e.args.get("end"), e.args.get("step")]
-        if p is not None
-    ),
+    exp.JSONPathSlice: lambda self, e: ":".join("" if p is False else self.json_path_part(p) for p in [e.args.get("start"), e.args.get("end"), e.args.get("step")] if p is not None),
     exp.JSONPathSubscript: lambda self, e: self._jsonpathsubscript_sql(e),
-    exp.JSONPathUnion: lambda self,
-    e: f"[{','.join(self.json_path_part(p) for p in e.expressions)}]",
+    exp.JSONPathUnion: lambda self, e: f"[{','.join(self.json_path_part(p) for p in e.expressions)}]",
     exp.JSONPathWildcard: lambda *_: "*",
 }
 

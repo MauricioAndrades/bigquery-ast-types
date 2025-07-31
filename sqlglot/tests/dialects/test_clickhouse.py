@@ -115,72 +115,28 @@ class TestClickhouse(Validator):
         self.validate_identity(
             "SELECT DATE_BIN(toDateTime('2023-01-01 14:45:00'), INTERVAL '1' MINUTE, toDateTime('2023-01-01 14:35:30'), 'UTC')",
         )
-        self.validate_identity(
-            "SELECT CAST(1730098800 AS DateTime64) AS DATETIME, 'test' AS interp ORDER BY DATETIME WITH FILL FROM toDateTime64(1730098800, 3) - INTERVAL '7' HOUR TO toDateTime64(1730185140, 3) - INTERVAL '7' HOUR STEP toIntervalSecond(900) INTERPOLATE (interp)"
-        )
-        self.validate_identity(
-            "SELECT number, COUNT() OVER (PARTITION BY number % 3) AS partition_count FROM numbers(10) WINDOW window_name AS (PARTITION BY number) QUALIFY partition_count = 4 ORDER BY number"
-        )
-        self.validate_identity(
-            "SELECT id, quantileGK(100, 0.95)(reading) OVER (PARTITION BY id ORDER BY id RANGE BETWEEN 30000 PRECEDING AND CURRENT ROW) AS window FROM table"
-        )
-        self.validate_identity(
-            "SELECT * FROM table LIMIT 1 BY CONCAT(datalayerVariantNo, datalayerProductId, warehouse)"
-        )
-        self.validate_identity(
-            """SELECT JSONExtractString('{"a": "hello", "b": [-100, 200.0, 300]}', 'a')"""
-        )
-        self.validate_identity(
-            "ATTACH DATABASE DEFAULT ENGINE = ORDINARY", check_command_warning=True
-        )
-        self.validate_identity(
-            "SELECT n, source FROM (SELECT toFloat32(number % 10) AS n, 'original' AS source FROM numbers(10) WHERE number % 3 = 1) ORDER BY n WITH FILL"
-        )
-        self.validate_identity(
-            "SELECT n, source FROM (SELECT toFloat32(number % 10) AS n, 'original' AS source FROM numbers(10) WHERE number % 3 = 1) ORDER BY n WITH FILL FROM 0 TO 5.51 STEP 0.5"
-        )
-        self.validate_identity(
-            "SELECT toDate((number * 10) * 86400) AS d1, toDate(number * 86400) AS d2, 'original' AS source FROM numbers(10) WHERE (number % 3) = 1 ORDER BY d2 WITH FILL, d1 WITH FILL STEP 5"
-        )
-        self.validate_identity(
-            "SELECT n, source, inter FROM (SELECT toFloat32(number % 10) AS n, 'original' AS source, number AS inter FROM numbers(10) WHERE number % 3 = 1) ORDER BY n WITH FILL FROM 0 TO 5.51 STEP 0.5 INTERPOLATE (inter AS inter + 1)"
-        )
-        self.validate_identity(
-            "SELECT SUM(1) AS impressions, arrayJoin(cities) AS city, arrayJoin(browsers) AS browser FROM (SELECT ['Istanbul', 'Berlin', 'Bobruisk'] AS cities, ['Firefox', 'Chrome', 'Chrome'] AS browsers) GROUP BY 2, 3"
-        )
-        self.validate_identity(
-            "SELECT sum(1) AS impressions, (arrayJoin(arrayZip(cities, browsers)) AS t).1 AS city, t.2 AS browser FROM (SELECT ['Istanbul', 'Berlin', 'Bobruisk'] AS cities, ['Firefox', 'Chrome', 'Chrome'] AS browsers) GROUP BY 2, 3"
-        )
-        self.validate_identity(
-            'SELECT CAST(tuple(1 AS "a", 2 AS "b", 3.0 AS "c").2 AS Nullable(String))'
-        )
-        self.validate_identity(
-            "CREATE TABLE test (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple()"
-        )
-        self.validate_identity(
-            "CREATE TABLE test ON CLUSTER default (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple()"
-        )
-        self.validate_identity(
-            "CREATE TABLE test ON CLUSTER '{cluster}' (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple()"
-        )
-        self.validate_identity(
-            "CREATE MATERIALIZED VIEW test_view ON CLUSTER cl1 (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple() AS SELECT * FROM test_data"
-        )
-        self.validate_identity(
-            "CREATE MATERIALIZED VIEW test_view ON CLUSTER '{cluster}' (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple() AS SELECT * FROM test_data"
-        )
-        self.validate_identity(
-            "CREATE MATERIALIZED VIEW test_view ON CLUSTER cl1 TO table1 AS SELECT * FROM test_data"
-        )
-        self.validate_identity(
-            "CREATE MATERIALIZED VIEW test_view ON CLUSTER '{cluster}' TO table1 AS SELECT * FROM test_data"
-        )
-        self.validate_identity(
-            "CREATE MATERIALIZED VIEW test_view TO db.table1 (id UInt8) AS SELECT * FROM test_data"
-        )
-        self.validate_identity(
-            "CREATE TABLE t (foo String CODEC(LZ4HC(9), ZSTD, DELTA), size String ALIAS formatReadableSize(size_bytes), INDEX idx1 a TYPE bloom_filter(0.001) GRANULARITY 1, INDEX idx2 a TYPE set(100) GRANULARITY 2, INDEX idx3 a TYPE minmax GRANULARITY 3)"
-        )
+        self.validate_identity("SELECT CAST(1730098800 AS DateTime64) AS DATETIME, 'test' AS interp ORDER BY DATETIME WITH FILL FROM toDateTime64(1730098800, 3) - INTERVAL '7' HOUR TO toDateTime64(1730185140, 3) - INTERVAL '7' HOUR STEP toIntervalSecond(900) INTERPOLATE (interp)")
+        self.validate_identity("SELECT number, COUNT() OVER (PARTITION BY number % 3) AS partition_count FROM numbers(10) WINDOW window_name AS (PARTITION BY number) QUALIFY partition_count = 4 ORDER BY number")
+        self.validate_identity("SELECT id, quantileGK(100, 0.95)(reading) OVER (PARTITION BY id ORDER BY id RANGE BETWEEN 30000 PRECEDING AND CURRENT ROW) AS window FROM table")
+        self.validate_identity("SELECT * FROM table LIMIT 1 BY CONCAT(datalayerVariantNo, datalayerProductId, warehouse)")
+        self.validate_identity("""SELECT JSONExtractString('{"a": "hello", "b": [-100, 200.0, 300]}', 'a')""")
+        self.validate_identity("ATTACH DATABASE DEFAULT ENGINE = ORDINARY", check_command_warning=True)
+        self.validate_identity("SELECT n, source FROM (SELECT toFloat32(number % 10) AS n, 'original' AS source FROM numbers(10) WHERE number % 3 = 1) ORDER BY n WITH FILL")
+        self.validate_identity("SELECT n, source FROM (SELECT toFloat32(number % 10) AS n, 'original' AS source FROM numbers(10) WHERE number % 3 = 1) ORDER BY n WITH FILL FROM 0 TO 5.51 STEP 0.5")
+        self.validate_identity("SELECT toDate((number * 10) * 86400) AS d1, toDate(number * 86400) AS d2, 'original' AS source FROM numbers(10) WHERE (number % 3) = 1 ORDER BY d2 WITH FILL, d1 WITH FILL STEP 5")
+        self.validate_identity("SELECT n, source, inter FROM (SELECT toFloat32(number % 10) AS n, 'original' AS source, number AS inter FROM numbers(10) WHERE number % 3 = 1) ORDER BY n WITH FILL FROM 0 TO 5.51 STEP 0.5 INTERPOLATE (inter AS inter + 1)")
+        self.validate_identity("SELECT SUM(1) AS impressions, arrayJoin(cities) AS city, arrayJoin(browsers) AS browser FROM (SELECT ['Istanbul', 'Berlin', 'Bobruisk'] AS cities, ['Firefox', 'Chrome', 'Chrome'] AS browsers) GROUP BY 2, 3")
+        self.validate_identity("SELECT sum(1) AS impressions, (arrayJoin(arrayZip(cities, browsers)) AS t).1 AS city, t.2 AS browser FROM (SELECT ['Istanbul', 'Berlin', 'Bobruisk'] AS cities, ['Firefox', 'Chrome', 'Chrome'] AS browsers) GROUP BY 2, 3")
+        self.validate_identity('SELECT CAST(tuple(1 AS "a", 2 AS "b", 3.0 AS "c").2 AS Nullable(String))')
+        self.validate_identity("CREATE TABLE test (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple()")
+        self.validate_identity("CREATE TABLE test ON CLUSTER default (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple()")
+        self.validate_identity("CREATE TABLE test ON CLUSTER '{cluster}' (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple()")
+        self.validate_identity("CREATE MATERIALIZED VIEW test_view ON CLUSTER cl1 (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple() AS SELECT * FROM test_data")
+        self.validate_identity("CREATE MATERIALIZED VIEW test_view ON CLUSTER '{cluster}' (id UInt8) ENGINE=AggregatingMergeTree() ORDER BY tuple() AS SELECT * FROM test_data")
+        self.validate_identity("CREATE MATERIALIZED VIEW test_view ON CLUSTER cl1 TO table1 AS SELECT * FROM test_data")
+        self.validate_identity("CREATE MATERIALIZED VIEW test_view ON CLUSTER '{cluster}' TO table1 AS SELECT * FROM test_data")
+        self.validate_identity("CREATE MATERIALIZED VIEW test_view TO db.table1 (id UInt8) AS SELECT * FROM test_data")
+        self.validate_identity("CREATE TABLE t (foo String CODEC(LZ4HC(9), ZSTD, DELTA), size String ALIAS formatReadableSize(size_bytes), INDEX idx1 a TYPE bloom_filter(0.001) GRANULARITY 1, INDEX idx2 a TYPE set(100) GRANULARITY 2, INDEX idx3 a TYPE minmax GRANULARITY 3)")
         self.validate_identity(
             "SELECT generate_series FROM generate_series(0, 10) AS g(x)",
         )
@@ -435,9 +391,7 @@ class TestClickhouse(Validator):
                 "postgres": "CONCAT(a, b)",
             },
         )
-        self.validate_all(
-            r"'Enum8(\'Sunday\' = 0)'", write={"clickhouse": "'Enum8(''Sunday'' = 0)'"}
-        )
+        self.validate_all(r"'Enum8(\'Sunday\' = 0)'", write={"clickhouse": "'Enum8(''Sunday'' = 0)'"})
         self.validate_all(
             "SELECT uniq(x) FROM (SELECT any(y) AS x FROM (SELECT 1 AS y))",
             read={
@@ -474,17 +428,11 @@ class TestClickhouse(Validator):
                 "clickhouse": "SELECT quantileIf(0.5)(a, TRUE)",
             },
         )
-        self.validate_identity(
-            "SELECT POSITION(needle IN haystack)", "SELECT POSITION(haystack, needle)"
-        )
-        self.validate_identity(
-            "SELECT * FROM x LIMIT 10 SETTINGS max_results = 100, result = 'break'"
-        )
+        self.validate_identity("SELECT POSITION(needle IN haystack)", "SELECT POSITION(haystack, needle)")
+        self.validate_identity("SELECT * FROM x LIMIT 10 SETTINGS max_results = 100, result = 'break'")
         self.validate_identity("SELECT * FROM x LIMIT 10 SETTINGS max_results = 100, result_")
         self.validate_identity("SELECT * FROM x FORMAT PrettyCompact")
-        self.validate_identity(
-            "SELECT * FROM x LIMIT 10 SETTINGS max_results = 100, result_ FORMAT PrettyCompact"
-        )
+        self.validate_identity("SELECT * FROM x LIMIT 10 SETTINGS max_results = 100, result_ FORMAT PrettyCompact")
         self.validate_all(
             "SELECT * FROM foo JOIN bar USING id, name",
             write={"clickhouse": "SELECT * FROM foo JOIN bar USING (id, name)"},
@@ -506,10 +454,7 @@ class TestClickhouse(Validator):
             GROUP BY loyalty
             ORDER BY loyalty ASC
             """,
-            write={
-                "clickhouse": "SELECT loyalty, count() FROM hits LEFT SEMI JOIN users USING (UserID)"
-                " GROUP BY loyalty ORDER BY loyalty ASC"
-            },
+            write={"clickhouse": "SELECT loyalty, count() FROM hits LEFT SEMI JOIN users USING (UserID)" " GROUP BY loyalty ORDER BY loyalty ASC"},
         )
         self.validate_all(
             "SELECT quantile(0.5)(a)",
@@ -545,9 +490,7 @@ class TestClickhouse(Validator):
         )
         self.validate_identity("SYSTEM STOP MERGES foo.bar", check_command_warning=True)
 
-        self.validate_identity(
-            "INSERT INTO FUNCTION s3('url', 'CSV', 'name String, value UInt32', 'gzip') SELECT name, value FROM existing_table"
-        )
+        self.validate_identity("INSERT INTO FUNCTION s3('url', 'CSV', 'name String, value UInt32', 'gzip') SELECT name, value FROM existing_table")
         self.validate_identity(
             "INSERT INTO FUNCTION remote('localhost', default.simple_table) VALUES (100, 'inserted via remote()')",
             "INSERT INTO FUNCTION remote('localhost', default.simple_table) VALUES ((100), ('inserted via remote()'))",
@@ -577,25 +520,19 @@ class TestClickhouse(Validator):
 
         self.validate_identity("ALTER TABLE visits DROP PARTITION 201901")
         self.validate_identity("ALTER TABLE visits DROP PARTITION ALL")
-        self.validate_identity(
-            "ALTER TABLE visits DROP PARTITION tuple(toYYYYMM(toDate('2019-01-25')))"
-        )
+        self.validate_identity("ALTER TABLE visits DROP PARTITION tuple(toYYYYMM(toDate('2019-01-25')))")
         self.validate_identity("ALTER TABLE visits DROP PARTITION ID '201901'")
 
         self.validate_identity("ALTER TABLE visits REPLACE PARTITION 201901 FROM visits_tmp")
         self.validate_identity("ALTER TABLE visits REPLACE PARTITION ALL FROM visits_tmp")
-        self.validate_identity(
-            "ALTER TABLE visits REPLACE PARTITION tuple(toYYYYMM(toDate('2019-01-25'))) FROM visits_tmp"
-        )
+        self.validate_identity("ALTER TABLE visits REPLACE PARTITION tuple(toYYYYMM(toDate('2019-01-25'))) FROM visits_tmp")
         self.validate_identity("ALTER TABLE visits REPLACE PARTITION ID '201901' FROM visits_tmp")
         self.validate_identity("ALTER TABLE visits ON CLUSTER test_cluster DROP COLUMN col1")
         self.validate_identity("ALTER TABLE visits ON CLUSTER '{cluster}' DROP COLUMN col1")
         self.validate_identity("DELETE FROM tbl ON CLUSTER test_cluster WHERE date = '2019-01-01'")
         self.validate_identity("DELETE FROM tbl ON CLUSTER '{cluster}' WHERE date = '2019-01-01'")
 
-        self.assertIsInstance(
-            parse_one("Tuple(select Int64)", into=exp.DataType, read="clickhouse"), exp.DataType
-        )
+        self.assertIsInstance(parse_one("Tuple(select Int64)", into=exp.DataType, read="clickhouse"), exp.DataType)
 
         self.validate_identity(
             "INSERT INTO t (col1, col2) VALUES ('abcd', 1234)",
@@ -614,13 +551,9 @@ class TestClickhouse(Validator):
 
         self.validate_identity("SELECT * APPLY(sum) FROM columns_transformers")
         self.validate_identity("SELECT COLUMNS('[jk]') APPLY(toString) FROM columns_transformers")
-        self.validate_identity(
-            "SELECT COLUMNS('[jk]') APPLY(toString) APPLY(length) APPLY(max) FROM columns_transformers"
-        )
+        self.validate_identity("SELECT COLUMNS('[jk]') APPLY(toString) APPLY(length) APPLY(max) FROM columns_transformers")
         self.validate_identity("SELECT * APPLY(sum), COLUMNS('col') APPLY(sum) APPLY(avg) FROM t")
-        self.validate_identity(
-            "SELECT * FROM ABC WHERE hasAny(COLUMNS('.*field') APPLY(toUInt64) APPLY(to), (SELECT groupUniqArray(toUInt64(field))))"
-        )
+        self.validate_identity("SELECT * FROM ABC WHERE hasAny(COLUMNS('.*field') APPLY(toUInt64) APPLY(to), (SELECT groupUniqArray(toUInt64(field))))")
         self.validate_identity("SELECT col apply", "SELECT col AS apply")
         self.validate_identity(
             "SELECT name FROM data WHERE (SELECT DISTINCT name FROM data) IS NOT NULL",
@@ -629,27 +562,21 @@ class TestClickhouse(Validator):
 
         self.validate_identity("SELECT 1_2_3_4_5", "SELECT 12345")
         self.validate_identity("SELECT 1_b", "SELECT 1_b")
-        self.validate_identity(
-            "SELECT COUNT(1) FROM table SETTINGS additional_table_filters = {'a': 'b', 'c': 'd'}"
-        )
+        self.validate_identity("SELECT COUNT(1) FROM table SETTINGS additional_table_filters = {'a': 'b', 'c': 'd'}")
         self.validate_identity("SELECT arrayConcat([1, 2], [3, 4])")
 
     def test_clickhouse_values(self):
         ast = self.parse_one("SELECT * FROM VALUES (1, 2, 3)")
         self.assertEqual(len(list(ast.find_all(exp.Tuple))), 4)
 
-        values = exp.select("*").from_(
-            exp.values([exp.tuple_(1, 2, 3)], alias="subq", columns=["a", "b", "c"])
-        )
+        values = exp.select("*").from_(exp.values([exp.tuple_(1, 2, 3)], alias="subq", columns=["a", "b", "c"]))
         self.assertEqual(
             values.sql("clickhouse"),
             "SELECT * FROM (SELECT 1 AS a, 2 AS b, 3 AS c) AS subq",
         )
 
         self.validate_identity("SELECT * FROM VALUES ((1, 1), (2, 1), (3, 1), (4, 1))")
-        self.validate_identity(
-            "SELECT type, id FROM VALUES ('id Int, type Int', (1, 1), (2, 1), (3, 1), (4, 1))"
-        )
+        self.validate_identity("SELECT type, id FROM VALUES ('id Int, type Int', (1, 1), (2, 1), (3, 1), (4, 1))")
 
         self.validate_identity(
             "INSERT INTO t (col1, col2) VALUES ('abcd', 1234)",
@@ -697,9 +624,7 @@ class TestClickhouse(Validator):
         self.validate_all("x ? 1 : 2", write={"clickhouse": "CASE WHEN x THEN 1 ELSE 2 END"})
         self.validate_all(
             "IF(BAR(col), sign > 0 ? FOO() : 0, 1)",
-            write={
-                "clickhouse": "CASE WHEN BAR(col) THEN CASE WHEN sign > 0 THEN FOO() ELSE 0 END ELSE 1 END"
-            },
+            write={"clickhouse": "CASE WHEN BAR(col) THEN CASE WHEN sign > 0 THEN FOO() ELSE 0 END ELSE 1 END"},
         )
         self.validate_all(
             "x AND FOO() > 3 + 2 ? 1 : 2",
@@ -711,9 +636,7 @@ class TestClickhouse(Validator):
         )
         self.validate_all(
             "x AND (foo() ? FALSE : TRUE) ? (y ? 1 : 2) : 3",
-            write={
-                "clickhouse": "CASE WHEN x AND (CASE WHEN foo() THEN FALSE ELSE TRUE END) THEN (CASE WHEN y THEN 1 ELSE 2 END) ELSE 3 END"
-            },
+            write={"clickhouse": "CASE WHEN x AND (CASE WHEN foo() THEN FALSE ELSE TRUE END) THEN (CASE WHEN y THEN 1 ELSE 2 END) ELSE 3 END"},
         )
 
         ternary = parse_one("x ? (y ? 1 : 2) : 3", read="clickhouse")
@@ -854,24 +777,12 @@ ORDER BY (
         self.validate_identity("""CREATE TABLE dates (dt1 Date32) ENGINE=TinyLog()""")
         self.validate_identity("CREATE TABLE named_tuples (a Tuple(select String, i Int64))")
         self.validate_identity("""CREATE TABLE t (a String) EMPTY AS SELECT * FROM dummy""")
-        self.validate_identity(
-            "CREATE TABLE t1 (a String EPHEMERAL, b String EPHEMERAL func(), c String MATERIALIZED func(), d String ALIAS func()) ENGINE=TinyLog()"
-        )
-        self.validate_identity(
-            "CREATE TABLE t (a String, b String, c UInt64, PROJECTION p1 (SELECT a, sum(c) GROUP BY a, b), PROJECTION p2 (SELECT b, sum(c) GROUP BY b)) ENGINE=MergeTree()"
-        )
-        self.validate_identity(
-            """CREATE TABLE xyz (ts DateTime, data String) ENGINE=MergeTree() ORDER BY ts SETTINGS index_granularity = 8192 COMMENT '{"key": "value"}'"""
-        )
-        self.validate_identity(
-            "INSERT INTO FUNCTION s3('a', 'b', 'c', 'd', 'e') PARTITION BY CONCAT(s1, s2, s3, s4) SETTINGS set1 = 1, set2 = '2' SELECT * FROM some_table SETTINGS foo = 3"
-        )
-        self.validate_identity(
-            'CREATE TABLE data5 ("x" UInt32, "y" UInt32) ENGINE=MergeTree ORDER BY (round(y / 1000000000), cityHash64(x)) SAMPLE BY cityHash64(x)'
-        )
-        self.validate_identity(
-            "CREATE TABLE foo (x UInt32) TTL time_column + INTERVAL '1' MONTH DELETE WHERE column = 'value'"
-        )
+        self.validate_identity("CREATE TABLE t1 (a String EPHEMERAL, b String EPHEMERAL func(), c String MATERIALIZED func(), d String ALIAS func()) ENGINE=TinyLog()")
+        self.validate_identity("CREATE TABLE t (a String, b String, c UInt64, PROJECTION p1 (SELECT a, sum(c) GROUP BY a, b), PROJECTION p2 (SELECT b, sum(c) GROUP BY b)) ENGINE=MergeTree()")
+        self.validate_identity("""CREATE TABLE xyz (ts DateTime, data String) ENGINE=MergeTree() ORDER BY ts SETTINGS index_granularity = 8192 COMMENT '{"key": "value"}'""")
+        self.validate_identity("INSERT INTO FUNCTION s3('a', 'b', 'c', 'd', 'e') PARTITION BY CONCAT(s1, s2, s3, s4) SETTINGS set1 = 1, set2 = '2' SELECT * FROM some_table SETTINGS foo = 3")
+        self.validate_identity('CREATE TABLE data5 ("x" UInt32, "y" UInt32) ENGINE=MergeTree ORDER BY (round(y / 1000000000), cityHash64(x)) SAMPLE BY cityHash64(x)')
+        self.validate_identity("CREATE TABLE foo (x UInt32) TTL time_column + INTERVAL '1' MONTH DELETE WHERE column = 'value'")
         self.validate_identity(
             "CREATE FUNCTION parity_str AS (n) -> IF(n % 2, 'odd', 'even')",
             "CREATE FUNCTION parity_str AS n -> CASE WHEN n % 2 THEN 'odd' ELSE 'even' END",
@@ -880,9 +791,7 @@ ORDER BY (
             "CREATE TABLE a ENGINE=Memory AS SELECT 1 AS c COMMENT 'foo'",
             "CREATE TABLE a ENGINE=Memory AS (SELECT 1 AS c) COMMENT 'foo'",
         )
-        self.validate_identity(
-            'CREATE TABLE t1 ("x" UInt32, "y" Dynamic, "z" Dynamic(max_types = 10)) ENGINE=MergeTree ORDER BY x'
-        )
+        self.validate_identity('CREATE TABLE t1 ("x" UInt32, "y" Dynamic, "z" Dynamic(max_types = 10)) ENGINE=MergeTree ORDER BY x')
 
         self.validate_all(
             "CREATE DATABASE x",
@@ -1208,11 +1117,7 @@ LIFETIME(MIN 0 MAX 0)""",
             pretty=True,
         )
 
-        self.assertIsNotNone(
-            self.validate_identity("CREATE TABLE t1 (a String MATERIALIZED func())").find(
-                exp.ColumnConstraint
-            )
-        )
+        self.assertIsNotNone(self.validate_identity("CREATE TABLE t1 (a String MATERIALIZED func())").find(exp.ColumnConstraint))
 
     def test_agg_functions(self):
         def extract_agg_func(query):
@@ -1223,9 +1128,7 @@ LIFETIME(MIN 0 MAX 0)""",
             exp.AnonymousAggFunc,
         )
         self.assertIsInstance(
-            extract_agg_func(
-                "select quantileGK(100, 0.95)(reading) OVER (PARTITION BY id) FROM table"
-            ),
+            extract_agg_func("select quantileGK(100, 0.95)(reading) OVER (PARTITION BY id) FROM table"),
             exp.ParameterizedAgg,
         )
         self.assertIsInstance(
@@ -1233,9 +1136,7 @@ LIFETIME(MIN 0 MAX 0)""",
             exp.CombinedAggFunc,
         )
         self.assertIsInstance(
-            extract_agg_func(
-                "select quantileGKIf(100, 0.95)(reading) OVER (PARTITION BY id) FROM table"
-            ),
+            extract_agg_func("select quantileGKIf(100, 0.95)(reading) OVER (PARTITION BY id) FROM table"),
             exp.CombinedParameterizedAgg,
         )
 
@@ -1280,9 +1181,7 @@ LIFETIME(MIN 0 MAX 0)""",
                     )
 
     def test_convert(self):
-        self.assertEqual(
-            convert(date(2020, 1, 1)).sql(dialect=self.dialect), "toDate('2020-01-01')"
-        )
+        self.assertEqual(convert(date(2020, 1, 1)).sql(dialect=self.dialect), "toDate('2020-01-01')")
 
         # no fractional seconds
         self.assertEqual(
@@ -1300,9 +1199,7 @@ LIFETIME(MIN 0 MAX 0)""",
             "CAST('2020-01-01 00:00:01.000001' AS DateTime64(6))",
         )
         self.assertEqual(
-            convert(datetime(2020, 1, 1, 0, 0, 1, 1, tzinfo=timezone.utc)).sql(
-                dialect=self.dialect
-            ),
+            convert(datetime(2020, 1, 1, 0, 0, 1, 1, tzinfo=timezone.utc)).sql(dialect=self.dialect),
             "CAST('2020-01-01 00:00:01.000001' AS DateTime64(6, 'UTC'))",
         )
 
@@ -1317,9 +1214,7 @@ LIFETIME(MIN 0 MAX 0)""",
         for time_string in time_strings:
             with self.subTest(f"'{time_string}'"):
                 self.assertEqual(
-                    exp.TimeStrToTime(this=exp.Literal.string(time_string)).sql(
-                        dialect=self.dialect
-                    ),
+                    exp.TimeStrToTime(this=exp.Literal.string(time_string)).sql(dialect=self.dialect),
                     f"CAST('{time_string}' AS DateTime64(6))",
                 )
 
@@ -1327,9 +1222,7 @@ LIFETIME(MIN 0 MAX 0)""",
         for utc, no_utc in zip(time_strings, time_strings_no_utc):
             with self.subTest(f"'{time_string}' with UTC timezone"):
                 self.assertEqual(
-                    exp.TimeStrToTime(
-                        this=exp.Literal.string(utc), zone=exp.Literal.string("UTC")
-                    ).sql(dialect=self.dialect),
+                    exp.TimeStrToTime(this=exp.Literal.string(utc), zone=exp.Literal.string("UTC")).sql(dialect=self.dialect),
                     f"CAST('{no_utc}' AS DateTime64(6, 'UTC'))",
                 )
 
@@ -1346,9 +1239,7 @@ LIFETIME(MIN 0 MAX 0)""",
         for time_string in time_strings:
             with self.subTest(f"'{time_string}'"):
                 self.assertEqual(
-                    exp.TimeStrToTime(this=exp.Literal.string(time_string[0])).sql(
-                        dialect=self.dialect
-                    ),
+                    exp.TimeStrToTime(this=exp.Literal.string(time_string[0])).sql(dialect=self.dialect),
                     f"CAST('{time_string[0]}' AS DateTime64(6))",
                 )
 
@@ -1364,9 +1255,7 @@ LIFETIME(MIN 0 MAX 0)""",
         for utc, no_utc in zip(time_strings, time_strings_no_utc):
             with self.subTest(f"'{time_string}' with UTC timezone"):
                 self.assertEqual(
-                    exp.TimeStrToTime(
-                        this=exp.Literal.string(utc), zone=exp.Literal.string("UTC")
-                    ).sql(dialect=self.dialect),
+                    exp.TimeStrToTime(this=exp.Literal.string(utc), zone=exp.Literal.string("UTC")).sql(dialect=self.dialect),
                     f"CAST('{no_utc}' AS DateTime64(6, 'UTC'))",
                 )
 
@@ -1375,9 +1264,7 @@ LIFETIME(MIN 0 MAX 0)""",
         self.validate_identity("GRANT INSERT(x, y) ON db.table TO john")
 
     def test_array_join(self):
-        expr = self.validate_identity(
-            "SELECT * FROM arrays_test ARRAY JOIN arr1, arrays_test.arr2 AS foo, ['a', 'b', 'c'] AS elem"
-        )
+        expr = self.validate_identity("SELECT * FROM arrays_test ARRAY JOIN arr1, arrays_test.arr2 AS foo, ['a', 'b', 'c'] AS elem")
         joins = expr.args["joins"]
         self.assertEqual(len(joins), 1)
 
@@ -1394,12 +1281,8 @@ LIFETIME(MIN 0 MAX 0)""",
 
         self.validate_identity("SELECT s, arr FROM arrays_test ARRAY JOIN arr")
         self.validate_identity("SELECT s, arr, a FROM arrays_test LEFT ARRAY JOIN arr AS a")
-        self.validate_identity(
-            "SELECT s, arr_external FROM arrays_test ARRAY JOIN [1, 2, 3] AS arr_external"
-        )
-        self.validate_identity(
-            "SELECT * FROM arrays_test ARRAY JOIN [1, 2, 3] AS arr_external1, ['a', 'b', 'c'] AS arr_external2, splitByString(',', 'asd,qwerty,zxc') AS arr_external3"
-        )
+        self.validate_identity("SELECT s, arr_external FROM arrays_test ARRAY JOIN [1, 2, 3] AS arr_external")
+        self.validate_identity("SELECT * FROM arrays_test ARRAY JOIN [1, 2, 3] AS arr_external1, ['a', 'b', 'c'] AS arr_external2, splitByString(',', 'asd,qwerty,zxc') AS arr_external3")
 
     def test_traverse_scope(self):
         sql = "SELECT * FROM t FINAL"
@@ -1408,15 +1291,9 @@ LIFETIME(MIN 0 MAX 0)""",
         self.assertEqual(set(scopes[0].sources), {"t"})
 
     def test_window_functions(self):
-        self.validate_identity(
-            "SELECT row_number(column1) OVER (PARTITION BY column2 ORDER BY column3) FROM table"
-        )
-        self.validate_identity(
-            "SELECT row_number() OVER (PARTITION BY column2 ORDER BY column3) FROM table"
-        )
+        self.validate_identity("SELECT row_number(column1) OVER (PARTITION BY column2 ORDER BY column3) FROM table")
+        self.validate_identity("SELECT row_number() OVER (PARTITION BY column2 ORDER BY column3) FROM table")
 
     def test_functions(self):
         self.validate_identity("SELECT TRANSFORM(foo, [1, 2], ['first', 'second']) FROM table")
-        self.validate_identity(
-            "SELECT TRANSFORM(foo, [1, 2], ['first', 'second'], 'default') FROM table"
-        )
+        self.validate_identity("SELECT TRANSFORM(foo, [1, 2], ['first', 'second'], 'default') FROM table")

@@ -151,9 +151,7 @@ class Teradata(Dialect):
 
         STATEMENT_PARSERS = {
             **parser.Parser.STATEMENT_PARSERS,
-            TokenType.DATABASE: lambda self: self.expression(
-                exp.Use, this=self._parse_table(schema=False)
-            ),
+            TokenType.DATABASE: lambda self: self.expression(exp.Use, this=self._parse_table(schema=False)),
             TokenType.REPLACE: lambda self: self._parse_create(),
         }
 
@@ -195,8 +193,7 @@ class Teradata(Dialect):
                 **{  # type: ignore
                     "this": self._parse_table(alias_tokens=self.UPDATE_ALIAS_TOKENS),
                     "from": self._parse_from(joins=True),
-                    "expressions": self._match(TokenType.SET)
-                    and self._parse_csv(self._parse_equality),
+                    "expressions": self._match(TokenType.SET) and self._parse_csv(self._parse_equality),
                     "where": self._parse_where(),
                 },
             )
@@ -229,12 +226,7 @@ class Teradata(Dialect):
             # override the output format. When we see this pattern we do not
             # parse it as a function call.  The syntax is documented at
             # https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Types-and-Literals/Data-Type-Formats-and-Format-Phrases/FORMAT
-            if (
-                self._next
-                and self._next.token_type == TokenType.L_PAREN
-                and self._index + 2 < len(self._tokens)
-                and self._tokens[self._index + 2].token_type == TokenType.FORMAT
-            ):
+            if self._next and self._next.token_type == TokenType.L_PAREN and self._index + 2 < len(self._tokens) and self._tokens[self._index + 2].token_type == TokenType.FORMAT:
                 return None
 
             return super()._parse_function(
@@ -290,16 +282,9 @@ class Teradata(Dialect):
             exp.Min: min_or_least,
             exp.Pow: lambda self, e: self.binary(e, "**"),
             exp.Rand: lambda self, e: self.func("RANDOM", e.args.get("lower"), e.args.get("upper")),
-            exp.Select: transforms.preprocess(
-                [transforms.eliminate_distinct_on, transforms.eliminate_semi_and_anti_joins]
-            ),
-            exp.StrPosition: lambda self, e: (
-                strposition_sql(
-                    self, e, func_name="INSTR", supports_position=True, supports_occurrence=True
-                )
-            ),
-            exp.StrToDate: lambda self,
-            e: f"CAST({self.sql(e, 'this')} AS DATE FORMAT {self.format_time(e)})",
+            exp.Select: transforms.preprocess([transforms.eliminate_distinct_on, transforms.eliminate_semi_and_anti_joins]),
+            exp.StrPosition: lambda self, e: (strposition_sql(self, e, func_name="INSTR", supports_position=True, supports_occurrence=True)),
+            exp.StrToDate: lambda self, e: f"CAST({self.sql(e, 'this')} AS DATE FORMAT {self.format_time(e)})",
             exp.ToChar: lambda self, e: self.function_fallback_sql(e),
             exp.ToNumber: to_number_with_nls_param,
             exp.Use: lambda self, e: f"DATABASE {self.sql(e, 'this')}",

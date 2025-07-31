@@ -185,9 +185,7 @@ def _build_to_timestamp(args: t.List) -> exp.UnixToTime | exp.StrToTime:
     return build_formatted_time(exp.StrToTime, "postgres")(args)
 
 
-def _json_extract_sql(
-    name: str, op: str
-) -> t.Callable[[Postgres.Generator, JSON_EXTRACT_TYPE], str]:
+def _json_extract_sql(name: str, op: str) -> t.Callable[[Postgres.Generator, JSON_EXTRACT_TYPE], str]:
     def _generate(self: Postgres.Generator, expression: JSON_EXTRACT_TYPE) -> str:
         if expression.args.get("only_json_types"):
             return json_extract_segments(name, quoted_index=False, op=op)(self, expression)
@@ -389,9 +387,7 @@ class Postgres(Dialect):
         FUNCTIONS = {
             **parser.Parser.FUNCTIONS,
             "DATE_TRUNC": build_timestamp_trunc,
-            "DIV": lambda args: exp.cast(
-                binary_from_function(exp.IntDiv)(args), exp.DataType.Type.DECIMAL
-            ),
+            "DIV": lambda args: exp.cast(binary_from_function(exp.IntDiv)(args), exp.DataType.Type.DECIMAL),
             "GENERATE_SERIES": _build_generate_series,
             "JSON_EXTRACT_PATH": build_json_extract_path(exp.JSONExtract),
             "JSON_EXTRACT_PATH_TEXT": build_json_extract_path(exp.JSONExtractScalar),
@@ -435,9 +431,7 @@ class Postgres(Dialect):
         RANGE_PARSERS = {
             **parser.Parser.RANGE_PARSERS,
             TokenType.DAMP: binary_range_parser(exp.ArrayOverlaps),
-            TokenType.DAT: lambda self, this: self.expression(
-                exp.MatchAgainst, this=self._parse_bitwise(), expressions=[this]
-            ),
+            TokenType.DAT: lambda self, this: self.expression(exp.MatchAgainst, this=self._parse_bitwise(), expressions=[this]),
             TokenType.OPERATOR: lambda self, this: self._parse_operator(this),
         }
 
@@ -450,20 +444,12 @@ class Postgres(Dialect):
 
         COLUMN_OPERATORS = {
             **parser.Parser.COLUMN_OPERATORS,
-            TokenType.ARROW: lambda self, this, path: build_json_extract_path(
-                exp.JSONExtract, arrow_req_json_type=self.JSON_ARROWS_REQUIRE_JSON_TYPE
-            )([this, path]),
-            TokenType.DARROW: lambda self, this, path: build_json_extract_path(
-                exp.JSONExtractScalar, arrow_req_json_type=self.JSON_ARROWS_REQUIRE_JSON_TYPE
-            )([this, path]),
+            TokenType.ARROW: lambda self, this, path: build_json_extract_path(exp.JSONExtract, arrow_req_json_type=self.JSON_ARROWS_REQUIRE_JSON_TYPE)([this, path]),
+            TokenType.DARROW: lambda self, this, path: build_json_extract_path(exp.JSONExtractScalar, arrow_req_json_type=self.JSON_ARROWS_REQUIRE_JSON_TYPE)([this, path]),
         }
 
         def _parse_query_parameter(self) -> t.Optional[exp.Expression]:
-            this = (
-                self._parse_wrapped(self._parse_id_var)
-                if self._match(TokenType.L_PAREN, advance=False)
-                else None
-            )
+            this = self._parse_wrapped(self._parse_id_var) if self._match(TokenType.L_PAREN, advance=False) else None
             self._match_text_seq("S")
             return self.expression(exp.Placeholder, this=this)
 
@@ -507,17 +493,12 @@ class Postgres(Dialect):
             return self.expression(
                 exp.JSONBExists,
                 this=self._parse_bitwise(),
-                path=self._match(TokenType.COMMA)
-                and self.dialect.to_json_path(self._parse_bitwise()),
+                path=self._match(TokenType.COMMA) and self.dialect.to_json_path(self._parse_bitwise()),
             )
 
         def _parse_generated_as_identity(
             self,
-        ) -> (
-            exp.GeneratedAsIdentityColumnConstraint
-            | exp.ComputedColumnConstraint
-            | exp.GeneratedAsRowColumnConstraint
-        ):
+        ) -> exp.GeneratedAsIdentityColumnConstraint | exp.ComputedColumnConstraint | exp.GeneratedAsRowColumnConstraint:
             this = super()._parse_generated_as_identity()
 
             if self._match_text_seq("STORED"):
@@ -525,9 +506,7 @@ class Postgres(Dialect):
 
             return this
 
-        def _parse_user_defined_type(
-            self, identifier: exp.Identifier
-        ) -> t.Optional[exp.Expression]:
+        def _parse_user_defined_type(self, identifier: exp.Identifier) -> t.Optional[exp.Expression]:
             udt_type: exp.Identifier | exp.Dot = identifier
 
             while self._match(TokenType.DOT):
@@ -597,9 +576,7 @@ class Postgres(Dialect):
             exp.DateSub: _date_add_sql("-"),
             exp.Explode: rename_func("UNNEST"),
             exp.ExplodingGenerateSeries: rename_func("GENERATE_SERIES"),
-            exp.GroupConcat: lambda self, e: groupconcat_sql(
-                self, e, func_name="STRING_AGG", within_group=False
-            ),
+            exp.GroupConcat: lambda self, e: groupconcat_sql(self, e, func_name="STRING_AGG", within_group=False),
             exp.IntDiv: rename_func("DIV"),
             exp.JSONExtract: _json_extract_sql("JSON_EXTRACT_PATH", "->"),
             exp.JSONExtractScalar: _json_extract_sql("JSON_EXTRACT_PATH_TEXT", "->>"),
@@ -618,12 +595,8 @@ class Postgres(Dialect):
             exp.Min: min_or_least,
             exp.Merge: merge_without_target_sql,
             exp.PartitionedByProperty: lambda self, e: f"PARTITION BY {self.sql(e, 'this')}",
-            exp.PercentileCont: transforms.preprocess(
-                [transforms.add_within_group_for_percentiles]
-            ),
-            exp.PercentileDisc: transforms.preprocess(
-                [transforms.add_within_group_for_percentiles]
-            ),
+            exp.PercentileCont: transforms.preprocess([transforms.add_within_group_for_percentiles]),
+            exp.PercentileDisc: transforms.preprocess([transforms.add_within_group_for_percentiles]),
             exp.Pivot: no_pivot_sql,
             exp.Rand: rename_func("RANDOM"),
             exp.RegexpLike: lambda self, e: self.binary(e, "~"),
@@ -652,9 +625,7 @@ class Postgres(Dialect):
             exp.TsOrDsDiff: _date_diff_sql,
             exp.UnixToTime: lambda self, e: self.func("TO_TIMESTAMP", e.this),
             exp.Uuid: lambda *_: "GEN_RANDOM_UUID()",
-            exp.TimeToUnix: lambda self, e: self.func(
-                "DATE_PART", exp.Literal.string("epoch"), e.this
-            ),
+            exp.TimeToUnix: lambda self, e: self.func("DATE_PART", exp.Literal.string("epoch"), e.this),
             exp.VariancePop: rename_func("VAR_POP"),
             exp.Variance: rename_func("VAR_SAMP"),
             exp.Xor: bool_xor_sql,
@@ -690,9 +661,7 @@ class Postgres(Dialect):
             # ROUND(double precision, integer) is not permitted in Postgres
             # so it's necessary to cast to decimal before rounding.
             if expression.this.is_type(exp.DataType.Type.DOUBLE):
-                decimal_type = exp.DataType.build(
-                    exp.DataType.Type.DECIMAL, expressions=expression.expressions
-                )
+                decimal_type = exp.DataType.build(exp.DataType.Type.DECIMAL, expressions=expression.expressions)
                 this = self.sql(exp.Cast(this=this, to=decimal_type))
 
             return self.func("ROUND", this, decimals)
@@ -711,11 +680,7 @@ class Postgres(Dialect):
                 if isinstance(arg, exp.GenerateDateArray):
                     generate_series: exp.Expression = exp.GenerateSeries(**arg.args)
                     if isinstance(expression.parent, (exp.From, exp.Join)):
-                        generate_series = (
-                            exp.select("value::date")
-                            .from_(exp.Table(this=generate_series).as_("_t", table=["value"]))
-                            .subquery(expression.args.get("alias") or "_unnested_generate_series")
-                        )
+                        generate_series = exp.select("value::date").from_(exp.Table(this=generate_series).as_("_t", table=["value"])).subquery(expression.args.get("alias") or "_unnested_generate_series")
                     return self.sql(generate_series)
 
                 from sqlglot.optimizer.annotate_types import annotate_types
@@ -768,10 +733,7 @@ class Postgres(Dialect):
                     return f"{self.expressions(expression, flat=True)}[{values}]"
                 return "ARRAY"
 
-            if (
-                expression.is_type(exp.DataType.Type.DOUBLE, exp.DataType.Type.FLOAT)
-                and expression.expressions
-            ):
+            if expression.is_type(exp.DataType.Type.DOUBLE, exp.DataType.Type.FLOAT) and expression.expressions:
                 # Postgres doesn't support precision for REAL and DOUBLE PRECISION types
                 return f"FLOAT({self.expressions(expression, flat=True)})"
 
@@ -839,10 +801,6 @@ class Postgres(Dialect):
                 expressions=[exp.false()],
             )
 
-            case_expr = (
-                exp.Case()
-                .when(exp.Is(this=value, expression=exp.null()), exp.null(), copy=False)
-                .else_(coalesce_expr, copy=False)
-            )
+            case_expr = exp.Case().when(exp.Is(this=value, expression=exp.null()), exp.null(), copy=False).else_(coalesce_expr, copy=False)
 
             return self.sql(case_expr)

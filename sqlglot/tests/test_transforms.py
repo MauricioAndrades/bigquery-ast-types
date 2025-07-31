@@ -270,10 +270,7 @@ class TestTransforms(unittest.TestCase):
             s = "select a.id from a, b where a.id = b.id (+) AND b.d (+) = const"
             tree = eliminate_join_marks(parse_one(s, dialect=dialect))
             assert all(type(t.parent_select) is exp.Select for t in tree.find_all(exp.Table))
-            assert (
-                tree.sql(dialect=dialect)
-                == "SELECT a.id FROM a LEFT JOIN b ON a.id = b.id AND b.d = const"
-            )
+            assert tree.sql(dialect=dialect) == "SELECT a.id FROM a LEFT JOIN b ON a.id = b.id AND b.d = const"
 
             # validate parens
             self.validate(
@@ -307,9 +304,7 @@ class TestTransforms(unittest.TestCase):
                             WHERE o.customer_id(+) = c.customer_id) AS latest_order_date
                     FROM customers c
                     """
-            self.assertRaises(
-                AssertionError, eliminate_join_marks, parse_one(script, dialect=dialect)
-            )
+            self.assertRaises(AssertionError, eliminate_join_marks, parse_one(script, dialect=dialect))
 
     def test_eliminate_window_clause(self):
         self.validate(

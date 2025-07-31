@@ -61,9 +61,7 @@ class Athena(Dialect):
         opts["trino"] = self._trino
         return super().parse(sql, **opts)
 
-    def parse_into(
-        self, expression_type: exp.IntoType, sql: str, **opts
-    ) -> t.List[t.Optional[exp.Expression]]:
+    def parse_into(self, expression_type: exp.IntoType, sql: str, **opts) -> t.List[t.Optional[exp.Expression]]:
         opts["hive"] = self._hive
         opts["trino"] = self._trino
         return super().parse_into(expression_type, sql, **opts)
@@ -119,9 +117,7 @@ class Athena(Dialect):
             self._hive_parser = hive.parser(*args, **{**kwargs, "dialect": hive})
             self._trino_parser = _TrinoParser(*args, **{**kwargs, "dialect": trino})
 
-        def parse(
-            self, raw_tokens: t.List[Token], sql: t.Optional[str] = None
-        ) -> t.List[t.Optional[exp.Expression]]:
+        def parse(self, raw_tokens: t.List[Token], sql: t.Optional[str] = None) -> t.List[t.Optional[exp.Expression]]:
             if raw_tokens and raw_tokens[0].token_type == TokenType.HIVE_TOKEN_STREAM:
                 return self._hive_parser.parse(raw_tokens[1:], sql)
 

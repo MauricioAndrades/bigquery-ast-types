@@ -169,20 +169,14 @@ class TestSchema(unittest.TestCase):
             schema.get_column_type(exp.table_("a"), exp.column("b")).this,
             exp.DataType.Type.VARCHAR,
         )
-        self.assertEqual(
-            schema.get_column_type("a", exp.column("b")).this, exp.DataType.Type.VARCHAR
-        )
-        self.assertEqual(
-            schema.get_column_type(exp.table_("a"), "b").this, exp.DataType.Type.VARCHAR
-        )
+        self.assertEqual(schema.get_column_type("a", exp.column("b")).this, exp.DataType.Type.VARCHAR)
+        self.assertEqual(schema.get_column_type(exp.table_("a"), "b").this, exp.DataType.Type.VARCHAR)
         schema = MappingSchema({"a": {"b": {"c": "varchar"}}})
         self.assertEqual(
             schema.get_column_type(exp.table_("b", db="a"), exp.column("c")).this,
             exp.DataType.Type.VARCHAR,
         )
-        self.assertEqual(
-            schema.get_column_type(exp.table_("b", db="a"), "c").this, exp.DataType.Type.VARCHAR
-        )
+        self.assertEqual(schema.get_column_type(exp.table_("b", db="a"), "c").this, exp.DataType.Type.VARCHAR)
         schema = MappingSchema({"a": {"b": {"c": {"d": "varchar"}}}})
         self.assertEqual(
             schema.get_column_type(exp.table_("c", db="b", catalog="a"), exp.column("d")).this,
@@ -227,9 +221,7 @@ class TestSchema(unittest.TestCase):
         # Check that the correct dialect is used when calling schema methods
         # Note: T-SQL is case-insensitive by default, so `fo` in clickhouse will match the normalized table name
         schema = MappingSchema(schema={"[Fo]": {"x": "int"}}, dialect="tsql")
-        self.assertEqual(
-            schema.column_names("[Fo]"), schema.column_names("`fo`", dialect="clickhouse")
-        )
+        self.assertEqual(schema.column_names("[Fo]"), schema.column_names("`fo`", dialect="clickhouse"))
 
         # Check that all column identifiers are normalized to lowercase for BigQuery, even quoted
         # ones. Also, ensure that tables aren't normalized, since they're case-sensitive by default.

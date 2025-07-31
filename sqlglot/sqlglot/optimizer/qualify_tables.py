@@ -98,9 +98,7 @@ def qualify_tables(
                     # Mutates the source by attaching an alias to it
                     alias(source, name or source.name or next_alias_name(), copy=False, table=True)
 
-                table_aliases[".".join(p.name for p in source.parts)] = exp.to_identifier(
-                    source.alias
-                )
+                table_aliases[".".join(p.name for p in source.parts)] = exp.to_identifier(source.alias)
 
                 if pivots:
                     pivot = pivots[0]
@@ -125,14 +123,8 @@ def qualify_tables(
                         )
             elif isinstance(source, Scope) and source.is_udtf:
                 udtf = source.expression
-                table_alias = udtf.args.get("alias") or exp.TableAlias(
-                    this=exp.to_identifier(next_alias_name())
-                )
-                if (
-                    isinstance(udtf, exp.Unnest)
-                    and dialect.UNNEST_COLUMN_ONLY
-                    and not table_alias.columns
-                ):
+                table_alias = udtf.args.get("alias") or exp.TableAlias(this=exp.to_identifier(next_alias_name()))
+                if isinstance(udtf, exp.Unnest) and dialect.UNNEST_COLUMN_ONLY and not table_alias.columns:
                     table_alias.set("columns", [table_alias.this.copy()])
                     table_alias.set("column_only", True)
 
@@ -145,11 +137,7 @@ def qualify_tables(
                     table_alias.set("columns", column_aliases)
             else:
                 for node in scope.walk():
-                    if (
-                        isinstance(node, exp.Table)
-                        and not node.alias
-                        and isinstance(node.parent, (exp.From, exp.Join))
-                    ):
+                    if isinstance(node, exp.Table) and not node.alias and isinstance(node.parent, (exp.From, exp.Join)):
                         # Mutates the table by attaching an alias to it
                         alias(node, node.name, copy=False, table=True)
 

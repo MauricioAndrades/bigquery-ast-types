@@ -50,9 +50,7 @@ class TestExasol(Validator):
             },
         )
         self.validate_identity("CAST(x AS BOOLEAN)")
-        self.validate_identity(
-            "CAST(x AS TIMESTAMPLTZ)", "CAST(x AS TIMESTAMP WITH LOCAL TIME ZONE)"
-        )
+        self.validate_identity("CAST(x AS TIMESTAMPLTZ)", "CAST(x AS TIMESTAMP WITH LOCAL TIME ZONE)")
         self.validate_identity(
             "CAST(x AS TIMESTAMP(3) WITH LOCAL TIME ZONE)",
             "CAST(x AS TIMESTAMP WITH LOCAL TIME ZONE)",
@@ -210,9 +208,7 @@ class TestExasol(Validator):
         )
 
     def test_stringFunctions(self):
-        self.validate_identity(
-            "TO_CHAR(CAST(TO_DATE(date, 'YYYYMMDD') AS TIMESTAMP), 'DY') AS day_of_week"
-        )
+        self.validate_identity("TO_CHAR(CAST(TO_DATE(date, 'YYYYMMDD') AS TIMESTAMP), 'DY') AS day_of_week")
         self.validate_identity("SELECT TO_CHAR(12345.67890, '9999999.999999999') AS TO_CHAR")
         self.validate_identity(
             "SELECT TO_CHAR(DATE '1999-12-31') AS TO_CHAR",
@@ -323,9 +319,7 @@ class TestExasol(Validator):
 
         for fmt, alias in formats.items():
             with self.subTest(f"Testing TO_CHAR with format '{fmt}'"):
-                self.validate_identity(
-                    f"SELECT TO_CHAR(CAST('2024-07-08 13:45:00' AS TIMESTAMP), '{fmt}') AS {alias}"
-                )
+                self.validate_identity(f"SELECT TO_CHAR(CAST('2024-07-08 13:45:00' AS TIMESTAMP), '{fmt}') AS {alias}")
 
         self.validate_all(
             "TO_DATE(x, 'YYYY-MM-DD')",
@@ -351,9 +345,7 @@ class TestExasol(Validator):
                 "databricks": "TO_DATE(x, 'yyyy')",
             },
         )
-        self.validate_identity(
-            "SELECT CONVERT_TZ(CAST('2012-03-25 02:30:00' AS TIMESTAMP), 'Europe/Berlin', 'UTC', 'INVALID REJECT AMBIGUOUS REJECT') AS CONVERT_TZ"
-        )
+        self.validate_identity("SELECT CONVERT_TZ(CAST('2012-03-25 02:30:00' AS TIMESTAMP), 'Europe/Berlin', 'UTC', 'INVALID REJECT AMBIGUOUS REJECT') AS CONVERT_TZ")
         self.validate_all(
             "SELECT CONVERT_TZ('2012-05-10 12:00:00', 'Europe/Berlin', 'America/New_York')",
             read={
@@ -533,6 +525,4 @@ class TestExasol(Validator):
                 "duckdb": "SELECT CASE WHEN NULL IS NULL THEN 0 ELSE NULL END AS NIZ1",
             },
         )
-        self.validate_identity(
-            "SELECT name, age, IF age < 18 THEN 'underaged' ELSE 'adult' ENDIF AS LEGALITY FROM persons"
-        )
+        self.validate_identity("SELECT name, age, IF age < 18 THEN 'underaged' ELSE 'adult' ENDIF AS LEGALITY FROM persons")

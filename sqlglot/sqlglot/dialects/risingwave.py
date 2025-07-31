@@ -51,9 +51,7 @@ class RisingWave(Postgres):
             this = self._parse_var_or_string()
 
             if self._match(TokenType.L_PAREN, advance=False):
-                properties = self.expression(
-                    exp.Properties, expressions=self._parse_wrapped_properties()
-                )
+                properties = self.expression(exp.Properties, expressions=self._parse_wrapped_properties())
             else:
                 properties = None
 

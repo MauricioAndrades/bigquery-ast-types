@@ -50,9 +50,7 @@ def preprocess(
                 # Ensures we don't enter an infinite loop. This can happen when the original expression
                 # has the same type as the final expression and there's no _sql method available for it,
                 # because then it'd re-enter _to_sql.
-                raise ValueError(
-                    f"Expression type {expression.__class__.__name__} requires a _sql method in order to be transformed."
-                )
+                raise ValueError(f"Expression type {expression.__class__.__name__} requires a _sql method in order to be transformed.")
 
             return transforms_handler(self, expression)
 
@@ -67,11 +65,7 @@ def unnest_generate_date_array_using_recursive_cte(expression: exp.Expression) -
         recursive_ctes = []
 
         for unnest in expression.find_all(exp.Unnest):
-            if (
-                not isinstance(unnest.parent, (exp.From, exp.Join))
-                or len(unnest.expressions) != 1
-                or not isinstance(unnest.expressions[0], exp.GenerateDateArray)
-            ):
+            if not isinstance(unnest.parent, (exp.From, exp.Join)) or len(unnest.expressions) != 1 or not isinstance(unnest.expressions[0], exp.GenerateDateArray):
                 continue
 
             generate_date_array = unnest.expressions[0]
@@ -86,27 +80,19 @@ def unnest_generate_date_array_using_recursive_cte(expression: exp.Expression) -
             column_name = alias.columns[0] if isinstance(alias, exp.TableAlias) else "date_value"
 
             start = exp.cast(start, "date")
-            date_add = exp.func(
-                "date_add", column_name, exp.Literal.number(step.name), step.args.get("unit")
-            )
+            date_add = exp.func("date_add", column_name, exp.Literal.number(step.name), step.args.get("unit"))
             cast_date_add = exp.cast(date_add, "date")
 
             cte_name = "_generated_dates" + (f"_{count}" if count else "")
 
             base_query = exp.select(start.as_(column_name))
-            recursive_query = (
-                exp.select(cast_date_add)
-                .from_(cte_name)
-                .where(cast_date_add <= exp.cast(end, "date"))
-            )
+            recursive_query = exp.select(cast_date_add).from_(cte_name).where(cast_date_add <= exp.cast(end, "date"))
             cte_query = base_query.union(recursive_query, distinct=False)
 
             generate_dates_query = exp.select(column_name).from_(cte_name)
             unnest.replace(generate_dates_query.subquery(cte_name))
 
-            recursive_ctes.append(
-                exp.alias_(exp.CTE(this=cte_query), cte_name, table=[column_name])
-            )
+            recursive_ctes.append(exp.alias_(exp.CTE(this=cte_query), cte_name, table=[column_name]))
             count += 1
 
         if recursive_ctes:
@@ -147,18 +133,10 @@ def unalias_group(expression: exp.Expression) -> exp.Expression:
         The transformed expression.
     """
     if isinstance(expression, exp.Group) and isinstance(expression.parent, exp.Select):
-        aliased_selects = {
-            e.alias: i
-            for i, e in enumerate(expression.parent.expressions, start=1)
-            if isinstance(e, exp.Alias)
-        }
+        aliased_selects = {e.alias: i for i, e in enumerate(expression.parent.expressions, start=1) if isinstance(e, exp.Alias)}
 
         for group_by in expression.expressions:
-            if (
-                isinstance(group_by, exp.Column)
-                and not group_by.table
-                and group_by.name in aliased_selects
-            ):
+            if isinstance(group_by, exp.Column) and not group_by.table and group_by.name in aliased_selects:
                 group_by.replace(exp.Literal.number(aliased_selects.get(group_by.name)))
 
     return expression
@@ -176,11 +154,7 @@ def eliminate_distinct_on(expression: exp.Expression) -> exp.Expression:
     Returns:
         The transformed expression.
     """
-    if (
-        isinstance(expression, exp.Select)
-        and expression.args.get("distinct")
-        and isinstance(expression.args["distinct"].args.get("on"), exp.Tuple)
-    ):
+    if isinstance(expression, exp.Select) and expression.args.get("distinct") and isinstance(expression.args["distinct"].args.get("on"), exp.Tuple):
         row_number_window_alias = find_new_name(expression.named_selects, "_row_number")
 
         distinct_cols = expression.args["distinct"].pop().args["on"].expressions
@@ -211,11 +185,7 @@ def eliminate_distinct_on(expression: exp.Expression) -> exp.Expression:
             taken_names.add(select.output_name)
             new_selects.append(select.args["alias"])
 
-        return (
-            exp.select(*new_selects, copy=False)
-            .from_(expression.subquery("_t", copy=False), copy=False)
-            .where(exp.column(row_number_window_alias).eq(1), copy=False)
-        )
+        return exp.select(*new_selects, copy=False).from_(expression.subquery("_t", copy=False), copy=False).where(exp.column(row_number_window_alias).eq(1), copy=False)
 
     return expression
 
@@ -251,11 +221,7 @@ def eliminate_qualify(expression: exp.Expression) -> exp.Expression:
 
         outer_selects = exp.select(*list(map(_select_alias_or_name, expression.selects)))
         qualify_filters = expression.args["qualify"].pop().this
-        expression_by_alias = {
-            select.alias: select.this
-            for select in expression.selects
-            if isinstance(select, exp.Alias)
-        }
+        expression_by_alias = {select.alias: select.this for select in expression.selects if isinstance(select, exp.Alias)}
 
         select_candidates = exp.Window if expression.is_star else (exp.Window, exp.Column)
         for select_candidate in list(qualify_filters.find_all(select_candidates)):
@@ -277,9 +243,7 @@ def eliminate_qualify(expression: exp.Expression) -> exp.Expression:
             elif select_candidate.name not in expression.named_selects:
                 expression.select(select_candidate.copy(), copy=False)
 
-        return outer_selects.from_(expression.subquery(alias="_t", copy=False), copy=False).where(
-            qualify_filters, copy=False
-        )
+        return outer_selects.from_(expression.subquery(alias="_t", copy=False), copy=False).where(qualify_filters, copy=False)
 
     return expression
 
@@ -290,9 +254,7 @@ def remove_precision_parameterized_types(expression: exp.Expression) -> exp.Expr
     other expressions. This transforms removes the precision from parameterized types in expressions.
     """
     for node in expression.find_all(exp.DataType):
-        node.set(
-            "expressions", [e for e in node.expressions if not isinstance(e, exp.DataTypeParam)]
-        )
+        node.set("expressions", [e for e in node.expressions if not isinstance(e, exp.DataTypeParam)])
 
     return expression
 
@@ -302,11 +264,7 @@ def unqualify_unnest(expression: exp.Expression) -> exp.Expression:
     from sqlglot.optimizer.scope import find_all_in_scope
 
     if isinstance(expression, exp.Select):
-        unnest_aliases = {
-            unnest.alias
-            for unnest in find_all_in_scope(expression, exp.Unnest)
-            if isinstance(unnest.parent, (exp.From, exp.Join))
-        }
+        unnest_aliases = {unnest.alias for unnest in find_all_in_scope(expression, exp.Unnest) if isinstance(unnest.parent, (exp.From, exp.Join))}
         if unnest_aliases:
             for column in expression.find_all(exp.Column):
                 leftmost_part = column.parts[0]
@@ -322,17 +280,13 @@ def unnest_to_explode(
 ) -> exp.Expression:
     """Convert cross join unnest into lateral view explode."""
 
-    def _unnest_zip_exprs(
-        u: exp.Unnest, unnest_exprs: t.List[exp.Expression], has_multi_expr: bool
-    ) -> t.List[exp.Expression]:
+    def _unnest_zip_exprs(u: exp.Unnest, unnest_exprs: t.List[exp.Expression], has_multi_expr: bool) -> t.List[exp.Expression]:
         if has_multi_expr:
             if not unnest_using_arrays_zip:
                 raise UnsupportedError("Cannot transpile UNNEST with multiple input arrays")
 
             # Use INLINE(ARRAYS_ZIP(...)) for multiple expressions
-            zip_exprs: t.List[exp.Expression] = [
-                exp.Anonymous(this="ARRAYS_ZIP", expressions=unnest_exprs)
-            ]
+            zip_exprs: t.List[exp.Expression] = [exp.Anonymous(this="ARRAYS_ZIP", expressions=unnest_exprs)]
             u.set("expressions", zip_exprs)
             return zip_exprs
         return unnest_exprs
@@ -355,9 +309,7 @@ def unnest_to_explode(
             columns = alias.columns if alias else []
             offset = unnest.args.get("offset")
             if offset:
-                columns.insert(
-                    0, offset if isinstance(offset, exp.Identifier) else exp.to_identifier("pos")
-                )
+                columns.insert(0, offset if isinstance(offset, exp.Identifier) else exp.to_identifier("pos"))
 
             unnest.replace(
                 exp.Table(
@@ -396,9 +348,7 @@ def unnest_to_explode(
                 # Refs: https://spark.apache.org/docs/latest/sql-ref-syntax-qry-select-lateral-view.html
 
                 if not has_multi_expr and len(alias_cols) not in (1, 2):
-                    raise UnsupportedError(
-                        "CROSS JOIN UNNEST to LATERAL VIEW EXPLODE transformation requires explicit column aliases"
-                    )
+                    raise UnsupportedError("CROSS JOIN UNNEST to LATERAL VIEW EXPLODE transformation requires explicit column aliases")
 
                 offset = unnest.args.get("offset")
                 if offset:
@@ -443,9 +393,7 @@ def explode_projection_to_unnest(
             arrays: t.List[exp.Condition] = []
             series_alias = new_name(taken_select_names, "pos")
             series = exp.alias_(
-                exp.Unnest(
-                    expressions=[exp.GenerateSeries(start=exp.Literal.number(index_offset))]
-                ),
+                exp.Unnest(expressions=[exp.GenerateSeries(start=exp.Literal.number(index_offset))]),
                 new_name(taken_source_names, "_u"),
                 table=[series_alias],
             )
@@ -479,9 +427,7 @@ def explode_projection_to_unnest(
                         bracket.set("offset", True)
                         explode_arg = exp.func(
                             "IF",
-                            exp.func(
-                                "ARRAY_SIZE", exp.func("COALESCE", explode_arg, exp.Array())
-                            ).eq(0),
+                            exp.func("ARRAY_SIZE", exp.func("COALESCE", explode_arg, exp.Array())).eq(0),
                             exp.array(bracket, copy=False),
                             explode_arg,
                         )
@@ -505,9 +451,7 @@ def explode_projection_to_unnest(
 
                     series_table_alias = series.args["alias"].this
                     column = exp.If(
-                        this=exp.column(series_alias, table=series_table_alias).eq(
-                            exp.column(pos_alias, table=unnest_source_alias)
-                        ),
+                        this=exp.column(series_alias, table=series_table_alias).eq(exp.column(pos_alias, table=unnest_source_alias)),
                         true=exp.column(explode_alias, table=unnest_source_alias),
                     )
 
@@ -518,9 +462,7 @@ def explode_projection_to_unnest(
                         expressions.insert(
                             expressions.index(alias) + 1,
                             exp.If(
-                                this=exp.column(series_alias, table=series_table_alias).eq(
-                                    exp.column(pos_alias, table=unnest_source_alias)
-                                ),
+                                this=exp.column(series_alias, table=series_table_alias).eq(exp.column(pos_alias, table=unnest_source_alias)),
                                 true=exp.column(pos_alias, table=unnest_source_alias),
                             ).as_(pos_alias),
                         )
@@ -554,13 +496,7 @@ def explode_projection_to_unnest(
                         size = size - 1
 
                     expression.where(
-                        exp.column(series_alias, table=series_table_alias)
-                        .eq(exp.column(pos_alias, table=unnest_source_alias))
-                        .or_(
-                            (exp.column(series_alias, table=series_table_alias) > size).and_(
-                                exp.column(pos_alias, table=unnest_source_alias).eq(size)
-                            )
-                        ),
+                        exp.column(series_alias, table=series_table_alias).eq(exp.column(pos_alias, table=unnest_source_alias)).or_((exp.column(series_alias, table=series_table_alias) > size).and_(exp.column(pos_alias, table=unnest_source_alias).eq(size))),
                         copy=False,
                     )
 
@@ -578,11 +514,7 @@ def explode_projection_to_unnest(
 
 def add_within_group_for_percentiles(expression: exp.Expression) -> exp.Expression:
     """Transforms percentiles by adding a WITHIN GROUP clause to them."""
-    if (
-        isinstance(expression, exp.PERCENTILES)
-        and not isinstance(expression.parent, exp.WithinGroup)
-        and expression.expression
-    ):
+    if isinstance(expression, exp.PERCENTILES) and not isinstance(expression.parent, exp.WithinGroup) and expression.expression:
         column = expression.this.pop()
         expression.set("this", expression.expression.pop())
         order = exp.Order(expressions=[exp.Ordered(this=column)])
@@ -593,11 +525,7 @@ def add_within_group_for_percentiles(expression: exp.Expression) -> exp.Expressi
 
 def remove_within_group_for_percentiles(expression: exp.Expression) -> exp.Expression:
     """Transforms percentiles by getting rid of their corresponding WITHIN GROUP clause."""
-    if (
-        isinstance(expression, exp.WithinGroup)
-        and isinstance(expression.this, exp.PERCENTILES)
-        and isinstance(expression.expression, exp.Order)
-    ):
+    if isinstance(expression, exp.WithinGroup) and isinstance(expression.this, exp.PERCENTILES) and isinstance(expression.expression, exp.Order):
         quantile = expression.this.this
         input_value = t.cast(exp.Ordered, expression.find(exp.Ordered)).this
         return expression.replace(exp.ApproxQuantile(this=input_value, quantile=quantile))
@@ -626,11 +554,7 @@ def add_recursive_cte_column_names(expression: exp.Expression) -> exp.Expression
 
 def epoch_cast_to_ts(expression: exp.Expression) -> exp.Expression:
     """Replace 'epoch' in casts by the equivalent date literal."""
-    if (
-        isinstance(expression, (exp.Cast, exp.TryCast))
-        and expression.name.lower() == "epoch"
-        and expression.to.this in exp.DataType.TEMPORAL_TYPES
-    ):
+    if isinstance(expression, (exp.Cast, exp.TryCast)) and expression.name.lower() == "epoch" and expression.to.this in exp.DataType.TEMPORAL_TYPES:
         expression.this.replace(exp.Literal.string("1970-01-01 00:00:00"))
 
     return expression
@@ -660,11 +584,7 @@ def eliminate_full_outer_join(expression: exp.Expression) -> exp.Expression:
     for queries that have a single FULL OUTER join.
     """
     if isinstance(expression, exp.Select):
-        full_outer_joins = [
-            (index, join)
-            for index, join in enumerate(expression.args.get("joins") or [])
-            if join.side == "FULL"
-        ]
+        full_outer_joins = [(index, join) for index, join in enumerate(expression.args.get("joins") or []) if join.side == "FULL"]
 
         if len(full_outer_joins) == 1:
             expression_copy = expression.copy()
@@ -672,12 +592,7 @@ def eliminate_full_outer_join(expression: exp.Expression) -> exp.Expression:
             index, full_outer_join = full_outer_joins[0]
 
             tables = (expression.args["from"].alias_or_name, full_outer_join.alias_or_name)
-            join_conditions = full_outer_join.args.get("on") or exp.and_(
-                *[
-                    exp.column(col, tables[0]).eq(exp.column(col, tables[1]))
-                    for col in full_outer_join.args.get("using")
-                ]
-            )
+            join_conditions = full_outer_join.args.get("on") or exp.and_(*[exp.column(col, tables[0]).eq(exp.column(col, tables[1])) for col in full_outer_join.args.get("using")])
 
             full_outer_join.set("side", "left")
             anti_join_clause = exp.select("1").from_(expression.args["from"]).where(join_conditions)
@@ -723,9 +638,7 @@ def move_ctes_to_top_level(expression: E) -> E:
                 top_level_with.expressions[i:i] = inner_with.expressions
                 top_level_with.set("expressions", top_level_with.expressions)
             else:
-                top_level_with.set(
-                    "expressions", top_level_with.expressions + inner_with.expressions
-                )
+                top_level_with.set("expressions", top_level_with.expressions + inner_with.expressions)
 
     return expression
 
@@ -735,14 +648,7 @@ def ensure_bools(expression: exp.Expression) -> exp.Expression:
     from sqlglot.optimizer.canonicalize import ensure_bools
 
     def _ensure_bool(node: exp.Expression) -> None:
-        if (
-            node.is_number
-            or (
-                not isinstance(node, exp.SubqueryPredicate)
-                and node.is_type(exp.DataType.Type.UNKNOWN, *exp.DataType.NUMERIC_TYPES)
-            )
-            or (isinstance(node, exp.Column) and not node.type)
-        ):
+        if node.is_number or (not isinstance(node, exp.SubqueryPredicate) and node.is_type(exp.DataType.Type.UNKNOWN, *exp.DataType.NUMERIC_TYPES)) or (isinstance(node, exp.Column) and not node.type):
             node.replace(node.neq(0))
 
     for node in expression.walk():
@@ -775,10 +681,7 @@ def ctas_with_tmp_tables_to_create_tmp_view(
 ) -> exp.Expression:
     assert isinstance(expression, exp.Create)
     properties = expression.args.get("properties")
-    temporary = any(
-        isinstance(prop, exp.TemporaryProperty)
-        for prop in (properties.expressions if properties else [])
-    )
+    temporary = any(isinstance(prop, exp.TemporaryProperty) for prop in (properties.expressions if properties else []))
 
     # CTAS with temp tables map to CREATE TEMPORARY VIEW
     if expression.kind == "TABLE" and temporary:
@@ -824,15 +727,8 @@ def move_partitioned_by_to_schema_columns(expression: exp.Expression) -> exp.Exp
     """
     assert isinstance(expression, exp.Create)
     prop = expression.find(exp.PartitionedByProperty)
-    if (
-        prop
-        and prop.this
-        and isinstance(prop.this, exp.Schema)
-        and all(isinstance(e, exp.ColumnDef) and e.kind for e in prop.this.expressions)
-    ):
-        prop_this = exp.Tuple(
-            expressions=[exp.to_identifier(e.this) for e in prop.this.expressions]
-        )
+    if prop and prop.this and isinstance(prop.this, exp.Schema) and all(isinstance(e, exp.ColumnDef) and e.kind for e in prop.this.expressions):
+        prop_this = exp.Tuple(expressions=[exp.to_identifier(e.this) for e in prop.this.expressions])
         schema = expression.this
         for e in prop.this.expressions:
             schema.append("expressions", e)
@@ -846,10 +742,7 @@ def struct_kv_to_alias(expression: exp.Expression) -> exp.Expression:
     if isinstance(expression, exp.Struct):
         expression.set(
             "expressions",
-            [
-                exp.alias_(e.expression, e.this) if isinstance(e, exp.PropertyEQ) else e
-                for e in expression.expressions
-            ],
+            [exp.alias_(e.expression, e.this) if isinstance(e, exp.PropertyEQ) else e for e in expression.expressions],
         )
 
     return expression
@@ -926,9 +819,7 @@ def eliminate_join_marks(expression: exp.Expression) -> exp.Expression:
             if not left_join_table:
                 continue
 
-            assert not (
-                len(left_join_table) > 1
-            ), "Cannot combine JOIN predicates from different tables"
+            assert not (len(left_join_table) > 1), "Cannot combine JOIN predicates from different tables"
 
             for col in join_cols:
                 col.set("join_mark", False)
@@ -941,9 +832,7 @@ def eliminate_join_marks(expression: exp.Expression) -> exp.Expression:
 
         for table, predicates in joins_ons.items():
             join_what = old_joins.get(table, query_from).this.copy()
-            new_joins[join_what.alias_or_name] = exp.Join(
-                this=join_what, on=exp.and_(*predicates), kind="LEFT"
-            )
+            new_joins[join_what.alias_or_name] = exp.Join(this=join_what, on=exp.and_(*predicates), kind="LEFT")
 
             for p in predicates:
                 while isinstance(p.parent, exp.Paren):
@@ -958,9 +847,7 @@ def eliminate_join_marks(expression: exp.Expression) -> exp.Expression:
 
         if query_from.alias_or_name in new_joins:
             only_old_joins = old_joins.keys() - new_joins.keys()
-            assert (
-                len(only_old_joins) >= 1
-            ), "Cannot determine which table to use in the new FROM clause"
+            assert len(only_old_joins) >= 1, "Cannot determine which table to use in the new FROM clause"
 
             new_from_name = list(only_old_joins)[0]
             query.set("from", exp.From(this=old_joins[new_from_name].this))

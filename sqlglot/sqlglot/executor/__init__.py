@@ -65,9 +65,7 @@ def execute(
 
             for column in table.columns:
                 value = table[0][column]
-                column_type = (
-                    annotate_types(exp.convert(value), dialect=read).type or type(value).__name__
-                )
+                column_type = annotate_types(exp.convert(value), dialect=read).type or type(value).__name__
                 nested_set(schema, [*keys, column], column_type)
 
     schema = ensure_schema(schema, dialect=read)
@@ -76,9 +74,7 @@ def execute(
         raise ExecuteError("Tables must support the same table args as schema")
 
     now = time.time()
-    expression = optimize(
-        sql, schema, leave_tables_isolated=True, infer_csv_schemas=True, dialect=read
-    )
+    expression = optimize(sql, schema, leave_tables_isolated=True, infer_csv_schemas=True, dialect=read)
 
     logger.debug("Optimization finished: %f", time.time() - now)
     logger.debug("Optimized SQL: %s", expression.sql(pretty=True))

@@ -34,9 +34,7 @@ class TestTranspile(unittest.TestCase):
         self.assertEqual(transpile("SELECT 1 overwrite")[0], "SELECT 1 AS overwrite")
         self.assertEqual(transpile("SELECT 1 is")[0], "SELECT 1 AS is")
         self.assertEqual(transpile("SELECT 1 current_time")[0], "SELECT 1 AS current_time")
-        self.assertEqual(
-            transpile("SELECT 1 current_timestamp")[0], "SELECT 1 AS current_timestamp"
-        )
+        self.assertEqual(transpile("SELECT 1 current_timestamp")[0], "SELECT 1 AS current_timestamp")
         self.assertEqual(transpile("SELECT 1 current_date")[0], "SELECT 1 AS current_date")
         self.assertEqual(transpile("SELECT 1 current_datetime")[0], "SELECT 1 AS current_datetime")
         self.assertEqual(transpile("SELECT 1 row")[0], "SELECT 1 AS row")
@@ -73,17 +71,7 @@ class TestTranspile(unittest.TestCase):
     def test_leading_comma(self):
         self.validate(
             "SELECT a, b, c FROM (SELECT a, b, c FROM t)",
-            "SELECT\n"
-            "    a\n"
-            "    , b\n"
-            "    , c\n"
-            "FROM (\n"
-            "    SELECT\n"
-            "        a\n"
-            "        , b\n"
-            "        , c\n"
-            "    FROM t\n"
-            ")",
+            "SELECT\n" "    a\n" "    , b\n" "    , c\n" "FROM (\n" "    SELECT\n" "        a\n" "        , b\n" "        , c\n" "    FROM t\n" ")",
             leading_comma=True,
             pretty=True,
             pad=4,
@@ -169,9 +157,7 @@ class TestTranspile(unittest.TestCase):
             "SELECT 1 /* inline */ FROM foo -- comment",
             "SELECT 1 /* inline */ FROM foo /* comment */",
         )
-        self.validate(
-            "SELECT FUN(x) /*x*/, [1,2,3] /*y*/", "SELECT FUN(x) /* x */, ARRAY(1, 2, 3) /* y */"
-        )
+        self.validate("SELECT FUN(x) /*x*/, [1,2,3] /*y*/", "SELECT FUN(x) /* x */, ARRAY(1, 2, 3) /* y */")
         self.validate(
             """
             SELECT 1 -- comment
@@ -905,9 +891,7 @@ FROM tbl1""",
 
     def test_normalize_name(self):
         self.assertEqual(
-            transpile("cardinality(x)", read="presto", write="presto", normalize_functions="lower")[
-                0
-            ],
+            transpile("cardinality(x)", read="presto", write="presto", normalize_functions="lower")[0],
             "cardinality(x)",
         )
 
@@ -975,12 +959,7 @@ FROM tbl1""",
         self.assertEqual(ctx.exception.errors, expected_errors)
 
         more_than_max_errors = "(((("
-        expected_messages = (
-            "Required keyword: 'this' missing for <class 'sqlglot.expressions.Paren'>. Line 1, Col: 4.\n  (((\033[4m(\033[0m\n\n"
-            "Expecting ). Line 1, Col: 4.\n  (((\033[4m(\033[0m\n\n"
-            "Expecting ). Line 1, Col: 4.\n  (((\033[4m(\033[0m\n\n"
-            "... and 2 more"
-        )
+        expected_messages = "Required keyword: 'this' missing for <class 'sqlglot.expressions.Paren'>. Line 1, Col: 4.\n  (((\033[4m(\033[0m\n\n" "Expecting ). Line 1, Col: 4.\n  (((\033[4m(\033[0m\n\n" "Expecting ). Line 1, Col: 4.\n  (((\033[4m(\033[0m\n\n" "... and 2 more"
         expected_errors = [
             {
                 "description": "Required keyword: 'this' missing for <class 'sqlglot.expressions.Paren'>",

@@ -264,22 +264,12 @@ class TestDuckDB(Validator):
         )
 
         # https://github.com/duckdb/duckdb/releases/tag/v0.8.0
-        self.assertEqual(
-            parse_one("a / b", read="duckdb").assert_is(exp.Div).sql(dialect="duckdb"), "a / b"
-        )
-        self.assertEqual(
-            parse_one("a // b", read="duckdb").assert_is(exp.IntDiv).sql(dialect="duckdb"), "a // b"
-        )
+        self.assertEqual(parse_one("a / b", read="duckdb").assert_is(exp.Div).sql(dialect="duckdb"), "a / b")
+        self.assertEqual(parse_one("a // b", read="duckdb").assert_is(exp.IntDiv).sql(dialect="duckdb"), "a // b")
 
-        self.validate_identity(
-            "SELECT LIST_TRANSFORM([5, NULL, 6], (x, y) -> COALESCE(x, y, 0) + 1)"
-        )
-        self.validate_identity(
-            "SELECT LIST_TRANSFORM([5, NULL, 6], LAMBDA x, y : COALESCE(x, y, 0) + 1)"
-        )
-        self.validate_identity(
-            "SELECT LIST_TRANSFORM(LIST_FILTER([0, 1, 2, 3, 4, 5], LAMBDA x : x % 2 = 0), LAMBDA y : y * y)"
-        )
+        self.validate_identity("SELECT LIST_TRANSFORM([5, NULL, 6], (x, y) -> COALESCE(x, y, 0) + 1)")
+        self.validate_identity("SELECT LIST_TRANSFORM([5, NULL, 6], LAMBDA x, y : COALESCE(x, y, 0) + 1)")
+        self.validate_identity("SELECT LIST_TRANSFORM(LIST_FILTER([0, 1, 2, 3, 4, 5], LAMBDA x : x % 2 = 0), LAMBDA y : y * y)")
         self.validate_identity("SELECT LIST_TRANSFORM([5, NULL, 6], LAMBDA x : COALESCE(x, 0) + 1)")
         self.validate_identity("SELECT LIST_TRANSFORM(nbr, LAMBDA x : x + 1) FROM article AS a")
         self.validate_identity("SELECT * FROM my_ducklake.demo AT (VERSION => 2)")
@@ -326,24 +316,12 @@ class TestDuckDB(Validator):
         self.validate_identity("SUMMARIZE SELECT * FROM tbl").assert_is(exp.Summarize)
         self.validate_identity("CREATE TABLE tbl_summary AS SELECT * FROM (SUMMARIZE tbl)")
         self.validate_identity("SELECT STAR(tbl, exclude := [foo])")
-        self.validate_identity("UNION_VALUE(k1 := 1)").find(exp.PropertyEQ).this.assert_is(
-            exp.Identifier
-        )
-        self.validate_identity(
-            "SELECT species, island, COUNT(*) FROM t GROUP BY GROUPING SETS (species), GROUPING SETS (island)"
-        )
-        self.validate_identity(
-            "SELECT species, island, COUNT(*) FROM t GROUP BY CUBE (species), CUBE (island)"
-        )
-        self.validate_identity(
-            "SELECT species, island, COUNT(*) FROM t GROUP BY ROLLUP (species), ROLLUP (island)"
-        )
-        self.validate_identity(
-            "SUMMARIZE TABLE 'https://blobs.duckdb.org/data/Star_Trek-Season_1.csv'"
-        ).assert_is(exp.Summarize)
-        self.validate_identity(
-            "SELECT * FROM x LEFT JOIN UNNEST(y)", "SELECT * FROM x LEFT JOIN UNNEST(y) ON TRUE"
-        )
+        self.validate_identity("UNION_VALUE(k1 := 1)").find(exp.PropertyEQ).this.assert_is(exp.Identifier)
+        self.validate_identity("SELECT species, island, COUNT(*) FROM t GROUP BY GROUPING SETS (species), GROUPING SETS (island)")
+        self.validate_identity("SELECT species, island, COUNT(*) FROM t GROUP BY CUBE (species), CUBE (island)")
+        self.validate_identity("SELECT species, island, COUNT(*) FROM t GROUP BY ROLLUP (species), ROLLUP (island)")
+        self.validate_identity("SUMMARIZE TABLE 'https://blobs.duckdb.org/data/Star_Trek-Season_1.csv'").assert_is(exp.Summarize)
+        self.validate_identity("SELECT * FROM x LEFT JOIN UNNEST(y)", "SELECT * FROM x LEFT JOIN UNNEST(y) ON TRUE")
         self.validate_identity(
             """SELECT '{ "family": "anatidae", "species": [ "duck", "goose", "swan", null ] }' ->> ['$.family', '$.species']""",
         )
@@ -411,27 +389,13 @@ class TestDuckDB(Validator):
             "JSON_EXTRACT_PATH_TEXT(x, '$.family')",
             "x ->> '$.family'",
         )
-        self.validate_identity(
-            "SELECT {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron'}"
-        )
-        self.validate_identity(
-            "SELECT a['x space'] FROM (SELECT {'x space': 1, 'y': 2, 'z': 3} AS a)"
-        )
-        self.validate_identity(
-            "PIVOT Cities ON Year IN (2000, 2010) USING SUM(Population) GROUP BY Country"
-        )
-        self.validate_identity(
-            "PIVOT Cities ON Year USING SUM(Population) AS total, MAX(Population) AS max GROUP BY Country"
-        )
-        self.validate_identity(
-            "WITH pivot_alias AS (PIVOT Cities ON Year USING SUM(Population) GROUP BY Country) SELECT * FROM pivot_alias"
-        )
-        self.validate_identity(
-            "SELECT * FROM (PIVOT Cities ON Year USING SUM(Population) GROUP BY Country) AS pivot_alias"
-        )
-        self.validate_identity(
-            "SELECT * FROM cities PIVOT(SUM(population) FOR year IN (2000, 2010, 2020) GROUP BY country)"
-        )
+        self.validate_identity("SELECT {'yes': 'duck', 'maybe': 'goose', 'huh': NULL, 'no': 'heron'}")
+        self.validate_identity("SELECT a['x space'] FROM (SELECT {'x space': 1, 'y': 2, 'z': 3} AS a)")
+        self.validate_identity("PIVOT Cities ON Year IN (2000, 2010) USING SUM(Population) GROUP BY Country")
+        self.validate_identity("PIVOT Cities ON Year USING SUM(Population) AS total, MAX(Population) AS max GROUP BY Country")
+        self.validate_identity("WITH pivot_alias AS (PIVOT Cities ON Year USING SUM(Population) GROUP BY Country) SELECT * FROM pivot_alias")
+        self.validate_identity("SELECT * FROM (PIVOT Cities ON Year USING SUM(Population) GROUP BY Country) AS pivot_alias")
+        self.validate_identity("SELECT * FROM cities PIVOT(SUM(population) FOR year IN (2000, 2010, 2020) GROUP BY country)")
         self.validate_identity(
             # QUALIFY comes after WINDOW
             "SELECT schema_name, function_name, ROW_NUMBER() OVER my_window AS function_rank FROM DUCKDB_FUNCTIONS() WINDOW my_window AS (PARTITION BY schema_name ORDER BY function_name) QUALIFY ROW_NUMBER() OVER my_window < 3"
@@ -518,9 +482,7 @@ class TestDuckDB(Validator):
             "PIVOT_WIDER Cities ON Year USING SUM(Population)",
             write={"duckdb": "PIVOT Cities ON Year USING SUM(Population)"},
         )
-        self.validate_all(
-            "WITH t AS (SELECT 1) FROM t", write={"duckdb": "WITH t AS (SELECT 1) SELECT * FROM t"}
-        )
+        self.validate_all("WITH t AS (SELECT 1) FROM t", write={"duckdb": "WITH t AS (SELECT 1) SELECT * FROM t"})
         self.validate_all(
             "WITH t AS (SELECT 1) SELECT * FROM (FROM t)",
             write={"duckdb": "WITH t AS (SELECT 1) SELECT * FROM (SELECT * FROM t)"},
@@ -874,12 +836,8 @@ class TestDuckDB(Validator):
             """SELECT i FROM GENERATE_SERIES(0, 12) AS _(i) ORDER BY i ASC""",
         )
 
-        self.validate_identity(
-            "COPY lineitem FROM 'lineitem.ndjson' WITH (FORMAT JSON, DELIMITER ',', AUTO_DETECT TRUE, COMPRESSION SNAPPY, CODEC ZSTD, FORCE_NOT_NULL (col1, col2))"
-        )
-        self.validate_identity(
-            "COPY (SELECT 42 AS a, 'hello' AS b) TO 'query.json' WITH (FORMAT JSON, ARRAY TRUE)"
-        )
+        self.validate_identity("COPY lineitem FROM 'lineitem.ndjson' WITH (FORMAT JSON, DELIMITER ',', AUTO_DETECT TRUE, COMPRESSION SNAPPY, CODEC ZSTD, FORCE_NOT_NULL (col1, col2))")
+        self.validate_identity("COPY (SELECT 42 AS a, 'hello' AS b) TO 'query.json' WITH (FORMAT JSON, ARRAY TRUE)")
         self.validate_identity("COPY lineitem (l_orderkey) TO 'orderkey.tbl' WITH (DELIMITER '|')")
 
         self.validate_all(
@@ -911,25 +869,17 @@ class TestDuckDB(Validator):
         self.validate_identity("SELECT * FROM (DESCRIBE t)")
 
         self.validate_identity("SELECT UNNEST([*COLUMNS('alias_.*')]) AS column_name")
-        self.validate_identity(
-            "SELECT COALESCE(*COLUMNS(*)) FROM (SELECT NULL, 2, 3) AS t(a, b, c)"
-        )
+        self.validate_identity("SELECT COALESCE(*COLUMNS(*)) FROM (SELECT NULL, 2, 3) AS t(a, b, c)")
         self.validate_identity(
             "SELECT id, STRUCT_PACK(*COLUMNS('m\\d')) AS measurements FROM many_measurements",
             """SELECT id, {'_0': *COLUMNS('m\\d')} AS measurements FROM many_measurements""",
         )
         self.validate_identity("SELECT COLUMNS(c -> c LIKE '%num%') FROM numbers")
-        self.validate_identity(
-            "SELECT MIN(COLUMNS(* REPLACE (number + id AS number))), COUNT(COLUMNS(* EXCLUDE (number))) FROM numbers"
-        )
+        self.validate_identity("SELECT MIN(COLUMNS(* REPLACE (number + id AS number))), COUNT(COLUMNS(* EXCLUDE (number))) FROM numbers")
         self.validate_identity("SELECT COLUMNS(*) + COLUMNS(*) FROM numbers")
         self.validate_identity("SELECT COLUMNS('(id|numbers?)') FROM numbers")
-        self.validate_identity(
-            "SELECT COALESCE(COLUMNS(['a', 'b', 'c'])) AS result FROM (SELECT NULL AS a, 42 AS b, TRUE AS c)"
-        )
-        self.validate_identity(
-            "SELECT COALESCE(*COLUMNS(['a', 'b', 'c'])) AS result FROM (SELECT NULL AS a, 42 AS b, TRUE AS c)"
-        )
+        self.validate_identity("SELECT COALESCE(COLUMNS(['a', 'b', 'c'])) AS result FROM (SELECT NULL AS a, 42 AS b, TRUE AS c)")
+        self.validate_identity("SELECT COALESCE(*COLUMNS(['a', 'b', 'c'])) AS result FROM (SELECT NULL AS a, 42 AS b, TRUE AS c)")
         self.validate_all(
             "SELECT UNNEST(foo) AS x",
             write={
@@ -1015,9 +965,7 @@ class TestDuckDB(Validator):
                     "presto": "SELECT some_arr[1] AS first FROM blah",
                 },
             )
-            self.validate_identity(
-                "[x.STRING_SPLIT(' ')[i] FOR x IN ['1', '2', 3] IF x.CONTAINS('1')]"
-            )
+            self.validate_identity("[x.STRING_SPLIT(' ')[i] FOR x IN ['1', '2', 3] IF x.CONTAINS('1')]")
             self.validate_identity(
                 """SELECT LIST_VALUE(1)[i]""",
                 """SELECT [1][i]""",
@@ -1045,9 +993,7 @@ class TestDuckDB(Validator):
         self.validate_identity("SELECT CURRENT_DATE")
         self.validate_identity("SELECT CURRENT_TIMESTAMP")
 
-        self.validate_all(
-            "SELECT MAKE_DATE(2016, 12, 25)", read={"bigquery": "SELECT DATE(2016, 12, 25)"}
-        )
+        self.validate_all("SELECT MAKE_DATE(2016, 12, 25)", read={"bigquery": "SELECT DATE(2016, 12, 25)"})
         self.validate_all(
             "SELECT CAST(CAST('2016-12-25 23:59:59' AS TIMESTAMP) AS DATE)",
             read={"bigquery": "SELECT DATE(DATETIME '2016-12-25 23:59:59')"},
@@ -1277,9 +1223,7 @@ class TestDuckDB(Validator):
         self.validate_identity("CAST(x AS VARBINARY)", "CAST(x AS BLOB)")
         self.validate_identity("CAST(x AS LOGICAL)", "CAST(x AS BOOLEAN)")
         self.validate_identity("""CAST({'i': 1, 's': 'foo'} AS STRUCT("s" TEXT, "i" INT))""")
-        self.validate_identity(
-            "CAST(ROW(1, ROW(1)) AS STRUCT(number BIGINT, row STRUCT(number BIGINT)))"
-        )
+        self.validate_identity("CAST(ROW(1, ROW(1)) AS STRUCT(number BIGINT, row STRUCT(number BIGINT)))")
         self.validate_identity(
             "123::CHARACTER VARYING",
             "CAST(123 AS TEXT)",
@@ -1550,21 +1494,11 @@ class TestDuckDB(Validator):
         self.validate_identity("PIVOT Cities ON Year USING SUM(Population) GROUP BY Country, Name")
 
         self.validate_identity("UNPIVOT (SELECT 1 AS col1, 2 AS col2) ON foo, bar")
-        self.validate_identity(
-            "UNPIVOT monthly_sales ON jan, feb, mar, apr, may, jun INTO NAME month VALUE sales"
-        )
-        self.validate_identity(
-            "UNPIVOT monthly_sales ON COLUMNS(* EXCLUDE (empid, dept)) INTO NAME month VALUE sales"
-        )
-        self.validate_identity(
-            "UNPIVOT monthly_sales ON (jan, feb, mar) AS q1, (apr, may, jun) AS q2 INTO NAME quarter VALUE month_1_sales, month_2_sales, month_3_sales"
-        )
-        self.validate_identity(
-            "WITH unpivot_alias AS (UNPIVOT monthly_sales ON COLUMNS(* EXCLUDE (empid, dept)) INTO NAME month VALUE sales) SELECT * FROM unpivot_alias"
-        )
-        self.validate_identity(
-            "SELECT * FROM (UNPIVOT monthly_sales ON COLUMNS(* EXCLUDE (empid, dept)) INTO NAME month VALUE sales) AS unpivot_alias"
-        )
+        self.validate_identity("UNPIVOT monthly_sales ON jan, feb, mar, apr, may, jun INTO NAME month VALUE sales")
+        self.validate_identity("UNPIVOT monthly_sales ON COLUMNS(* EXCLUDE (empid, dept)) INTO NAME month VALUE sales")
+        self.validate_identity("UNPIVOT monthly_sales ON (jan, feb, mar) AS q1, (apr, may, jun) AS q2 INTO NAME quarter VALUE month_1_sales, month_2_sales, month_3_sales")
+        self.validate_identity("WITH unpivot_alias AS (UNPIVOT monthly_sales ON COLUMNS(* EXCLUDE (empid, dept)) INTO NAME month VALUE sales) SELECT * FROM unpivot_alias")
+        self.validate_identity("SELECT * FROM (UNPIVOT monthly_sales ON COLUMNS(* EXCLUDE (empid, dept)) INTO NAME month VALUE sales) AS unpivot_alias")
 
     def test_from_first_with_parentheses(self):
         self.validate_identity(

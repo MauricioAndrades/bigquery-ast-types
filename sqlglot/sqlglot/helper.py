@@ -118,9 +118,7 @@ def ensure_collection(value):
     """
     if value is None:
         return []
-    return (
-        value if isinstance(value, Collection) and not isinstance(value, (str, bytes)) else [value]
-    )
+    return value if isinstance(value, Collection) and not isinstance(value, (str, bytes)) else [value]
 
 
 def csv(*args: str, sep: str = ", ") -> str:
@@ -384,9 +382,7 @@ def object_to_dict(obj: t.Any, **kwargs) -> t.Dict:
     }
 
 
-def split_num_words(
-    value: str, sep: str, min_num_words: int, fill_from_start: bool = True
-) -> t.List[t.Optional[str]]:
+def split_num_words(value: str, sep: str, min_num_words: int, fill_from_start: bool = True) -> t.List[t.Optional[str]]:
     """
     Perform a split on a value and return N words as a result with `None` used for words that don't exist.
 

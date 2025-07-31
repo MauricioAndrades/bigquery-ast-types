@@ -68,9 +68,7 @@ class Redshift(Postgres):
             "DATE_DIFF": _build_date_delta(exp.TsOrDsDiff),
             "GETDATE": exp.CurrentTimestamp.from_arg_list,
             "LISTAGG": exp.GroupConcat.from_arg_list,
-            "SPLIT_TO_ARRAY": lambda args: exp.StringToArray(
-                this=seq_get(args, 0), expression=seq_get(args, 1) or exp.Literal.string(",")
-            ),
+            "SPLIT_TO_ARRAY": lambda args: exp.StringToArray(this=seq_get(args, 0), expression=seq_get(args, 1) or exp.Literal.string(",")),
             "STRTOL": exp.FromBase.from_arg_list,
         }
 
@@ -104,9 +102,7 @@ class Redshift(Postgres):
 
             return self.expression(exp.Pivot, this=table, unpivot=True) if unpivot else table
 
-        def _parse_convert(
-            self, strict: bool, safe: t.Optional[bool] = None
-        ) -> t.Optional[exp.Expression]:
+        def _parse_convert(self, strict: bool, safe: t.Optional[bool] = None) -> t.Optional[exp.Expression]:
             to = self._parse_types()
             self._match(TokenType.COMMA)
             this = self._parse_bitwise()
@@ -182,11 +178,8 @@ class Redshift(Postgres):
             exp.ArrayConcat: lambda self, e: self.arrayconcat_sql(e, name="ARRAY_CONCAT"),
             exp.Concat: concat_to_dpipe_sql,
             exp.ConcatWs: concat_ws_to_dpipe_sql,
-            exp.ApproxDistinct: lambda self,
-            e: f"APPROXIMATE COUNT(DISTINCT {self.sql(e, 'this')})",
-            exp.CurrentTimestamp: lambda self, e: (
-                "SYSDATE" if e.args.get("sysdate") else "GETDATE()"
-            ),
+            exp.ApproxDistinct: lambda self, e: f"APPROXIMATE COUNT(DISTINCT {self.sql(e, 'this')})",
+            exp.CurrentTimestamp: lambda self, e: ("SYSDATE" if e.args.get("sysdate") else "GETDATE()"),
             exp.DateAdd: date_delta_sql("DATEADD"),
             exp.DateDiff: date_delta_sql("DATEDIFF"),
             exp.DistKeyProperty: lambda self, e: self.func("DISTKEY", e.this),
@@ -207,10 +200,8 @@ class Redshift(Postgres):
                     transforms.unnest_generate_date_array_using_recursive_cte,
                 ]
             ),
-            exp.SortKeyProperty: lambda self,
-            e: f"{'COMPOUND ' if e.args['compound'] else ''}SORTKEY({self.format_args(*e.this)})",
-            exp.StartsWith: lambda self,
-            e: f"{self.sql(e.this)} LIKE {self.sql(e.expression)} || '%'",
+            exp.SortKeyProperty: lambda self, e: f"{'COMPOUND ' if e.args['compound'] else ''}SORTKEY({self.format_args(*e.this)})",
+            exp.StartsWith: lambda self, e: f"{self.sql(e.this)} LIKE {self.sql(e.expression)} || '%'",
             exp.StringToArray: rename_func("SPLIT_TO_ARRAY"),
             exp.TableSample: no_tablesample_sql,
             exp.TsOrDsAdd: date_delta_sql("DATEADD"),

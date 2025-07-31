@@ -15,9 +15,7 @@ class TestPresto(Validator):
         self.validate_identity("CAST(x AS IPPREFIX)")
         self.validate_identity("CAST(TDIGEST_AGG(1) AS TDIGEST)")
         self.validate_identity("CAST(x AS HYPERLOGLOG)")
-        self.validate_identity(
-            "RESET SESSION hive.optimized_reader_enabled", check_command_warning=True
-        )
+        self.validate_identity("RESET SESSION hive.optimized_reader_enabled", check_command_warning=True)
         self.validate_identity(
             "TIMESTAMP '2025-06-20 11:22:29 Europe/Prague'",
             "CAST('2025-06-20 11:22:29 Europe/Prague' AS TIMESTAMP WITH TIME ZONE)",
@@ -675,9 +673,7 @@ class TestPresto(Validator):
 
     def test_presto(self):
         self.assertEqual(
-            exp.func("md5", exp.func("concat", exp.cast("x", "text"), exp.Literal.string("s"))).sql(
-                dialect="presto"
-            ),
+            exp.func("md5", exp.func("concat", exp.cast("x", "text"), exp.Literal.string("s"))).sql(dialect="presto"),
             "LOWER(TO_HEX(MD5(TO_UTF8(CONCAT(CAST(x AS VARCHAR), CAST('s' AS VARCHAR))))))",
         )
 
@@ -710,24 +706,12 @@ class TestPresto(Validator):
         self.validate_identity("START TRANSACTION READ WRITE, ISOLATION LEVEL SERIALIZABLE")
         self.validate_identity("START TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         self.validate_identity("APPROX_PERCENTILE(a, b, c, d)")
-        self.validate_identity(
-            "SELECT SPLIT_TO_MAP('a:1;b:2;a:3', ';', ':', (k, v1, v2) -> CONCAT(v1, v2))"
-        )
-        self.validate_identity(
-            "SELECT * FROM example.testdb.customer_orders FOR VERSION AS OF 8954597067493422955"
-        )
-        self.validate_identity(
-            "SELECT * FROM example.testdb.customer_orders FOR TIMESTAMP AS OF CAST('2022-03-23 09:59:29.803 Europe/Vienna' AS TIMESTAMP)"
-        )
-        self.validate_identity(
-            "SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY ALL CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)"
-        )
-        self.validate_identity(
-            "SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY DISTINCT CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)"
-        )
-        self.validate_identity(
-            "SELECT JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'), COUNT(*) FROM table_a GROUP BY DISTINCT (JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'))"
-        )
+        self.validate_identity("SELECT SPLIT_TO_MAP('a:1;b:2;a:3', ';', ':', (k, v1, v2) -> CONCAT(v1, v2))")
+        self.validate_identity("SELECT * FROM example.testdb.customer_orders FOR VERSION AS OF 8954597067493422955")
+        self.validate_identity("SELECT * FROM example.testdb.customer_orders FOR TIMESTAMP AS OF CAST('2022-03-23 09:59:29.803 Europe/Vienna' AS TIMESTAMP)")
+        self.validate_identity("SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY ALL CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)")
+        self.validate_identity("SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY DISTINCT CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)")
+        self.validate_identity("SELECT JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'), COUNT(*) FROM table_a GROUP BY DISTINCT (JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'))")
 
         self.validate_all(
             "SELECT LAST_DAY_OF_MONTH(CAST('2008-11-25' AS DATE))",
@@ -1115,9 +1099,7 @@ class TestPresto(Validator):
                 "snowflake": "CURRENT_USER()",
             },
         )
-        self.validate_identity(
-            "SELECT id, FIRST_VALUE(is_deleted) OVER (PARTITION BY id) AS first_is_deleted, NTH_VALUE(is_deleted, 2) OVER (PARTITION BY id) AS nth_is_deleted, LAST_VALUE(is_deleted) OVER (PARTITION BY id) AS last_is_deleted FROM my_table"
-        )
+        self.validate_identity("SELECT id, FIRST_VALUE(is_deleted) OVER (PARTITION BY id) AS first_is_deleted, NTH_VALUE(is_deleted, 2) OVER (PARTITION BY id) AS nth_is_deleted, LAST_VALUE(is_deleted) OVER (PARTITION BY id) AS last_is_deleted FROM my_table")
 
     def test_encode_decode(self):
         self.validate_identity("FROM_UTF8(x, y)")

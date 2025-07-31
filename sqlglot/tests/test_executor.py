@@ -102,31 +102,22 @@ class TestExecutor(unittest.TestCase):
     def test_execute_tpch(self):
         def to_csv(expression):
             if isinstance(expression, exp.Table) and expression.name not in ("revenue"):
-                return parse_one(
-                    f"READ_CSV('{DIR_TPCH}{expression.name}.csv.gz', 'delimiter', '|') AS {expression.alias_or_name}"
-                )
+                return parse_one(f"READ_CSV('{DIR_TPCH}{expression.name}.csv.gz', 'delimiter', '|') AS {expression.alias_or_name}")
             return expression
 
         with Pool() as pool:
             for i, table in enumerate(
                 pool.starmap(
                     execute,
-                    (
-                        (parse_one(sql).transform(to_csv).sql(pretty=True), TPCH_SCHEMA)
-                        for _, sql, _ in self.tpch_sqls
-                    ),
+                    ((parse_one(sql).transform(to_csv).sql(pretty=True), TPCH_SCHEMA) for _, sql, _ in self.tpch_sqls),
                 )
             ):
                 self.subtestHelper(i, table, tpch=True)
 
     def test_execute_tpcds(self):
         def to_csv(expression):
-            if isinstance(expression, exp.Table) and os.path.exists(
-                f"{DIR_TPCDS}{expression.name}.csv.gz"
-            ):
-                return parse_one(
-                    f"READ_CSV('{DIR_TPCDS}{expression.name}.csv.gz', 'delimiter', '|') AS {expression.alias_or_name}"
-                )
+            if isinstance(expression, exp.Table) and os.path.exists(f"{DIR_TPCDS}{expression.name}.csv.gz"):
+                return parse_one(f"READ_CSV('{DIR_TPCDS}{expression.name}.csv.gz', 'delimiter', '|') AS {expression.alias_or_name}")
             return expression
 
         for i, (meta, sql, _) in enumerate(self.tpcds_sqls):
@@ -223,10 +214,7 @@ class TestExecutor(unittest.TestCase):
                 [(1,)],
             ),
             (
-                "SELECT DISTINCT a, SUM(b) AS b "
-                "FROM (SELECT 'a' AS a, 1 AS b UNION ALL SELECT 'a' AS a, 2 AS b UNION ALL SELECT 'b' AS a, 1 AS b) "
-                "GROUP BY a "
-                "LIMIT 1",
+                "SELECT DISTINCT a, SUM(b) AS b " "FROM (SELECT 'a' AS a, 1 AS b UNION ALL SELECT 'a' AS a, 2 AS b UNION ALL SELECT 'b' AS a, 1 AS b) " "GROUP BY a " "LIMIT 1",
                 ["a", "b"],
                 [("a", 3)],
             ),
@@ -330,18 +318,14 @@ class TestExecutor(unittest.TestCase):
             ),
             ("SELECT 1 / 0 AS a", ["a"], ZeroDivisionError),
             (
-                exp.select(
-                    exp.alias_(exp.Literal.number(1).div(exp.Literal.number(2), typed=True), "a")
-                ),
+                exp.select(exp.alias_(exp.Literal.number(1).div(exp.Literal.number(2), typed=True), "a")),
                 ["a"],
                 [
                     (0,),
                 ],
             ),
             (
-                exp.select(
-                    exp.alias_(exp.Literal.number(1).div(exp.Literal.number(0), safe=True), "a")
-                ),
+                exp.select(exp.alias_(exp.Literal.number(1).div(exp.Literal.number(0), safe=True), "a")),
                 ["a"],
                 [
                     (None,),
@@ -873,12 +857,14 @@ class TestExecutor(unittest.TestCase):
 
     def test_agg_order(self):
         plan = Plan(
-            optimize("""
+            optimize(
+                """
             SELECT
               AVG(bill_length_mm) AS avg_bill_length,
               AVG(bill_depth_mm) AS avg_bill_depth
             FROM penguins
-            """)
+            """
+            )
         )
 
         assert [agg.alias for agg in plan.root.aggregations] == [
