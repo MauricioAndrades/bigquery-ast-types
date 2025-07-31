@@ -36,7 +36,9 @@ class TestTeradata(Validator):
         self.validate_identity("SELECT X'1D'", "SELECT X'1D'")
         self.validate_identity("SELECT x'1d'", "SELECT X'1d'")
 
-        self.validate_identity("RENAME TABLE emp TO employee", check_command_warning=True).assert_is(exp.Command)
+        self.validate_identity(
+            "RENAME TABLE emp TO employee", check_command_warning=True
+        ).assert_is(exp.Command)
 
     def test_translate(self):
         self.validate_identity("TRANSLATE(x USING LATIN_TO_UNICODE)")
@@ -52,11 +54,21 @@ class TestTeradata(Validator):
         )
 
     def test_statistics(self):
-        self.validate_identity("COLLECT STATISTICS ON tbl INDEX(col)", check_command_warning=True)
-        self.validate_identity("COLLECT STATS ON tbl COLUMNS(col)", check_command_warning=True)
-        self.validate_identity("COLLECT STATS COLUMNS(col) ON tbl", check_command_warning=True)
-        self.validate_identity("HELP STATISTICS personel.employee", check_command_warning=True)
-        self.validate_identity("HELP STATISTICS personnel.employee FROM my_qcd", check_command_warning=True)
+        self.validate_identity(
+            "COLLECT STATISTICS ON tbl INDEX(col)", check_command_warning=True
+        )
+        self.validate_identity(
+            "COLLECT STATS ON tbl COLUMNS(col)", check_command_warning=True
+        )
+        self.validate_identity(
+            "COLLECT STATS COLUMNS(col) ON tbl", check_command_warning=True
+        )
+        self.validate_identity(
+            "HELP STATISTICS personel.employee", check_command_warning=True
+        )
+        self.validate_identity(
+            "HELP STATISTICS personnel.employee FROM my_qcd", check_command_warning=True
+        )
 
     def test_create(self):
         self.validate_identity(
@@ -67,22 +79,52 @@ class TestTeradata(Validator):
             "REPLACE VIEW view_b (COL1, COL2) AS LOCKING ROW FOR ACCESS SELECT COL1, COL2 FROM table_b",
             "CREATE OR REPLACE VIEW view_b (COL1, COL2) AS LOCKING ROW FOR ACCESS SELECT COL1, COL2 FROM table_b",
         )
-        self.validate_identity("CREATE TABLE x (y INT) PRIMARY INDEX (y) PARTITION BY y INDEX (y)")
+        self.validate_identity(
+            "CREATE TABLE x (y INT) PRIMARY INDEX (y) PARTITION BY y INDEX (y)"
+        )
         self.validate_identity("CREATE TABLE x (y INT) PARTITION BY y INDEX (y)")
-        self.validate_identity("CREATE MULTISET VOLATILE TABLE my_table (id INT) PRIMARY INDEX (id) ON COMMIT PRESERVE ROWS")
-        self.validate_identity("CREATE SET VOLATILE TABLE my_table (id INT) PRIMARY INDEX (id) ON COMMIT DELETE ROWS")
-        self.validate_identity("CREATE TABLE a (b INT) PRIMARY INDEX (y) PARTITION BY RANGE_N(b BETWEEN 'a', 'b' AND 'c' EACH '1')")
-        self.validate_identity("CREATE TABLE a (b INT) PARTITION BY RANGE_N(b BETWEEN 0, 1 AND 2 EACH 1)")
-        self.validate_identity("CREATE TABLE a (b INT) PARTITION BY RANGE_N(b BETWEEN *, 1 AND * EACH b) INDEX (a)")
-        self.validate_identity("CREATE TABLE a, NO FALLBACK PROTECTION, NO LOG, NO JOURNAL, CHECKSUM=ON, NO MERGEBLOCKRATIO, BLOCKCOMPRESSION=ALWAYS (a INT)")
-        self.validate_identity("CREATE TABLE a, NO FALLBACK PROTECTION, NO LOG, NO JOURNAL, CHECKSUM=ON, NO MERGEBLOCKRATIO, BLOCKCOMPRESSION=ALWAYS (a INT)")
-        self.validate_identity("CREATE TABLE a, WITH JOURNAL TABLE=x.y.z, CHECKSUM=OFF, MERGEBLOCKRATIO=1, DATABLOCKSIZE=10 KBYTES (a INT)")
-        self.validate_identity("CREATE TABLE a, BEFORE JOURNAL, AFTER JOURNAL, FREESPACE=1, DEFAULT DATABLOCKSIZE, BLOCKCOMPRESSION=DEFAULT (a INT)")
-        self.validate_identity("CREATE TABLE a, DUAL JOURNAL, DUAL AFTER JOURNAL, MERGEBLOCKRATIO=1 PERCENT, DATABLOCKSIZE=10 KILOBYTES (a INT)")
-        self.validate_identity("CREATE TABLE a, DUAL BEFORE JOURNAL, LOCAL AFTER JOURNAL, MAXIMUM DATABLOCKSIZE, BLOCKCOMPRESSION=AUTOTEMP(c1 INT) (a INT)")
-        self.validate_identity("CREATE VOLATILE MULTISET TABLE a, NOT LOCAL AFTER JOURNAL, FREESPACE=1 PERCENT, DATABLOCKSIZE=10 BYTES, WITH NO CONCURRENT ISOLATED LOADING FOR ALL (a INT)")
-        self.validate_identity("CREATE VOLATILE SET TABLE example1 AS (SELECT col1, col2, col3 FROM table1) WITH DATA PRIMARY INDEX (col1) ON COMMIT PRESERVE ROWS")
-        self.validate_identity("CREATE SET GLOBAL TEMPORARY TABLE a, NO BEFORE JOURNAL, NO AFTER JOURNAL, MINIMUM DATABLOCKSIZE, BLOCKCOMPRESSION=NEVER (a INT)")
+        self.validate_identity(
+            "CREATE MULTISET VOLATILE TABLE my_table (id INT) PRIMARY INDEX (id) ON COMMIT PRESERVE ROWS"
+        )
+        self.validate_identity(
+            "CREATE SET VOLATILE TABLE my_table (id INT) PRIMARY INDEX (id) ON COMMIT DELETE ROWS"
+        )
+        self.validate_identity(
+            "CREATE TABLE a (b INT) PRIMARY INDEX (y) PARTITION BY RANGE_N(b BETWEEN 'a', 'b' AND 'c' EACH '1')"
+        )
+        self.validate_identity(
+            "CREATE TABLE a (b INT) PARTITION BY RANGE_N(b BETWEEN 0, 1 AND 2 EACH 1)"
+        )
+        self.validate_identity(
+            "CREATE TABLE a (b INT) PARTITION BY RANGE_N(b BETWEEN *, 1 AND * EACH b) INDEX (a)"
+        )
+        self.validate_identity(
+            "CREATE TABLE a, NO FALLBACK PROTECTION, NO LOG, NO JOURNAL, CHECKSUM=ON, NO MERGEBLOCKRATIO, BLOCKCOMPRESSION=ALWAYS (a INT)"
+        )
+        self.validate_identity(
+            "CREATE TABLE a, NO FALLBACK PROTECTION, NO LOG, NO JOURNAL, CHECKSUM=ON, NO MERGEBLOCKRATIO, BLOCKCOMPRESSION=ALWAYS (a INT)"
+        )
+        self.validate_identity(
+            "CREATE TABLE a, WITH JOURNAL TABLE=x.y.z, CHECKSUM=OFF, MERGEBLOCKRATIO=1, DATABLOCKSIZE=10 KBYTES (a INT)"
+        )
+        self.validate_identity(
+            "CREATE TABLE a, BEFORE JOURNAL, AFTER JOURNAL, FREESPACE=1, DEFAULT DATABLOCKSIZE, BLOCKCOMPRESSION=DEFAULT (a INT)"
+        )
+        self.validate_identity(
+            "CREATE TABLE a, DUAL JOURNAL, DUAL AFTER JOURNAL, MERGEBLOCKRATIO=1 PERCENT, DATABLOCKSIZE=10 KILOBYTES (a INT)"
+        )
+        self.validate_identity(
+            "CREATE TABLE a, DUAL BEFORE JOURNAL, LOCAL AFTER JOURNAL, MAXIMUM DATABLOCKSIZE, BLOCKCOMPRESSION=AUTOTEMP(c1 INT) (a INT)"
+        )
+        self.validate_identity(
+            "CREATE VOLATILE MULTISET TABLE a, NOT LOCAL AFTER JOURNAL, FREESPACE=1 PERCENT, DATABLOCKSIZE=10 BYTES, WITH NO CONCURRENT ISOLATED LOADING FOR ALL (a INT)"
+        )
+        self.validate_identity(
+            "CREATE VOLATILE SET TABLE example1 AS (SELECT col1, col2, col3 FROM table1) WITH DATA PRIMARY INDEX (col1) ON COMMIT PRESERVE ROWS"
+        )
+        self.validate_identity(
+            "CREATE SET GLOBAL TEMPORARY TABLE a, NO BEFORE JOURNAL, NO AFTER JOURNAL, MINIMUM DATABLOCKSIZE, BLOCKCOMPRESSION=NEVER (a INT)"
+        )
         self.validate_all(
             """
             CREATE SET TABLE test, NO FALLBACK, NO BEFORE JOURNAL, NO AFTER JOURNAL,
@@ -122,18 +164,29 @@ class TestTeradata(Validator):
                 "tsql": "CREATE TABLE a",
             },
         )
-        self.validate_identity("CREATE TABLE db.foo (id INT NOT NULL, valid_date DATE FORMAT 'YYYY-MM-DD', measurement INT COMPRESS)")
-        self.validate_identity("CREATE TABLE db.foo (id INT NOT NULL, valid_date DATE FORMAT 'YYYY-MM-DD', measurement INT COMPRESS (1, 2, 3))")
-        self.validate_identity("CREATE TABLE db.foo (id INT NOT NULL, valid_date DATE FORMAT 'YYYY-MM-DD' COMPRESS (CAST('9999-09-09' AS DATE)), measurement INT)")
+        self.validate_identity(
+            "CREATE TABLE db.foo (id INT NOT NULL, valid_date DATE FORMAT 'YYYY-MM-DD', measurement INT COMPRESS)"
+        )
+        self.validate_identity(
+            "CREATE TABLE db.foo (id INT NOT NULL, valid_date DATE FORMAT 'YYYY-MM-DD', measurement INT COMPRESS (1, 2, 3))"
+        )
+        self.validate_identity(
+            "CREATE TABLE db.foo (id INT NOT NULL, valid_date DATE FORMAT 'YYYY-MM-DD' COMPRESS (CAST('9999-09-09' AS DATE)), measurement INT)"
+        )
 
     def test_insert(self):
-        self.validate_all("INS INTO x SELECT * FROM y", write={"teradata": "INSERT INTO x SELECT * FROM y"})
+        self.validate_all(
+            "INS INTO x SELECT * FROM y",
+            write={"teradata": "INSERT INTO x SELECT * FROM y"},
+        )
 
     def test_mod(self):
         self.validate_all("a MOD b", write={"teradata": "a MOD b", "mysql": "a % b"})
 
     def test_power(self):
-        self.validate_all("a ** b", write={"teradata": "a ** b", "mysql": "POWER(a, b)"})
+        self.validate_all(
+            "a ** b", write={"teradata": "a ** b", "mysql": "POWER(a, b)"}
+        )
 
     def test_abbrev(self):
         self.validate_identity("a LT b", "a < b")

@@ -9,9 +9,13 @@ class TestAthena(Validator):
     def test_athena(self):
         self.validate_identity(r"SELECT '\d+'")
         self.validate_identity("SELECT 'foo''bar'")
-        self.validate_identity("CREATE TABLE IF NOT EXISTS t (name STRING) LOCATION 's3://bucket/tmp/mytable/' TBLPROPERTIES ('table_type'='iceberg', 'FORMAT'='parquet')")
         self.validate_identity(
-            "UNLOAD (SELECT name1, address1, comment1, key1 FROM table1) " "TO 's3://amzn-s3-demo-bucket/ partitioned/' " "WITH (format = 'TEXTFILE', partitioned_by = ARRAY['key1'])",
+            "CREATE TABLE IF NOT EXISTS t (name STRING) LOCATION 's3://bucket/tmp/mytable/' TBLPROPERTIES ('table_type'='iceberg', 'FORMAT'='parquet')"
+        )
+        self.validate_identity(
+            "UNLOAD (SELECT name1, address1, comment1, key1 FROM table1) "
+            "TO 's3://amzn-s3-demo-bucket/ partitioned/' "
+            "WITH (format = 'TEXTFILE', partitioned_by = ARRAY['key1'])",
             check_command_warning=True,
         )
         self.validate_identity(
@@ -36,27 +40,51 @@ class TestAthena(Validator):
 
     def test_ddl(self):
         # Hive-like, https://docs.aws.amazon.com/athena/latest/ug/create-table.html
-        self.validate_identity("CREATE EXTERNAL TABLE foo (id INT) COMMENT 'test comment'")
-        self.validate_identity(r"CREATE EXTERNAL TABLE george.t (id INT COMMENT 'foo \\ bar') LOCATION 's3://my-bucket/'")
-        self.validate_identity(r"CREATE EXTERNAL TABLE my_table (id BIGINT COMMENT 'this is the row\'s id') LOCATION 's3://my-s3-bucket'")
-        self.validate_identity("CREATE EXTERNAL TABLE foo (id INT, val STRING) CLUSTERED BY (id, val) INTO 10 BUCKETS")
-        self.validate_identity("CREATE EXTERNAL TABLE foo (id INT, val STRING) STORED AS PARQUET LOCATION 's3://foo' TBLPROPERTIES ('has_encryped_data'='true', 'classification'='test')")
-        self.validate_identity("CREATE EXTERNAL TABLE IF NOT EXISTS foo (a INT, b STRING) ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe' WITH SERDEPROPERTIES ('case.insensitive'='FALSE') LOCATION 's3://table/path'")
+        self.validate_identity(
+            "CREATE EXTERNAL TABLE foo (id INT) COMMENT 'test comment'"
+        )
+        self.validate_identity(
+            r"CREATE EXTERNAL TABLE george.t (id INT COMMENT 'foo \\ bar') LOCATION 's3://my-bucket/'"
+        )
+        self.validate_identity(
+            r"CREATE EXTERNAL TABLE my_table (id BIGINT COMMENT 'this is the row\'s id') LOCATION 's3://my-s3-bucket'"
+        )
+        self.validate_identity(
+            "CREATE EXTERNAL TABLE foo (id INT, val STRING) CLUSTERED BY (id, val) INTO 10 BUCKETS"
+        )
+        self.validate_identity(
+            "CREATE EXTERNAL TABLE foo (id INT, val STRING) STORED AS PARQUET LOCATION 's3://foo' TBLPROPERTIES ('has_encryped_data'='true', 'classification'='test')"
+        )
+        self.validate_identity(
+            "CREATE EXTERNAL TABLE IF NOT EXISTS foo (a INT, b STRING) ROW FORMAT SERDE 'org.openx.data.jsonserde.JsonSerDe' WITH SERDEPROPERTIES ('case.insensitive'='FALSE') LOCATION 's3://table/path'"
+        )
         self.validate_identity(
             """CREATE EXTERNAL TABLE x (y INT) ROW FORMAT SERDE 'serde' ROW FORMAT DELIMITED FIELDS TERMINATED BY '1' WITH SERDEPROPERTIES ('input.regex'='')""",
         )
-        self.validate_identity("""CREATE EXTERNAL TABLE `my_table` (`a7` ARRAY<DATE>) ROW FORMAT SERDE 'a' STORED AS INPUTFORMAT 'b' OUTPUTFORMAT 'c' LOCATION 'd' TBLPROPERTIES ('e'='f')""")
+        self.validate_identity(
+            """CREATE EXTERNAL TABLE `my_table` (`a7` ARRAY<DATE>) ROW FORMAT SERDE 'a' STORED AS INPUTFORMAT 'b' OUTPUTFORMAT 'c' LOCATION 'd' TBLPROPERTIES ('e'='f')"""
+        )
 
         # Iceberg, https://docs.aws.amazon.com/athena/latest/ug/querying-iceberg-creating-tables.html
-        self.validate_identity("CREATE TABLE iceberg_table (`id` BIGINT, `data` STRING, category STRING) PARTITIONED BY (category, BUCKET(16, id)) LOCATION 's3://amzn-s3-demo-bucket/your-folder/' TBLPROPERTIES ('table_type'='ICEBERG', 'write_compression'='snappy')")
-        self.validate_identity("CREATE OR REPLACE TABLE iceberg_table (`id` BIGINT, `data` STRING, category STRING) PARTITIONED BY (category, BUCKET(16, id)) LOCATION 's3://amzn-s3-demo-bucket/your-folder/' TBLPROPERTIES ('table_type'='ICEBERG', 'write_compression'='snappy')")
+        self.validate_identity(
+            "CREATE TABLE iceberg_table (`id` BIGINT, `data` STRING, category STRING) PARTITIONED BY (category, BUCKET(16, id)) LOCATION 's3://amzn-s3-demo-bucket/your-folder/' TBLPROPERTIES ('table_type'='ICEBERG', 'write_compression'='snappy')"
+        )
+        self.validate_identity(
+            "CREATE OR REPLACE TABLE iceberg_table (`id` BIGINT, `data` STRING, category STRING) PARTITIONED BY (category, BUCKET(16, id)) LOCATION 's3://amzn-s3-demo-bucket/your-folder/' TBLPROPERTIES ('table_type'='ICEBERG', 'write_compression'='snappy')"
+        )
 
         # CTAS goes to the Trino engine, where the table properties cant be encased in single quotes like they can for Hive
         # ref: https://docs.aws.amazon.com/athena/latest/ug/create-table-as.html#ctas-table-properties
         # They're also case sensitive and need to be lowercase, otherwise you get eg "Table properties [FORMAT] are not supported."
-        self.validate_identity("CREATE TABLE foo WITH (table_type='ICEBERG', location='s3://foo/', format='orc', partitioning=ARRAY['bucket(id, 5)']) AS SELECT * FROM a")
-        self.validate_identity("CREATE TABLE foo WITH (table_type='HIVE', external_location='s3://foo/', format='parquet', partitioned_by=ARRAY['ds']) AS SELECT * FROM a")
-        self.validate_identity("CREATE TABLE foo AS WITH foo AS (SELECT a, b FROM bar) SELECT * FROM foo")
+        self.validate_identity(
+            "CREATE TABLE foo WITH (table_type='ICEBERG', location='s3://foo/', format='orc', partitioning=ARRAY['bucket(id, 5)']) AS SELECT * FROM a"
+        )
+        self.validate_identity(
+            "CREATE TABLE foo WITH (table_type='HIVE', external_location='s3://foo/', format='parquet', partitioned_by=ARRAY['ds']) AS SELECT * FROM a"
+        )
+        self.validate_identity(
+            "CREATE TABLE foo AS WITH foo AS (SELECT a, b FROM bar) SELECT * FROM foo"
+        )
 
         # ALTER TABLE ADD COLUMN not supported, it needs to be generated as ALTER TABLE ADD COLUMNS
         self.validate_identity(
@@ -68,7 +96,9 @@ class TestAthena(Validator):
     def test_dml(self):
         self.validate_all(
             "SELECT CAST(ds AS VARCHAR) AS ds FROM (VALUES ('2022-01-01')) AS t(ds)",
-            read={"": "SELECT CAST(ds AS STRING) AS ds FROM (VALUES ('2022-01-01')) AS t(ds)"},
+            read={
+                "": "SELECT CAST(ds AS STRING) AS ds FROM (VALUES ('2022-01-01')) AS t(ds)"
+            },
             write={
                 "hive": "SELECT CAST(ds AS STRING) AS ds FROM (VALUES ('2022-01-01')) AS t(ds)",
                 "trino": "SELECT CAST(ds AS VARCHAR) AS ds FROM (VALUES ('2022-01-01')) AS t(ds)",
@@ -80,8 +110,12 @@ class TestAthena(Validator):
         self.validate_identity("CREATE SCHEMA `foo`")
         self.validate_identity("CREATE SCHEMA foo")
 
-        self.validate_identity("CREATE EXTERNAL TABLE `foo` (`id` INT) LOCATION 's3://foo/'")
-        self.validate_identity("CREATE EXTERNAL TABLE foo (id INT) LOCATION 's3://foo/'")
+        self.validate_identity(
+            "CREATE EXTERNAL TABLE `foo` (`id` INT) LOCATION 's3://foo/'"
+        )
+        self.validate_identity(
+            "CREATE EXTERNAL TABLE foo (id INT) LOCATION 's3://foo/'"
+        )
         self.validate_identity(
             "CREATE EXTERNAL TABLE foo (id INT) LOCATION 's3://foo/'",
             "CREATE EXTERNAL TABLE `foo` (`id` INT) LOCATION 's3://foo/'",
@@ -123,7 +157,9 @@ class TestAthena(Validator):
             "DESCRIBE `foo`.`bar`",
             identify=True,
         )
-        self.validate_identity('CREATE TABLE "foo" AS WITH "foo" AS (SELECT "a", "b" FROM "bar") SELECT * FROM "foo"')
+        self.validate_identity(
+            'CREATE TABLE "foo" AS WITH "foo" AS (SELECT "a", "b" FROM "bar") SELECT * FROM "foo"'
+        )
 
     def test_dml_quoting(self):
         self.validate_identity("SELECT a AS foo FROM tbl")
@@ -152,8 +188,12 @@ class TestAthena(Validator):
         table_schema = exp.Schema(
             this=exp.to_table("foo.bar"),
             expressions=[
-                exp.ColumnDef(this=exp.to_identifier("a"), kind=exp.DataType.build("int")),
-                exp.ColumnDef(this=exp.to_identifier("b"), kind=exp.DataType.build("varchar")),
+                exp.ColumnDef(
+                    this=exp.to_identifier("a"), kind=exp.DataType.build("int")
+                ),
+                exp.ColumnDef(
+                    this=exp.to_identifier("b"), kind=exp.DataType.build("varchar")
+                ),
             ],
         )
 
@@ -166,7 +206,9 @@ class TestAthena(Validator):
                     exp.ExternalProperty(),
                     exp.FileFormatProperty(this=exp.Literal.string("parquet")),
                     exp.LocationProperty(this=exp.Literal.string("s3://foo")),
-                    exp.PartitionedByProperty(this=exp.Schema(expressions=[exp.to_column("partition_col")])),
+                    exp.PartitionedByProperty(
+                        this=exp.Schema(expressions=[exp.to_column("partition_col")])
+                    ),
                 ]
             ),
         )
@@ -189,11 +231,16 @@ class TestAthena(Validator):
                         this=exp.Schema(
                             expressions=[
                                 exp.to_column("partition_col"),
-                                exp.PartitionedByBucket(this=exp.to_column("a"), expression=exp.Literal.number(4)),
+                                exp.PartitionedByBucket(
+                                    this=exp.to_column("a"),
+                                    expression=exp.Literal.number(4),
+                                ),
                             ]
                         )
                     ),
-                    exp.Property(this=exp.var("table_type"), value=exp.Literal.string("iceberg")),
+                    exp.Property(
+                        this=exp.var("table_type"), value=exp.Literal.string("iceberg")
+                    ),
                 ]
             ),
         )
@@ -214,7 +261,11 @@ class TestAthena(Validator):
                 expressions=[
                     exp.FileFormatProperty(this=exp.Literal.string("parquet")),
                     exp.LocationProperty(this=exp.Literal.string("s3://foo")),
-                    exp.PartitionedByProperty(this=exp.Schema(expressions=[exp.to_column("partition_col", quoted=True)])),
+                    exp.PartitionedByProperty(
+                        this=exp.Schema(
+                            expressions=[exp.to_column("partition_col", quoted=True)]
+                        )
+                    ),
                 ]
             ),
             expression=exp.select("1"),
@@ -235,7 +286,9 @@ class TestAthena(Validator):
             kind="TABLE",
             properties=exp.Properties(
                 expressions=[
-                    exp.Property(this=exp.var("table_type"), value=exp.Literal.string("iceberg")),
+                    exp.Property(
+                        this=exp.var("table_type"), value=exp.Literal.string("iceberg")
+                    ),
                     exp.LocationProperty(this=exp.Literal.string("s3://foo")),
                     exp.PartitionedByProperty(
                         this=exp.Schema(
@@ -266,9 +319,16 @@ class TestAthena(Validator):
 
     def test_parse_partitioned_by_returns_iceberg_transforms(self):
         # check that parse_into works for PartitionedByProperty and also that correct AST nodes are emitted for Iceberg transforms
-        parsed = self.parse_one("(a, bucket(4, b), truncate(3, c), month(d))", into=exp.PartitionedByProperty)
+        parsed = self.parse_one(
+            "(a, bucket(4, b), truncate(3, c), month(d))",
+            into=exp.PartitionedByProperty,
+        )
 
         assert isinstance(parsed, exp.PartitionedByProperty)
         assert isinstance(parsed.this, exp.Schema)
-        assert next(n for n in parsed.this.expressions if isinstance(n, exp.PartitionedByBucket))
-        assert next(n for n in parsed.this.expressions if isinstance(n, exp.PartitionByTruncate))
+        assert next(
+            n for n in parsed.this.expressions if isinstance(n, exp.PartitionedByBucket)
+        )
+        assert next(
+            n for n in parsed.this.expressions if isinstance(n, exp.PartitionByTruncate)
+        )

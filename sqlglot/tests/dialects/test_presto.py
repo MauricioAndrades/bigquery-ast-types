@@ -7,7 +7,9 @@ class TestPresto(Validator):
     dialect = "presto"
 
     def test_cast(self):
-        self.validate_identity("DEALLOCATE PREPARE my_query", check_command_warning=True)
+        self.validate_identity(
+            "DEALLOCATE PREPARE my_query", check_command_warning=True
+        )
         self.validate_identity("DESCRIBE INPUT x", check_command_warning=True)
         self.validate_identity("DESCRIBE OUTPUT x", check_command_warning=True)
         self.validate_identity("SELECT * FROM x qualify", "SELECT * FROM x AS qualify")
@@ -15,7 +17,9 @@ class TestPresto(Validator):
         self.validate_identity("CAST(x AS IPPREFIX)")
         self.validate_identity("CAST(TDIGEST_AGG(1) AS TDIGEST)")
         self.validate_identity("CAST(x AS HYPERLOGLOG)")
-        self.validate_identity("RESET SESSION hive.optimized_reader_enabled", check_command_warning=True)
+        self.validate_identity(
+            "RESET SESSION hive.optimized_reader_enabled", check_command_warning=True
+        )
         self.validate_identity(
             "TIMESTAMP '2025-06-20 11:22:29 Europe/Prague'",
             "CAST('2025-06-20 11:22:29 Europe/Prague' AS TIMESTAMP WITH TIME ZONE)",
@@ -447,7 +451,10 @@ class TestPresto(Validator):
         self.validate_all(
             "CAST(x AS TIMESTAMP)",
             write={"presto": "CAST(x AS TIMESTAMP)"},
-            read={"mysql": "CAST(x AS DATETIME)", "clickhouse": "CAST(x AS DATETIME64)"},
+            read={
+                "mysql": "CAST(x AS DATETIME)",
+                "clickhouse": "CAST(x AS DATETIME64)",
+            },
         )
         self.validate_all(
             "CAST(x AS TIMESTAMP)",
@@ -582,8 +589,12 @@ class TestPresto(Validator):
             },
         )
 
-        self.validate_identity("""CREATE OR REPLACE VIEW v SECURITY DEFINER AS SELECT id FROM t""")
-        self.validate_identity("""CREATE OR REPLACE VIEW v SECURITY INVOKER AS SELECT id FROM t""")
+        self.validate_identity(
+            """CREATE OR REPLACE VIEW v SECURITY DEFINER AS SELECT id FROM t"""
+        )
+        self.validate_identity(
+            """CREATE OR REPLACE VIEW v SECURITY INVOKER AS SELECT id FROM t"""
+        )
 
     def test_quotes(self):
         self.validate_all(
@@ -673,7 +684,10 @@ class TestPresto(Validator):
 
     def test_presto(self):
         self.assertEqual(
-            exp.func("md5", exp.func("concat", exp.cast("x", "text"), exp.Literal.string("s"))).sql(dialect="presto"),
+            exp.func(
+                "md5",
+                exp.func("concat", exp.cast("x", "text"), exp.Literal.string("s")),
+            ).sql(dialect="presto"),
             "LOWER(TO_HEX(MD5(TO_UTF8(CONCAT(CAST(x AS VARCHAR), CAST('s' AS VARCHAR))))))",
         )
 
@@ -695,7 +709,9 @@ class TestPresto(Validator):
                 },
             )
 
-        self.validate_identity("SELECT a FROM t GROUP BY a, ROLLUP (b), ROLLUP (c), ROLLUP (d)")
+        self.validate_identity(
+            "SELECT a FROM t GROUP BY a, ROLLUP (b), ROLLUP (c), ROLLUP (d)"
+        )
         self.validate_identity("SELECT a FROM test TABLESAMPLE BERNOULLI (50)")
         self.validate_identity("SELECT a FROM test TABLESAMPLE SYSTEM (75)")
         self.validate_identity("string_agg(x, ',')", "ARRAY_JOIN(ARRAY_AGG(x), ',')")
@@ -703,15 +719,29 @@ class TestPresto(Validator):
         self.validate_identity("SELECT * FROM x OFFSET 1 FETCH FIRST 1 ROWS ONLY")
         self.validate_identity("SELECT BOOL_OR(a > 10) FROM asd AS T(a)")
         self.validate_identity("SELECT * FROM (VALUES (1))")
-        self.validate_identity("START TRANSACTION READ WRITE, ISOLATION LEVEL SERIALIZABLE")
+        self.validate_identity(
+            "START TRANSACTION READ WRITE, ISOLATION LEVEL SERIALIZABLE"
+        )
         self.validate_identity("START TRANSACTION ISOLATION LEVEL REPEATABLE READ")
         self.validate_identity("APPROX_PERCENTILE(a, b, c, d)")
-        self.validate_identity("SELECT SPLIT_TO_MAP('a:1;b:2;a:3', ';', ':', (k, v1, v2) -> CONCAT(v1, v2))")
-        self.validate_identity("SELECT * FROM example.testdb.customer_orders FOR VERSION AS OF 8954597067493422955")
-        self.validate_identity("SELECT * FROM example.testdb.customer_orders FOR TIMESTAMP AS OF CAST('2022-03-23 09:59:29.803 Europe/Vienna' AS TIMESTAMP)")
-        self.validate_identity("SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY ALL CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)")
-        self.validate_identity("SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY DISTINCT CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)")
-        self.validate_identity("SELECT JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'), COUNT(*) FROM table_a GROUP BY DISTINCT (JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'))")
+        self.validate_identity(
+            "SELECT SPLIT_TO_MAP('a:1;b:2;a:3', ';', ':', (k, v1, v2) -> CONCAT(v1, v2))"
+        )
+        self.validate_identity(
+            "SELECT * FROM example.testdb.customer_orders FOR VERSION AS OF 8954597067493422955"
+        )
+        self.validate_identity(
+            "SELECT * FROM example.testdb.customer_orders FOR TIMESTAMP AS OF CAST('2022-03-23 09:59:29.803 Europe/Vienna' AS TIMESTAMP)"
+        )
+        self.validate_identity(
+            "SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY ALL CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)"
+        )
+        self.validate_identity(
+            "SELECT origin_state, destination_state, origin_zip, SUM(package_weight) FROM shipping GROUP BY DISTINCT CUBE (origin_state, destination_state), ROLLUP (origin_state, origin_zip)"
+        )
+        self.validate_identity(
+            "SELECT JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'), COUNT(*) FROM table_a GROUP BY DISTINCT (JSON_EXTRACT_SCALAR(CAST(extra AS JSON), '$.value_b'))"
+        )
 
         self.validate_all(
             "SELECT LAST_DAY_OF_MONTH(CAST('2008-11-25' AS DATE))",
@@ -1099,7 +1129,9 @@ class TestPresto(Validator):
                 "snowflake": "CURRENT_USER()",
             },
         )
-        self.validate_identity("SELECT id, FIRST_VALUE(is_deleted) OVER (PARTITION BY id) AS first_is_deleted, NTH_VALUE(is_deleted, 2) OVER (PARTITION BY id) AS nth_is_deleted, LAST_VALUE(is_deleted) OVER (PARTITION BY id) AS last_is_deleted FROM my_table")
+        self.validate_identity(
+            "SELECT id, FIRST_VALUE(is_deleted) OVER (PARTITION BY id) AS first_is_deleted, NTH_VALUE(is_deleted, 2) OVER (PARTITION BY id) AS nth_is_deleted, LAST_VALUE(is_deleted) OVER (PARTITION BY id) AS last_is_deleted FROM my_table"
+        )
 
     def test_encode_decode(self):
         self.validate_identity("FROM_UTF8(x, y)")
@@ -1303,16 +1335,24 @@ MATCH_RECOGNIZE (
         for dialect in ("trino", "presto"):
             s = parse_one('SELECT col:x:y."special string"', read="snowflake")
 
-            dialect_json_extract_setting = f"{dialect}, variant_extract_is_json_extract=True"
-            dialect_row_access_setting = f"{dialect}, variant_extract_is_json_extract=False"
+            dialect_json_extract_setting = (
+                f"{dialect}, variant_extract_is_json_extract=True"
+            )
+            dialect_row_access_setting = (
+                f"{dialect}, variant_extract_is_json_extract=False"
+            )
 
             # By default, Snowflake VARIANT will generate JSON_EXTRACT() in Presto/Trino
-            json_extract_result = """SELECT JSON_EXTRACT(col, '$.x.y["special string"]')"""
+            json_extract_result = (
+                """SELECT JSON_EXTRACT(col, '$.x.y["special string"]')"""
+            )
             self.assertEqual(s.sql(dialect), json_extract_result)
             self.assertEqual(s.sql(dialect_json_extract_setting), json_extract_result)
 
             # If the setting is overriden to False, then generate ROW access (dot notation)
-            self.assertEqual(s.sql(dialect_row_access_setting), 'SELECT col.x.y."special string"')
+            self.assertEqual(
+                s.sql(dialect_row_access_setting), 'SELECT col.x.y."special string"'
+            )
 
     def test_analyze(self):
         self.validate_identity("ANALYZE tbl")

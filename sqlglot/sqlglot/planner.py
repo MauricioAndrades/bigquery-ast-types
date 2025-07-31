@@ -42,7 +42,9 @@ class Plan:
 
 class Step:
     @classmethod
-    def from_expression(cls, expression: exp.Expression, ctes: t.Optional[t.Dict[str, Step]] = None) -> Step:
+    def from_expression(
+        cls, expression: exp.Expression, ctes: t.Optional[t.Dict[str, Step]] = None
+    ) -> Step:
         """
         Builds a DAG of Steps from a SQL expression so that it's easier to execute in an engine.
         Note: the expression's tables and subqueries must be aliased for this method to work. For
@@ -142,7 +144,9 @@ class Step:
             return bool(agg_funcs)
 
         def set_ops_and_aggs(step):
-            step.operands = tuple(alias(operand, alias_) for operand, alias_ in operands.items())
+            step.operands = tuple(
+                alias(operand, alias_) for operand, alias_ in operands.items()
+            )
             step.aggregations = list(aggregations)
 
         for e in expression.expressions:
@@ -175,7 +179,9 @@ class Step:
             set_ops_and_aggs(aggregate)
 
             # give aggregates names and replace projections with references to them
-            aggregate.group = {f"_g{i}": e for i, e in enumerate(group.expressions if group else [])}
+            aggregate.group = {
+                f"_g{i}": e for i, e in enumerate(group.expressions if group else [])
+            }
 
             intermediate: t.Dict[str | exp.Expression, str] = {}
             for k, v in aggregate.group.items():
@@ -205,8 +211,12 @@ class Step:
         if order:
             if aggregate and isinstance(step, Aggregate):
                 for i, ordered in enumerate(order.expressions):
-                    if extract_agg_operands(exp.alias_(ordered.this, f"_o_{i}", quoted=True)):
-                        ordered.this.replace(exp.column(f"_o_{i}", step.name, quoted=True))
+                    if extract_agg_operands(
+                        exp.alias_(ordered.this, f"_o_{i}", quoted=True)
+                    ):
+                        ordered.this.replace(
+                            exp.column(f"_o_{i}", step.name, quoted=True)
+                        )
 
                 set_ops_and_aggs(aggregate)
 
@@ -222,7 +232,10 @@ class Step:
             distinct = Aggregate()
             distinct.source = step.name
             distinct.name = step.name
-            distinct.group = {e.alias_or_name: exp.column(col=e.alias_or_name, table=step.name) for e in projections or expression.expressions}
+            distinct.group = {
+                e.alias_or_name: exp.column(col=e.alias_or_name, table=step.name)
+                for e in projections or expression.expressions
+            }
             distinct.add_dependency(step)
             step = distinct
 
@@ -295,7 +308,9 @@ class Step:
 
 class Scan(Step):
     @classmethod
-    def from_expression(cls, expression: exp.Expression, ctes: t.Optional[t.Dict[str, Step]] = None) -> Step:
+    def from_expression(
+        cls, expression: exp.Expression, ctes: t.Optional[t.Dict[str, Step]] = None
+    ) -> Step:
         table = expression
         alias_ = expression.alias_or_name
 
@@ -323,7 +338,9 @@ class Scan(Step):
 
 class Join(Step):
     @classmethod
-    def from_joins(cls, joins: t.Iterable[exp.Join], ctes: t.Optional[t.Dict[str, Step]] = None) -> Join:
+    def from_joins(
+        cls, joins: t.Iterable[exp.Join], ctes: t.Optional[t.Dict[str, Step]] = None
+    ) -> Join:
         step = Join()
 
         for join in joins:
@@ -348,7 +365,9 @@ class Join(Step):
         lines = [f"{indent}Source: {self.source_name or self.name}"]
         for name, join in self.joins.items():
             lines.append(f"{indent}{name}: {join['side'] or 'INNER'}")
-            join_key = ", ".join(str(key) for key in t.cast(list, join.get("join_key") or []))
+            join_key = ", ".join(
+                str(key) for key in t.cast(list, join.get("join_key") or [])
+            )
             if join_key:
                 lines.append(f"{indent}Key: {join_key}")
             if join.get("condition"):
@@ -414,7 +433,9 @@ class SetOperation(Step):
         self.distinct = distinct
 
     @classmethod
-    def from_expression(cls, expression: exp.Expression, ctes: t.Optional[t.Dict[str, Step]] = None) -> SetOperation:
+    def from_expression(
+        cls, expression: exp.Expression, ctes: t.Optional[t.Dict[str, Step]] = None
+    ) -> SetOperation:
         assert isinstance(expression, exp.SetOperation)
 
         left = Step.from_expression(expression.left, ctes)

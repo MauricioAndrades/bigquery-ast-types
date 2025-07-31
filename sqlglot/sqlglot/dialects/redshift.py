@@ -68,7 +68,10 @@ class Redshift(Postgres):
             "DATE_DIFF": _build_date_delta(exp.TsOrDsDiff),
             "GETDATE": exp.CurrentTimestamp.from_arg_list,
             "LISTAGG": exp.GroupConcat.from_arg_list,
-            "SPLIT_TO_ARRAY": lambda args: exp.StringToArray(this=seq_get(args, 0), expression=seq_get(args, 1) or exp.Literal.string(",")),
+            "SPLIT_TO_ARRAY": lambda args: exp.StringToArray(
+                this=seq_get(args, 0),
+                expression=seq_get(args, 1) or exp.Literal.string(","),
+            ),
             "STRTOL": exp.FromBase.from_arg_list,
         }
 
@@ -100,9 +103,15 @@ class Redshift(Postgres):
                 is_db_reference=is_db_reference,
             )
 
-            return self.expression(exp.Pivot, this=table, unpivot=True) if unpivot else table
+            return (
+                self.expression(exp.Pivot, this=table, unpivot=True)
+                if unpivot
+                else table
+            )
 
-        def _parse_convert(self, strict: bool, safe: t.Optional[bool] = None) -> t.Optional[exp.Expression]:
+        def _parse_convert(
+            self, strict: bool, safe: t.Optional[bool] = None
+        ) -> t.Optional[exp.Expression]:
             to = self._parse_types()
             self._match(TokenType.COMMA)
             this = self._parse_bitwise()
@@ -113,7 +122,9 @@ class Redshift(Postgres):
             func = self._parse_function()
 
             if isinstance(func, exp.Count) and isinstance(func.this, exp.Distinct):
-                return self.expression(exp.ApproxDistinct, this=seq_get(func.this.expressions, 0))
+                return self.expression(
+                    exp.ApproxDistinct, this=seq_get(func.this.expressions, 0)
+                )
             self._retreat(index)
             return None
 
@@ -175,11 +186,15 @@ class Redshift(Postgres):
 
         TRANSFORMS = {
             **Postgres.Generator.TRANSFORMS,
-            exp.ArrayConcat: lambda self, e: self.arrayconcat_sql(e, name="ARRAY_CONCAT"),
+            exp.ArrayConcat: lambda self, e: self.arrayconcat_sql(
+                e, name="ARRAY_CONCAT"
+            ),
             exp.Concat: concat_to_dpipe_sql,
             exp.ConcatWs: concat_ws_to_dpipe_sql,
             exp.ApproxDistinct: lambda self, e: f"APPROXIMATE COUNT(DISTINCT {self.sql(e, 'this')})",
-            exp.CurrentTimestamp: lambda self, e: ("SYSDATE" if e.args.get("sysdate") else "GETDATE()"),
+            exp.CurrentTimestamp: lambda self, e: (
+                "SYSDATE" if e.args.get("sysdate") else "GETDATE()"
+            ),
             exp.DateAdd: date_delta_sql("DATEADD"),
             exp.DateDiff: date_delta_sql("DATEDIFF"),
             exp.DistKeyProperty: lambda self, e: self.func("DISTKEY", e.this),
@@ -190,7 +205,9 @@ class Redshift(Postgres):
             exp.JSONExtract: json_extract_segments("JSON_EXTRACT_PATH_TEXT"),
             exp.JSONExtractScalar: json_extract_segments("JSON_EXTRACT_PATH_TEXT"),
             exp.GroupConcat: rename_func("LISTAGG"),
-            exp.Hex: lambda self, e: self.func("UPPER", self.func("TO_HEX", self.sql(e, "this"))),
+            exp.Hex: lambda self, e: self.func(
+                "UPPER", self.func("TO_HEX", self.sql(e, "this"))
+            ),
             exp.Select: transforms.preprocess(
                 [
                     transforms.eliminate_window_clause,
@@ -385,19 +402,29 @@ class Redshift(Postgres):
             num_args = len(args)
 
             if num_args != 1:
-                self.unsupported(f"Unsupported number of arguments in UNNEST: {num_args}")
+                self.unsupported(
+                    f"Unsupported number of arguments in UNNEST: {num_args}"
+                )
                 return ""
 
-            if isinstance(expression.find_ancestor(exp.From, exp.Join, exp.Select), exp.Select):
-                self.unsupported("Unsupported UNNEST when not used in FROM/JOIN clauses")
+            if isinstance(
+                expression.find_ancestor(exp.From, exp.Join, exp.Select), exp.Select
+            ):
+                self.unsupported(
+                    "Unsupported UNNEST when not used in FROM/JOIN clauses"
+                )
                 return ""
 
             arg = self.sql(seq_get(args, 0))
 
-            alias = self.expressions(expression.args.get("alias"), key="columns", flat=True)
+            alias = self.expressions(
+                expression.args.get("alias"), key="columns", flat=True
+            )
             return f"{arg} AS {alias}" if alias else arg
 
-        def cast_sql(self, expression: exp.Cast, safe_prefix: t.Optional[str] = None) -> str:
+        def cast_sql(
+            self, expression: exp.Cast, safe_prefix: t.Optional[str] = None
+        ) -> str:
             if expression.is_type(exp.DataType.Type.JSON):
                 # Redshift doesn't support a JSON type, so casting to it is treated as a noop
                 return self.sql(expression, "this")
@@ -425,7 +452,9 @@ class Redshift(Postgres):
             exprs = f" TABLE PROPERTIES ({exprs})" if exprs else ""
             location = self.sql(expression, "location")
             location = f" LOCATION {location}" if location else ""
-            file_format = self.expressions(expression, key="file_format", flat=True, sep=" ")
+            file_format = self.expressions(
+                expression, key="file_format", flat=True, sep=" "
+            )
             file_format = f" FILE FORMAT {file_format}" if file_format else ""
 
             return f"SET{exprs}{location}{file_format}"

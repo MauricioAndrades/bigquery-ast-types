@@ -60,10 +60,21 @@ def _no_sort_array(self: Presto.Generator, expression: exp.SortArray) -> str:
 def _schema_sql(self: Presto.Generator, expression: exp.Schema) -> str:
     if isinstance(expression.parent, exp.PartitionedByProperty):
         # Any columns in the ARRAY[] string literals should not be quoted
-        expression.transform(lambda n: n.name if isinstance(n, exp.Identifier) else n, copy=False)
+        expression.transform(
+            lambda n: n.name if isinstance(n, exp.Identifier) else n, copy=False
+        )
 
-        partition_exprs = [self.sql(c) if isinstance(c, (exp.Func, exp.Property)) else self.sql(c, "this") for c in expression.expressions]
-        return self.sql(exp.Array(expressions=[exp.Literal.string(c) for c in partition_exprs]))
+        partition_exprs = [
+            (
+                self.sql(c)
+                if isinstance(c, (exp.Func, exp.Property))
+                else self.sql(c, "this")
+            )
+            for c in expression.expressions
+        ]
+        return self.sql(
+            exp.Array(expressions=[exp.Literal.string(c) for c in partition_exprs])
+        )
 
     if expression.parent:
         for schema in expression.parent.find_all(exp.Schema):
@@ -79,18 +90,29 @@ def _schema_sql(self: Presto.Generator, expression: exp.Schema) -> str:
 
 def _quantile_sql(self: Presto.Generator, expression: exp.Quantile) -> str:
     self.unsupported("Presto does not support exact quantiles")
-    return self.func("APPROX_PERCENTILE", expression.this, expression.args.get("quantile"))
+    return self.func(
+        "APPROX_PERCENTILE", expression.this, expression.args.get("quantile")
+    )
 
 
-def _str_to_time_sql(self: Presto.Generator, expression: exp.StrToDate | exp.StrToTime | exp.TsOrDsToDate) -> str:
+def _str_to_time_sql(
+    self: Presto.Generator, expression: exp.StrToDate | exp.StrToTime | exp.TsOrDsToDate
+) -> str:
     return self.func("DATE_PARSE", expression.this, self.format_time(expression))
 
 
 def _ts_or_ds_to_date_sql(self: Presto.Generator, expression: exp.TsOrDsToDate) -> str:
     time_format = self.format_time(expression)
     if time_format and time_format not in (Presto.TIME_FORMAT, Presto.DATE_FORMAT):
-        return self.sql(exp.cast(_str_to_time_sql(self, expression), exp.DataType.Type.DATE))
-    return self.sql(exp.cast(exp.cast(expression.this, exp.DataType.Type.TIMESTAMP), exp.DataType.Type.DATE))
+        return self.sql(
+            exp.cast(_str_to_time_sql(self, expression), exp.DataType.Type.DATE)
+        )
+    return self.sql(
+        exp.cast(
+            exp.cast(expression.this, exp.DataType.Type.TIMESTAMP),
+            exp.DataType.Type.DATE,
+        )
+    )
 
 
 def _ts_or_ds_add_sql(self: Presto.Generator, expression: exp.TsOrDsAdd) -> str:
@@ -115,7 +137,9 @@ def _build_approx_percentile(args: t.List) -> exp.Expression:
             accuracy=seq_get(args, 3),
         )
     if len(args) == 3:
-        return exp.ApproxQuantile(this=seq_get(args, 0), quantile=seq_get(args, 1), accuracy=seq_get(args, 2))
+        return exp.ApproxQuantile(
+            this=seq_get(args, 0), quantile=seq_get(args, 1), accuracy=seq_get(args, 2)
+        )
     return exp.ApproxQuantile.from_arg_list(args)
 
 
@@ -140,7 +164,9 @@ def _first_last_sql(self: Presto.Generator, expression: exp.Func) -> str:
 
     Reference: https://trino.io/docs/current/sql/match-recognize.html#logical-navigation-functions
     """
-    if isinstance(expression.find_ancestor(exp.MatchRecognize, exp.Select), exp.MatchRecognize):
+    if isinstance(
+        expression.find_ancestor(exp.MatchRecognize, exp.Select), exp.MatchRecognize
+    ):
         return self.function_fallback_sql(expression)
 
     return rename_func("ARBITRARY")(self, expression)
@@ -176,7 +202,9 @@ def _build_to_char(args: t.List) -> exp.TimeToStr:
     return build_formatted_time(exp.TimeToStr, "teradata")(args)
 
 
-def _date_delta_sql(name: str, negate_interval: bool = False) -> t.Callable[[Presto.Generator, DATE_ADD_OR_SUB], str]:
+def _date_delta_sql(
+    name: str, negate_interval: bool = False
+) -> t.Callable[[Presto.Generator, DATE_ADD_OR_SUB], str]:
     def _delta_sql(self: Presto.Generator, expression: DATE_ADD_OR_SUB) -> str:
         interval = _to_int(self, expression.expression)
         return self.func(
@@ -196,9 +224,18 @@ def _explode_to_unnest_sql(self: Presto.Generator, expression: exp.Lateral) -> s
         alias = expression.args.get("alias")
 
         # This attempts a best-effort transpilation of LATERAL VIEW EXPLODE on a struct array
-        if isinstance(alias, exp.TableAlias) and isinstance(exploded_type, exp.DataType) and exploded_type.is_type(exp.DataType.Type.ARRAY) and exploded_type.expressions and exploded_type.expressions[0].is_type(exp.DataType.Type.STRUCT):
+        if (
+            isinstance(alias, exp.TableAlias)
+            and isinstance(exploded_type, exp.DataType)
+            and exploded_type.is_type(exp.DataType.Type.ARRAY)
+            and exploded_type.expressions
+            and exploded_type.expressions[0].is_type(exp.DataType.Type.STRUCT)
+        ):
             # When unnesting a ROW in Presto, it produces N columns, so we need to fix the alias
-            alias.set("columns", [c.this.copy() for c in exploded_type.expressions[0].expressions])
+            alias.set(
+                "columns",
+                [c.this.copy() for c in exploded_type.expressions[0].expressions],
+            )
     elif isinstance(explode, exp.Inline):
         explode.replace(exp.Explode(this=explode.this.copy()))
 
@@ -210,7 +247,11 @@ def amend_exploded_column_table(expression: exp.Expression) -> exp.Expression:
     if isinstance(expression, exp.Select) and expression.type:
         for lateral in expression.args.get("laterals") or []:
             alias = lateral.args.get("alias")
-            if not isinstance(lateral.this, exp.Explode) or not isinstance(alias, exp.TableAlias) or len(alias.columns) != 1:
+            if (
+                not isinstance(lateral.this, exp.Explode)
+                or not isinstance(alias, exp.TableAlias)
+                or len(alias.columns) != 1
+            ):
                 continue
 
             new_table = alias.this
@@ -223,8 +264,12 @@ def amend_exploded_column_table(expression: exp.Expression) -> exp.Expression:
                     column.set("table", column.args["db"].pop())
                 elif column.table.lower() == old_table:
                     column.set("table", new_table.copy())
-                elif column.name.lower() == old_table and isinstance(column.parent, exp.Dot):
-                    column.parent.replace(exp.column(column.parent.expression, table=new_table))
+                elif column.name.lower() == old_table and isinstance(
+                    column.parent, exp.Dot
+                ):
+                    column.parent.replace(
+                        exp.column(column.parent.expression, table=new_table)
+                    )
 
     return expression
 
@@ -257,7 +302,11 @@ class Presto(Dialect):
         exp.Round: lambda self, e: self._annotate_by_args(e, "this"),
         exp.Sign: lambda self, e: self._annotate_by_args(e, "this"),
         exp.Abs: lambda self, e: self._annotate_by_args(e, "this"),
-        exp.Rand: lambda self, e: self._annotate_by_args(e, "this") if e.this else self._set_type(e, exp.DataType.Type.DOUBLE),
+        exp.Rand: lambda self, e: (
+            self._annotate_by_args(e, "this")
+            if e.this
+            else self._set_type(e, exp.DataType.Type.DOUBLE)
+        ),
     }
 
     SUPPORTED_SETTINGS = {
@@ -267,7 +316,11 @@ class Presto(Dialect):
 
     class Tokenizer(tokens.Tokenizer):
         HEX_STRINGS = [("x'", "'"), ("X'", "'")]
-        UNICODE_STRINGS = [(prefix + q, q) for q in t.cast(t.List[str], tokens.Tokenizer.QUOTES) for prefix in ("U&", "u&")]
+        UNICODE_STRINGS = [
+            (prefix + q, q)
+            for q in t.cast(t.List[str], tokens.Tokenizer.QUOTES)
+            for prefix in ("U&", "u&")
+        ]
 
         NESTED_COMMENTS = False
 
@@ -303,19 +356,38 @@ class Presto(Dialect):
             "BITWISE_XOR": binary_from_function(exp.BitwiseXor),
             "CARDINALITY": exp.ArraySize.from_arg_list,
             "CONTAINS": exp.ArrayContains.from_arg_list,
-            "DATE_ADD": lambda args: exp.DateAdd(this=seq_get(args, 2), expression=seq_get(args, 1), unit=seq_get(args, 0)),
-            "DATE_DIFF": lambda args: exp.DateDiff(this=seq_get(args, 2), expression=seq_get(args, 1), unit=seq_get(args, 0)),
+            "DATE_ADD": lambda args: exp.DateAdd(
+                this=seq_get(args, 2),
+                expression=seq_get(args, 1),
+                unit=seq_get(args, 0),
+            ),
+            "DATE_DIFF": lambda args: exp.DateDiff(
+                this=seq_get(args, 2),
+                expression=seq_get(args, 1),
+                unit=seq_get(args, 0),
+            ),
             "DATE_FORMAT": build_formatted_time(exp.TimeToStr, "presto"),
             "DATE_PARSE": build_formatted_time(exp.StrToTime, "presto"),
             "DATE_TRUNC": date_trunc_to_time,
             "DAY_OF_WEEK": exp.DayOfWeekIso.from_arg_list,
             "DOW": exp.DayOfWeekIso.from_arg_list,
             "DOY": exp.DayOfYear.from_arg_list,
-            "ELEMENT_AT": lambda args: exp.Bracket(this=seq_get(args, 0), expressions=[seq_get(args, 1)], offset=1, safe=True),
+            "ELEMENT_AT": lambda args: exp.Bracket(
+                this=seq_get(args, 0),
+                expressions=[seq_get(args, 1)],
+                offset=1,
+                safe=True,
+            ),
             "FROM_HEX": exp.Unhex.from_arg_list,
             "FROM_UNIXTIME": _build_from_unixtime,
-            "FROM_UTF8": lambda args: exp.Decode(this=seq_get(args, 0), replace=seq_get(args, 1), charset=exp.Literal.string("utf-8")),
-            "JSON_FORMAT": lambda args: exp.JSONFormat(this=seq_get(args, 0), options=seq_get(args, 1), is_json=True),
+            "FROM_UTF8": lambda args: exp.Decode(
+                this=seq_get(args, 0),
+                replace=seq_get(args, 1),
+                charset=exp.Literal.string("utf-8"),
+            ),
+            "JSON_FORMAT": lambda args: exp.JSONFormat(
+                this=seq_get(args, 0), options=seq_get(args, 1), is_json=True
+            ),
             "LEVENSHTEIN_DISTANCE": exp.Levenshtein.from_arg_list,
             "NOW": exp.CurrentTimestamp.from_arg_list,
             "REGEXP_EXTRACT": build_regexp_extract(exp.RegexpExtract),
@@ -330,14 +402,24 @@ class Presto(Dialect):
             "SEQUENCE": exp.GenerateSeries.from_arg_list,
             "SET_AGG": exp.ArrayUniqueAgg.from_arg_list,
             "SPLIT_TO_MAP": exp.StrToMap.from_arg_list,
-            "STRPOS": lambda args: exp.StrPosition(this=seq_get(args, 0), substr=seq_get(args, 1), occurrence=seq_get(args, 2)),
+            "STRPOS": lambda args: exp.StrPosition(
+                this=seq_get(args, 0),
+                substr=seq_get(args, 1),
+                occurrence=seq_get(args, 2),
+            ),
             "SLICE": exp.ArraySlice.from_arg_list,
             "TO_CHAR": _build_to_char,
             "TO_UNIXTIME": exp.TimeToUnix.from_arg_list,
-            "TO_UTF8": lambda args: exp.Encode(this=seq_get(args, 0), charset=exp.Literal.string("utf-8")),
+            "TO_UTF8": lambda args: exp.Encode(
+                this=seq_get(args, 0), charset=exp.Literal.string("utf-8")
+            ),
             "MD5": exp.MD5Digest.from_arg_list,
-            "SHA256": lambda args: exp.SHA2(this=seq_get(args, 0), length=exp.Literal.number(256)),
-            "SHA512": lambda args: exp.SHA2(this=seq_get(args, 0), length=exp.Literal.number(512)),
+            "SHA256": lambda args: exp.SHA2(
+                this=seq_get(args, 0), length=exp.Literal.number(256)
+            ),
+            "SHA512": lambda args: exp.SHA2(
+                this=seq_get(args, 0), length=exp.Literal.number(512)
+            ),
         }
 
         FUNCTION_PARSERS = parser.Parser.FUNCTION_PARSERS.copy()
@@ -400,18 +482,30 @@ class Presto(Dialect):
             exp.ArrayUniqueAgg: rename_func("SET_AGG"),
             exp.ArraySlice: rename_func("SLICE"),
             exp.AtTimeZone: rename_func("AT_TIMEZONE"),
-            exp.BitwiseAnd: lambda self, e: self.func("BITWISE_AND", e.this, e.expression),
-            exp.BitwiseLeftShift: lambda self, e: self.func("BITWISE_ARITHMETIC_SHIFT_LEFT", e.this, e.expression),
+            exp.BitwiseAnd: lambda self, e: self.func(
+                "BITWISE_AND", e.this, e.expression
+            ),
+            exp.BitwiseLeftShift: lambda self, e: self.func(
+                "BITWISE_ARITHMETIC_SHIFT_LEFT", e.this, e.expression
+            ),
             exp.BitwiseNot: lambda self, e: self.func("BITWISE_NOT", e.this),
-            exp.BitwiseOr: lambda self, e: self.func("BITWISE_OR", e.this, e.expression),
-            exp.BitwiseRightShift: lambda self, e: self.func("BITWISE_ARITHMETIC_SHIFT_RIGHT", e.this, e.expression),
-            exp.BitwiseXor: lambda self, e: self.func("BITWISE_XOR", e.this, e.expression),
+            exp.BitwiseOr: lambda self, e: self.func(
+                "BITWISE_OR", e.this, e.expression
+            ),
+            exp.BitwiseRightShift: lambda self, e: self.func(
+                "BITWISE_ARITHMETIC_SHIFT_RIGHT", e.this, e.expression
+            ),
+            exp.BitwiseXor: lambda self, e: self.func(
+                "BITWISE_XOR", e.this, e.expression
+            ),
             exp.Cast: transforms.preprocess([transforms.epoch_cast_to_ts]),
             exp.CurrentTime: lambda *_: "CURRENT_TIME",
             exp.CurrentTimestamp: lambda *_: "CURRENT_TIMESTAMP",
             exp.CurrentUser: lambda *_: "CURRENT_USER",
             exp.DateAdd: _date_delta_sql("DATE_ADD"),
-            exp.DateDiff: lambda self, e: self.func("DATE_DIFF", unit_to_str(e), e.expression, e.this),
+            exp.DateDiff: lambda self, e: self.func(
+                "DATE_DIFF", unit_to_str(e), e.expression, e.this
+            ),
             exp.DateStrToDate: datestrtodate_sql,
             exp.DateToDi: lambda self, e: f"CAST(DATE_FORMAT({self.sql(e, 'this')}, {Presto.DATEINT_FORMAT}) AS INT)",
             exp.DateSub: _date_delta_sql("DATE_ADD", negate_interval=True),
@@ -433,7 +527,9 @@ class Presto(Dialect):
             exp.LastDay: lambda self, e: self.func("LAST_DAY_OF_MONTH", e.this),
             exp.Lateral: _explode_to_unnest_sql,
             exp.Left: left_to_substring_sql,
-            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(rename_func("LEVENSHTEIN_DISTANCE")),
+            exp.Levenshtein: unsupported_args(
+                "ins_cost", "del_cost", "sub_cost", "max_dist"
+            )(rename_func("LEVENSHTEIN_DISTANCE")),
             exp.LogicalAnd: rename_func("BOOL_AND"),
             exp.LogicalOr: rename_func("BOOL_OR"),
             exp.Pivot: no_pivot_sql,
@@ -455,7 +551,9 @@ class Presto(Dialect):
             ),
             exp.Space: space_sql,
             exp.SortArray: _no_sort_array,
-            exp.StrPosition: lambda self, e: strposition_sql(self, e, supports_occurrence=True),
+            exp.StrPosition: lambda self, e: strposition_sql(
+                self, e, supports_occurrence=True
+            ),
             exp.StrToDate: lambda self, e: f"CAST({_str_to_time_sql(self, e)} AS DATE)",
             exp.StrToMap: rename_func("SPLIT_TO_MAP"),
             exp.StrToTime: _str_to_time_sql,
@@ -466,10 +564,16 @@ class Presto(Dialect):
             exp.TimestampTrunc: timestamptrunc_sql(),
             exp.TimeStrToDate: timestrtotime_sql,
             exp.TimeStrToTime: timestrtotime_sql,
-            exp.TimeStrToUnix: lambda self, e: self.func("TO_UNIXTIME", self.func("DATE_PARSE", e.this, Presto.TIME_FORMAT)),
-            exp.TimeToStr: lambda self, e: self.func("DATE_FORMAT", e.this, self.format_time(e)),
+            exp.TimeStrToUnix: lambda self, e: self.func(
+                "TO_UNIXTIME", self.func("DATE_PARSE", e.this, Presto.TIME_FORMAT)
+            ),
+            exp.TimeToStr: lambda self, e: self.func(
+                "DATE_FORMAT", e.this, self.format_time(e)
+            ),
             exp.TimeToUnix: rename_func("TO_UNIXTIME"),
-            exp.ToChar: lambda self, e: self.func("DATE_FORMAT", e.this, self.format_time(e)),
+            exp.ToChar: lambda self, e: self.func(
+                "DATE_FORMAT", e.this, self.format_time(e)
+            ),
             exp.TryCast: transforms.preprocess([transforms.epoch_cast_to_ts]),
             exp.TsOrDiToDi: lambda self, e: f"CAST(SUBSTR(REPLACE(CAST({self.sql(e, 'this')} AS VARCHAR), '-', ''), 1, 8) AS INT)",
             exp.TsOrDsAdd: _ts_or_ds_add_sql,
@@ -480,8 +584,12 @@ class Presto(Dialect):
             exp.UnixToTime: _unix_to_time_sql,
             exp.UnixToTimeStr: lambda self, e: f"CAST(FROM_UNIXTIME({self.sql(e, 'this')}) AS VARCHAR)",
             exp.VariancePop: rename_func("VAR_POP"),
-            exp.With: transforms.preprocess([transforms.add_recursive_cte_column_names]),
-            exp.WithinGroup: transforms.preprocess([transforms.remove_within_group_for_percentiles]),
+            exp.With: transforms.preprocess(
+                [transforms.add_recursive_cte_column_names]
+            ),
+            exp.WithinGroup: transforms.preprocess(
+                [transforms.remove_within_group_for_percentiles]
+            ),
             exp.Xor: bool_xor_sql,
             exp.MD5Digest: rename_func("MD5"),
             exp.SHA: rename_func("SHA1"),
@@ -574,7 +682,9 @@ class Presto(Dialect):
             if this.is_type(*exp.DataType.TEXT_TYPES):
                 this = exp.Encode(this=this, charset=exp.Literal.string("utf-8"))
 
-            return self.func("LOWER", self.func("TO_HEX", self.func("MD5", self.sql(this))))
+            return self.func(
+                "LOWER", self.func("TO_HEX", self.func("MD5", self.sql(this)))
+            )
 
         def strtounix_sql(self, expression: exp.StrToUnix) -> str:
             # Since `TO_UNIXTIME` requires a `TIMESTAMP`, we need to parse the argument into one.
@@ -584,17 +694,27 @@ class Presto(Dialect):
             # https://joda-time.sourceforge.net/apidocs/org/joda/time/format/DateTimeFormat.html
             this = expression.this
             value_as_text = exp.cast(this, exp.DataType.Type.TEXT)
-            value_as_timestamp = exp.cast(this, exp.DataType.Type.TIMESTAMP) if this.is_string else this
+            value_as_timestamp = (
+                exp.cast(this, exp.DataType.Type.TIMESTAMP) if this.is_string else this
+            )
 
-            parse_without_tz = self.func("DATE_PARSE", value_as_text, self.format_time(expression))
+            parse_without_tz = self.func(
+                "DATE_PARSE", value_as_text, self.format_time(expression)
+            )
 
-            formatted_value = self.func("DATE_FORMAT", value_as_timestamp, self.format_time(expression))
+            formatted_value = self.func(
+                "DATE_FORMAT", value_as_timestamp, self.format_time(expression)
+            )
             parse_with_tz = self.func(
                 "PARSE_DATETIME",
                 formatted_value,
-                self.format_time(expression, Hive.INVERSE_TIME_MAPPING, Hive.INVERSE_TIME_TRIE),
+                self.format_time(
+                    expression, Hive.INVERSE_TIME_MAPPING, Hive.INVERSE_TIME_TRIE
+                ),
             )
-            coalesced = self.func("COALESCE", self.func("TRY", parse_without_tz), parse_with_tz)
+            coalesced = self.func(
+                "COALESCE", self.func("TRY", parse_without_tz), parse_with_tz
+            )
             return self.func("TO_UNIXTIME", coalesced)
 
         def bracket_sql(self, expression: exp.Bracket) -> str:
@@ -636,7 +756,9 @@ class Presto(Dialect):
 
             if not size or len(schema) != size:
                 if unknown_type:
-                    self.unsupported("Cannot convert untyped key-value definitions (try annotate_types).")
+                    self.unsupported(
+                        "Cannot convert untyped key-value definitions (try annotate_types)."
+                    )
                 return self.func("ROW", *values)
             return f"CAST(ROW({', '.join(values)}) AS ROW({', '.join(schema)}))"
 
@@ -650,7 +772,12 @@ class Presto(Dialect):
             modes = f" {', '.join(modes)}" if modes else ""
             return f"START TRANSACTION{modes}"
 
-        def offset_limit_modifiers(self, expression: exp.Expression, fetch: bool, limit: t.Optional[exp.Fetch | exp.Limit]) -> t.List[str]:
+        def offset_limit_modifiers(
+            self,
+            expression: exp.Expression,
+            fetch: bool,
+            limit: t.Optional[exp.Fetch | exp.Limit],
+        ) -> t.List[str]:
             return [
                 self.sql(expression, "offset"),
                 self.sql(limit),
@@ -685,17 +812,26 @@ class Presto(Dialect):
                 table_alias = table.args.get("alias")
                 if table_alias:
                     table_alias.pop()
-                    expression = t.cast(exp.Delete, expression.transform(unqualify_columns))
+                    expression = t.cast(
+                        exp.Delete, expression.transform(unqualify_columns)
+                    )
 
             return super().delete_sql(expression)
 
         def jsonextract_sql(self, expression: exp.JSONExtract) -> str:
-            is_json_extract = self.dialect.settings.get("variant_extract_is_json_extract", True)
+            is_json_extract = self.dialect.settings.get(
+                "variant_extract_is_json_extract", True
+            )
 
             # Generate JSON_EXTRACT unless the user has configured that a Snowflake / Databricks
             # VARIANT extract (e.g. col:x.y) should map to dot notation (i.e ROW access) in Presto/Trino
             if not expression.args.get("variant_extract") or is_json_extract:
-                return self.func("JSON_EXTRACT", expression.this, expression.expression, *expression.expressions)
+                return self.func(
+                    "JSON_EXTRACT",
+                    expression.this,
+                    expression.expression,
+                    *expression.expressions,
+                )
 
             this = self.sql(expression, "this")
 
@@ -704,7 +840,9 @@ class Presto(Dialect):
             for path_key in expression.expression.expressions[1:]:
                 if not isinstance(path_key, exp.JSONPathKey):
                     # Cannot transpile subscripts, wildcards etc to dot notation
-                    self.unsupported(f"Cannot transpile JSONPath segment '{path_key}' to ROW access")
+                    self.unsupported(
+                        f"Cannot transpile JSONPath segment '{path_key}' to ROW access"
+                    )
                     continue
                 key = path_key.this
                 if not exp.SAFE_IDENTIFIER_RE.match(key):

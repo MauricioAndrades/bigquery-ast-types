@@ -9,14 +9,18 @@ class TestSQLite(Validator):
     def test_sqlite(self):
         self.validate_identity("UNHEX(a, b)")
         self.validate_identity("SELECT DATE()")
-        self.validate_identity("SELECT DATE('now', 'start of month', '+1 month', '-1 day')")
+        self.validate_identity(
+            "SELECT DATE('now', 'start of month', '+1 month', '-1 day')"
+        )
         self.validate_identity("SELECT DATETIME(1092941466, 'unixepoch')")
         self.validate_identity("SELECT DATETIME(1092941466, 'auto')")
         self.validate_identity("SELECT DATETIME(1092941466, 'unixepoch', 'localtime')")
         self.validate_identity("SELECT UNIXEPOCH()")
         self.validate_identity("SELECT JULIANDAY('now') - JULIANDAY('1776-07-04')")
         self.validate_identity("SELECT UNIXEPOCH() - UNIXEPOCH('2004-01-01 02:34:56')")
-        self.validate_identity("SELECT DATE('now', 'start of year', '+9 months', 'weekday 2')")
+        self.validate_identity(
+            "SELECT DATE('now', 'start of year', '+9 months', 'weekday 2')"
+        )
         self.validate_identity("SELECT (JULIANDAY('now') - 2440587.5) * 86400.0")
         self.validate_identity("SELECT UNIXEPOCH('now', 'subsec')")
         self.validate_identity("SELECT TIMEDIFF('now', '1809-02-12')")
@@ -25,7 +29,9 @@ class TestSQLite(Validator):
         self.validate_identity(
             "SELECT JSON_EXTRACT('[10, 20, [30, 40]]', '$[2]', '$[0]', '$[1]')",
         )
-        self.validate_identity("""SELECT item AS "item", some AS "some" FROM data WHERE (item = 'value_1' COLLATE NOCASE) AND (some = 't' COLLATE NOCASE) ORDER BY item ASC LIMIT 1 OFFSET 0""")
+        self.validate_identity(
+            """SELECT item AS "item", some AS "some" FROM data WHERE (item = 'value_1' COLLATE NOCASE) AND (some = 't' COLLATE NOCASE) ORDER BY item ASC LIMIT 1 OFFSET 0"""
+        )
         self.validate_identity(
             "SELECT * FROM t1, t2",
             "SELECT * FROM t1 CROSS JOIN t2",
@@ -36,8 +42,13 @@ class TestSQLite(Validator):
         )
 
         self.validate_all("SELECT LIKE(y, x)", write={"sqlite": "SELECT x LIKE y"})
-        self.validate_all("SELECT GLOB('*y*', 'xyz')", write={"sqlite": "SELECT 'xyz' GLOB '*y*'"})
-        self.validate_all("SELECT LIKE('%y%', 'xyz', '')", write={"sqlite": "SELECT 'xyz' LIKE '%y%' ESCAPE ''"})
+        self.validate_all(
+            "SELECT GLOB('*y*', 'xyz')", write={"sqlite": "SELECT 'xyz' GLOB '*y*'"}
+        )
+        self.validate_all(
+            "SELECT LIKE('%y%', 'xyz', '')",
+            write={"sqlite": "SELECT 'xyz' LIKE '%y%' ESCAPE ''"},
+        )
         self.validate_all(
             "CURRENT_DATE",
             read={
@@ -91,7 +102,9 @@ class TestSQLite(Validator):
             },
         )
         self.validate_all("x", read={"snowflake": "LEAST(x)"})
-        self.validate_all("MIN(x)", read={"snowflake": "MIN(x)"}, write={"snowflake": "MIN(x)"})
+        self.validate_all(
+            "MIN(x)", read={"snowflake": "MIN(x)"}, write={"snowflake": "MIN(x)"}
+        )
         self.validate_all(
             "MIN(x, y, z)",
             read={"snowflake": "LEAST(x, y, z)"},
@@ -117,8 +130,12 @@ class TestSQLite(Validator):
             'CREATE TABLE "foo t" ("foo t id" TEXT NOT NULL, PRIMARY KEY ("foo t id"))',
             'CREATE TABLE "foo t" ("foo t id" TEXT NOT NULL PRIMARY KEY)',
         )
-        self.validate_identity("REPLACE INTO foo (x, y) VALUES (1, 2)", check_command_warning=True)
-        self.validate_identity("ATTACH DATABASE 'foo' AS schema_name", "ATTACH 'foo' AS schema_name")
+        self.validate_identity(
+            "REPLACE INTO foo (x, y) VALUES (1, 2)", check_command_warning=True
+        )
+        self.validate_identity(
+            "ATTACH DATABASE 'foo' AS schema_name", "ATTACH 'foo' AS schema_name"
+        )
         self.validate_identity(
             "ATTACH DATABASE NOT EXISTS(SELECT 1) AS schema_name",
             "ATTACH NOT EXISTS(SELECT 1) AS schema_name",
@@ -135,7 +152,9 @@ class TestSQLite(Validator):
 
     def test_strftime(self):
         self.validate_identity("SELECT STRFTIME('%Y/%m/%d', 'now')")
-        self.validate_identity("SELECT STRFTIME('%Y-%m-%d', '2016-10-16', 'start of month')")
+        self.validate_identity(
+            "SELECT STRFTIME('%Y-%m-%d', '2016-10-16', 'start of month')"
+        )
         self.validate_identity(
             "SELECT STRFTIME('%s')",
             "SELECT STRFTIME('%s', CURRENT_TIMESTAMP)",
@@ -182,7 +201,9 @@ class TestSQLite(Validator):
     def test_window_null_treatment(self):
         self.validate_all(
             "SELECT FIRST_VALUE(Name) OVER (PARTITION BY AlbumId ORDER BY Bytes DESC) AS LargestTrack FROM tracks",
-            write={"sqlite": "SELECT FIRST_VALUE(Name) OVER (PARTITION BY AlbumId ORDER BY Bytes DESC) AS LargestTrack FROM tracks"},
+            write={
+                "sqlite": "SELECT FIRST_VALUE(Name) OVER (PARTITION BY AlbumId ORDER BY Bytes DESC) AS LargestTrack FROM tracks"
+            },
         )
 
     def test_longvarchar_dtype(self):
@@ -198,12 +219,16 @@ class TestSQLite(Validator):
                 "SELECT * FROM t AS t",
             )
 
-            self.assertIn("Named columns are not supported in table alias.", cm.output[0])
+            self.assertIn(
+                "Named columns are not supported in table alias.", cm.output[0]
+            )
 
     def test_ddl(self):
         for conflict_action in ("ABORT", "FAIL", "IGNORE", "REPLACE", "ROLLBACK"):
             with self.subTest(f"ON CONFLICT {conflict_action}"):
-                self.validate_identity("CREATE TABLE a (b, c, UNIQUE (b, c) ON CONFLICT IGNORE)")
+                self.validate_identity(
+                    "CREATE TABLE a (b, c, UNIQUE (b, c) ON CONFLICT IGNORE)"
+                )
 
         self.validate_identity("INSERT OR ABORT INTO foo (x, y) VALUES (1, 2)")
         self.validate_identity("INSERT OR FAIL INTO foo (x, y) VALUES (1, 2)")
@@ -257,7 +282,9 @@ class TestSQLite(Validator):
             },
         )
 
-        self.validate_identity("CREATE TABLE store (store_id INTEGER PRIMARY KEY AUTOINCREMENT, mgr_id INTEGER NOT NULL UNIQUE REFERENCES staff ON UPDATE CASCADE)")
+        self.validate_identity(
+            "CREATE TABLE store (store_id INTEGER PRIMARY KEY AUTOINCREMENT, mgr_id INTEGER NOT NULL UNIQUE REFERENCES staff ON UPDATE CASCADE)"
+        )
 
     def test_analyze(self):
         self.validate_identity("ANALYZE tbl")

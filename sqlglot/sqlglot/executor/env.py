@@ -49,7 +49,11 @@ def null_if_any(*required):
 
     def decorator(func):
         if required:
-            required_indices = [i for i, param in enumerate(inspect.signature(func).parameters) if param in required]
+            required_indices = [
+                i
+                for i, param in enumerate(inspect.signature(func).parameters)
+                if param in required
+            ]
 
             def predicate(*args):
                 return any(args[i] is None for i in required_indices)
@@ -145,7 +149,9 @@ def interval(this, unit):
 
 @null_if_any("this", "expression")
 def arraytostring(this, expression, null=None):
-    return expression.join(x for x in (x if x is not None else null for x in this) if x is not None)
+    return expression.join(
+        x for x in (x if x is not None else null for x in this) if x is not None
+    )
 
 
 @null_if_any("this", "expression")
@@ -156,7 +162,9 @@ def jsonextract(this, expression):
         elif isinstance(this, list) and is_int(path_segment):
             this = seq_get(this, int(path_segment))
         else:
-            raise NotImplementedError(f"Unable to extract value for {this} at {path_segment}.")
+            raise NotImplementedError(
+                f"Unable to extract value for {this} at {path_segment}."
+            )
 
         if this is None:
             break
@@ -203,7 +211,9 @@ ENV = {
     "INTERVAL": interval,
     "JSONEXTRACT": jsonextract,
     "LEFT": null_if_any(lambda this, e: this[:e]),
-    "LIKE": null_if_any(lambda this, e: bool(re.match(e.replace("_", ".").replace("%", ".*"), this))),
+    "LIKE": null_if_any(
+        lambda this, e: bool(re.match(e.replace("_", ".").replace("%", ".*"), this))
+    ),
     "LOWER": null_if_any(lambda arg: arg.lower()),
     "LT": null_if_any(lambda this, e: this < e),
     "LTE": null_if_any(lambda this, e: this <= e),
@@ -215,7 +225,9 @@ ENV = {
     "ORDERED": ordered,
     "POW": pow,
     "RIGHT": null_if_any(lambda this, e: this[-e:]),
-    "ROUND": null_if_any(lambda this, decimals=None, truncate=None: round(this, ndigits=decimals)),
+    "ROUND": null_if_any(
+        lambda this, decimals=None, truncate=None: round(this, ndigits=decimals)
+    ),
     "STRPOSITION": str_position,
     "SUB": null_if_any(lambda e, this: e - this),
     "SUBSTRING": substring,
@@ -228,9 +240,19 @@ ENV = {
     "CURRENTTIMESTAMP": datetime.datetime.now,
     "CURRENTTIME": datetime.datetime.now,
     "CURRENTDATE": datetime.date.today,
-    "STRFTIME": null_if_any(lambda fmt, arg: datetime.datetime.fromisoformat(arg).strftime(fmt)),
-    "STRTOTIME": null_if_any(lambda arg, format: datetime.datetime.strptime(arg, format)),
+    "STRFTIME": null_if_any(
+        lambda fmt, arg: datetime.datetime.fromisoformat(arg).strftime(fmt)
+    ),
+    "STRTOTIME": null_if_any(
+        lambda arg, format: datetime.datetime.strptime(arg, format)
+    ),
     "TRIM": null_if_any(lambda this, e=None: this.strip(e)),
-    "STRUCT": lambda *args: {args[x]: args[x + 1] for x in range(0, len(args), 2) if (args[x + 1] is not None and args[x] is not None)},
-    "UNIXTOTIME": null_if_any(lambda arg: datetime.datetime.fromtimestamp(arg, datetime.timezone.utc)),
+    "STRUCT": lambda *args: {
+        args[x]: args[x + 1]
+        for x in range(0, len(args), 2)
+        if (args[x + 1] is not None and args[x] is not None)
+    },
+    "UNIXTOTIME": null_if_any(
+        lambda arg: datetime.datetime.fromtimestamp(arg, datetime.timezone.utc)
+    ),
 }

@@ -17,7 +17,9 @@ class TestTransforms(unittest.TestCase):
     def validate(self, transform, sql, target, dialect=None):
         with self.subTest(f"{dialect} - {sql}"):
             self.assertEqual(
-                parse_one(sql, dialect=dialect).transform(transform).sql(dialect=dialect),
+                parse_one(sql, dialect=dialect)
+                .transform(transform)
+                .sql(dialect=dialect),
                 target,
             )
 
@@ -269,8 +271,13 @@ class TestTransforms(unittest.TestCase):
             # if multiple conditions, we check that after transformations the tree remains consistent
             s = "select a.id from a, b where a.id = b.id (+) AND b.d (+) = const"
             tree = eliminate_join_marks(parse_one(s, dialect=dialect))
-            assert all(type(t.parent_select) is exp.Select for t in tree.find_all(exp.Table))
-            assert tree.sql(dialect=dialect) == "SELECT a.id FROM a LEFT JOIN b ON a.id = b.id AND b.d = const"
+            assert all(
+                type(t.parent_select) is exp.Select for t in tree.find_all(exp.Table)
+            )
+            assert (
+                tree.sql(dialect=dialect)
+                == "SELECT a.id FROM a LEFT JOIN b ON a.id = b.id AND b.d = const"
+            )
 
             # validate parens
             self.validate(
@@ -304,7 +311,9 @@ class TestTransforms(unittest.TestCase):
                             WHERE o.customer_id(+) = c.customer_id) AS latest_order_date
                     FROM customers c
                     """
-            self.assertRaises(AssertionError, eliminate_join_marks, parse_one(script, dialect=dialect))
+            self.assertRaises(
+                AssertionError, eliminate_join_marks, parse_one(script, dialect=dialect)
+            )
 
     def test_eliminate_window_clause(self):
         self.validate(

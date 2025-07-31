@@ -4,7 +4,10 @@ from tests.dialects.test_dialect import Validator
 class TestPipeSyntax(Validator):
     def test_select(self):
         self.validate_identity("FROM x", "SELECT * FROM x")
-        self.validate_identity("FROM x |> SELECT x1, x2", "WITH __tmp1 AS (SELECT x1, x2 FROM x) SELECT * FROM __tmp1")
+        self.validate_identity(
+            "FROM x |> SELECT x1, x2",
+            "WITH __tmp1 AS (SELECT x1, x2 FROM x) SELECT * FROM __tmp1",
+        )
         self.validate_identity(
             "FROM x |> SELECT x.x1, x.x2",
             "WITH __tmp1 AS (SELECT x.x1, x.x2 FROM x) SELECT * FROM __tmp1",
@@ -64,7 +67,9 @@ class TestPipeSyntax(Validator):
 
     def test_order_by(self):
         self.validate_identity("FROM x |> ORDER BY x1", "SELECT * FROM x ORDER BY x1")
-        self.validate_identity("FROM x |> ORDER BY x1 |> ORDER BY x2", "SELECT * FROM x ORDER BY x2")
+        self.validate_identity(
+            "FROM x |> ORDER BY x1 |> ORDER BY x2", "SELECT * FROM x ORDER BY x2"
+        )
         self.validate_identity(
             "FROM x |> ORDER BY x1 |> WHERE x1 > 0 OR x1 != 1 |> ORDER BY x2 |> WHERE x2 > 0 AND x2 != 1 |> SELECT x1, x2",
             "WITH __tmp1 AS (SELECT x1, x2 FROM x WHERE (x1 > 0 OR x1 <> 1) AND (x2 > 0 AND x2 <> 1) ORDER BY x2) SELECT * FROM __tmp1",
@@ -85,8 +90,12 @@ class TestPipeSyntax(Validator):
     def test_limit(self):
         for option in ("LIMIT 1", "LIMIT 1 OFFSET 2"):
             with self.subTest(f"Testing pipe syntax LIMIT and OFFSET option: {option}"):
-                self.validate_identity(f"FROM x |> {option}", f"SELECT * FROM x {option}")
-                self.validate_identity(f"FROM x |> {option}", f"SELECT * FROM x {option}")
+                self.validate_identity(
+                    f"FROM x |> {option}", f"SELECT * FROM x {option}"
+                )
+                self.validate_identity(
+                    f"FROM x |> {option}", f"SELECT * FROM x {option}"
+                )
                 self.validate_identity(
                     f"FROM x |> {option} |> SELECT x1, x2 |> WHERE x1 > 0 |> WHERE x2 > 0  |> ORDER BY x1, x2",
                     f"WITH __tmp1 AS (SELECT x1, x2 FROM x {option}) SELECT * FROM __tmp1 WHERE x1 > 0 AND x2 > 0 ORDER BY x1, x2",
@@ -134,7 +143,9 @@ class TestPipeSyntax(Validator):
             "WITH __tmp1 AS (SELECT SUM(x1) AS s_x1, x2 AS g_x2 FROM x GROUP BY g_x2) SELECT * FROM __tmp1 WHERE s_x1 > 0",
         )
         for order_option in ("ASC", "DESC", "ASC NULLS LAST", "DESC NULLS FIRST"):
-            with self.subTest(f"Testing pipe syntax AGGREGATE for order option: {order_option}"):
+            with self.subTest(
+                f"Testing pipe syntax AGGREGATE for order option: {order_option}"
+            ):
                 self.validate_all(
                     f"WITH __tmp1 AS (SELECT SUM(x1) AS x_s FROM x ORDER BY x_s {order_option}) SELECT * FROM __tmp1",
                     read={
@@ -147,7 +158,9 @@ class TestPipeSyntax(Validator):
                         "bigquery": f"FROM x |> AGGREGATE SUM(x1) AS x_s {order_option} GROUP BY x1 AS g_x1",
                     },
                 )
-            with self.subTest(f"Testing pipe syntax AGGREGATE with GROUP AND ORDER BY for order option: {order_option}"):
+            with self.subTest(
+                f"Testing pipe syntax AGGREGATE with GROUP AND ORDER BY for order option: {order_option}"
+            ):
                 self.validate_all(
                     f"WITH __tmp1 AS (SELECT SUM(x1) AS x_s, x1 AS g_x1 FROM x GROUP BY g_x1 ORDER BY g_x1 {order_option}), __tmp2 AS (SELECT g_x1, x_s FROM __tmp1) SELECT * FROM __tmp2",
                     read={
@@ -170,7 +183,9 @@ class TestPipeSyntax(Validator):
             with self.subTest(f"Testing pipe syntax SET OPERATORS: {op_operator}"):
                 self.validate_all(
                     f"FROM x|> {op_operator} (SELECT y1 FROM y), (SELECT z1 FROM z)",
-                    write={"bigquery": f"WITH __tmp1 AS (SELECT * FROM x), __tmp2 AS (SELECT * FROM __tmp1 {op_operator} SELECT y1 FROM y {op_operator} SELECT z1 FROM z) SELECT * FROM __tmp2"},
+                    write={
+                        "bigquery": f"WITH __tmp1 AS (SELECT * FROM x), __tmp2 AS (SELECT * FROM __tmp1 {op_operator} SELECT y1 FROM y {op_operator} SELECT z1 FROM z) SELECT * FROM __tmp2"
+                    },
                 )
 
         for op_prefix in ("LEFT OUTER", "FULL OUTER"):
@@ -180,7 +195,9 @@ class TestPipeSyntax(Validator):
                 "INTERSECT DISTINCT",
                 "EXCEPT DISTINCT",
             ):
-                with self.subTest(f"Testing pipe syntax SET OPERATORS: {op_prefix} {op_operator}"):
+                with self.subTest(
+                    f"Testing pipe syntax SET OPERATORS: {op_prefix} {op_operator}"
+                ):
                     self.validate_all(
                         f"FROM x|> SELECT x1, x2 |> {op_prefix} {op_operator} BY NAME (SELECT y1, y2 FROM y), (SELECT z1, z2 FROM z)",
                         write={
@@ -324,7 +341,9 @@ WHERE
             "RIGHT JOIN",
             "RIGHT OUTER JOIN",
         ):
-            with self.subTest(f"Testing pipe syntax no projecton with JOIN : {join_type}"):
+            with self.subTest(
+                f"Testing pipe syntax no projecton with JOIN : {join_type}"
+            ):
                 self.validate_identity(
                     f"FROM x |> {join_type} y ON x.id = y.id",
                     f"SELECT * FROM x {join_type} y ON x.id = y.id",
@@ -334,7 +353,9 @@ WHERE
                     f"FROM x |> SELECT id |> {join_type} y ON x.id = y.id",
                     f"WITH __tmp1 AS (SELECT id FROM x) SELECT * FROM __tmp1 {join_type} y ON x.id = y.id",
                 )
-            with self.subTest(f"Testing pipe syntax complex queries with JOIN: {join_type}"):
+            with self.subTest(
+                f"Testing pipe syntax complex queries with JOIN: {join_type}"
+            ):
                 self.validate_identity(
                     f"FROM x |> {join_type} y ON x.id = y.id |> SELECT x1 as a_x1, x2 |> UNION ALL (SELECT 1, 2) |> WHERE a_x1 > 0",
                     f"""WITH __tmp1 AS (

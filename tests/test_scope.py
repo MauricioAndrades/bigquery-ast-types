@@ -1,5 +1,6 @@
 from zsql_ast_transformer.scope import Scope
 
+
 def test_scope_lookup():
     global_scope = Scope()
     global_scope.declare("table1", "Table1Object")

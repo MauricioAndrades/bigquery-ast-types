@@ -13,10 +13,30 @@ from bigquery_sql_parser import Query
 from bigquery_sql_parser.script import Script
 
 from .builders import (
-    b, ASTNode, Expression, Select, SelectColumn, TableRef,
-    Join, CTE, WithClause, Merge, MergeAction, OrderByClause,
-    Identifier, Literal, BinaryOp, UnaryOp, FunctionCall,
-    Cast, Case, WhenClause, WindowFunction, Array, Struct, Star
+    b,
+    ASTNode,
+    Expression,
+    Select,
+    SelectColumn,
+    TableRef,
+    Join,
+    CTE,
+    WithClause,
+    Merge,
+    MergeAction,
+    OrderByClause,
+    Identifier,
+    Literal,
+    BinaryOp,
+    UnaryOp,
+    FunctionCall,
+    Cast,
+    Case,
+    WhenClause,
+    WindowFunction,
+    Array,
+    Struct,
+    Star,
 )
 
 
@@ -54,7 +74,9 @@ class BQParser:
         columns = []
         for col in query.columns:
             expr = self._parse_column_value(col.value)
-            columns.append(SelectColumn(expr, col.name if col.name != col.value else None))
+            columns.append(
+                SelectColumn(expr, col.name if col.name != col.value else None)
+            )
 
         # Extract FROM clause
         from_clause = []
@@ -69,7 +91,7 @@ class BQParser:
             where=None,  # Would parse WHERE
             group_by=[],  # Would parse GROUP BY
             order_by=[],  # Would parse ORDER BY
-            limit=None  # Would parse LIMIT
+            limit=None,  # Would parse LIMIT
         )
 
     def _parse_column_value(self, value: str) -> Expression:
@@ -80,27 +102,27 @@ class BQParser:
         value = value.strip()
 
         # Check for literals
-        if value.upper() == 'NULL':
+        if value.upper() == "NULL":
             return b.null()
-        elif value.upper() == 'TRUE':
+        elif value.upper() == "TRUE":
             return b.true()
-        elif value.upper() == 'FALSE':
+        elif value.upper() == "FALSE":
             return b.false()
         elif value.startswith("'") and value.endswith("'"):
             return b.lit(value[1:-1])
-        elif value.replace('.', '').replace('-', '').isdigit():
-            if '.' in value:
+        elif value.replace(".", "").replace("-", "").isdigit():
+            if "." in value:
                 return b.lit(float(value))
             else:
                 return b.lit(int(value))
 
         # Check for function calls
-        if '(' in value and value.endswith(')'):
+        if "(" in value and value.endswith(")"):
             return self._parse_function_call(value)
 
         # Check for qualified identifiers
-        if '.' in value:
-            parts = value.split('.', 1)
+        if "." in value:
+            parts = value.split(".", 1)
             return b.col(parts[1], parts[0])
 
         # Default to identifier
@@ -109,15 +131,15 @@ class BQParser:
     def _parse_function_call(self, value: str) -> FunctionCall:
         """Parse a function call."""
         # Find function name and args
-        paren_idx = value.index('(')
+        paren_idx = value.index("(")
         func_name = value[:paren_idx].strip()
-        args_str = value[paren_idx+1:-1].strip()
+        args_str = value[paren_idx + 1 : -1].strip()
 
         # Parse arguments (simplified)
         args = []
         if args_str:
             # Very simple comma splitting (doesn't handle nested functions)
-            for arg in args_str.split(','):
+            for arg in args_str.split(","):
                 args.append(self._parse_column_value(arg.strip()))
 
         return b.func(func_name, *args)
@@ -146,22 +168,19 @@ class BQTransformer:
             where=self.transform(node.where) if node.where else None,
             group_by=[self.transform(expr) for expr in node.group_by],
             order_by=[self.transform(order) for order in node.order_by],
-            limit=node.limit
+            limit=node.limit,
         )
 
     def transform_SelectColumn(self, node: SelectColumn) -> SelectColumn:
         """Transform SELECT column."""
-        return SelectColumn(
-            expr=self.transform(node.expr),
-            alias=node.alias
-        )
+        return SelectColumn(expr=self.transform(node.expr), alias=node.alias)
 
     def transform_BinaryOp(self, node: BinaryOp) -> BinaryOp:
         """Transform binary operation."""
         return BinaryOp(
             operator=node.operator,
             left=self.transform(node.left),
-            right=self.transform(node.right)
+            right=self.transform(node.right),
         )
 
     # Add more transform methods as needed...

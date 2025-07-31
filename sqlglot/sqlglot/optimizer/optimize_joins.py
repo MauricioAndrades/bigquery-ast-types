@@ -43,7 +43,9 @@ def optimize_joins(expression):
                     for predicate in on.flatten():
                         if name in exp.column_table_names(predicate):
                             predicate.replace(exp.true())
-                            predicate = exp._combine([join.args.get("on"), predicate], operator, copy=False)
+                            predicate = exp._combine(
+                                [join.args.get("on"), predicate], operator, copy=False
+                            )
                             join.on(predicate, append=False, copy=False)
 
     expression = reorder_joins(expression)
@@ -61,7 +63,11 @@ def reorder_joins(expression):
         dag = {name: other_table_names(join) for name, join in joins.items()}
         parent.set(
             "joins",
-            [joins[name] for name in tsort(dag) if name != from_.alias_or_name and name in joins],
+            [
+                joins[name]
+                for name in tsort(dag)
+                if name != from_.alias_or_name and name in joins
+            ],
         )
     return expression
 

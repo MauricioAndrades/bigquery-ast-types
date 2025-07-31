@@ -31,25 +31,44 @@ class TestStarrocks(Validator):
 
         for properties in ddl_sqls:
             with self.subTest(f"Testing create scheme: {properties}"):
-                self.validate_identity(f"CREATE TABLE foo (col1 BIGINT, col2 BIGINT) {properties}")
-                self.validate_identity(f"CREATE TABLE foo (col1 BIGINT, col2 BIGINT) ENGINE=OLAP {properties}")
+                self.validate_identity(
+                    f"CREATE TABLE foo (col1 BIGINT, col2 BIGINT) {properties}"
+                )
+                self.validate_identity(
+                    f"CREATE TABLE foo (col1 BIGINT, col2 BIGINT) ENGINE=OLAP {properties}"
+                )
 
         # Test the different wider DECIMAL types
-        self.validate_identity("CREATE TABLE foo (col0 DECIMAL(9, 1), col1 DECIMAL32(9, 1), col2 DECIMAL64(18, 10), col3 DECIMAL128(38, 10)) DISTRIBUTED BY HASH (col1) BUCKETS 1")
-        self.validate_identity("CREATE TABLE foo (col1 LARGEINT) DISTRIBUTED BY HASH (col1) BUCKETS 1")
-        self.validate_identity("CREATE VIEW foo (foo_col1) SECURITY NONE AS SELECT bar_col1 FROM bar")
+        self.validate_identity(
+            "CREATE TABLE foo (col0 DECIMAL(9, 1), col1 DECIMAL32(9, 1), col2 DECIMAL64(18, 10), col3 DECIMAL128(38, 10)) DISTRIBUTED BY HASH (col1) BUCKETS 1"
+        )
+        self.validate_identity(
+            "CREATE TABLE foo (col1 LARGEINT) DISTRIBUTED BY HASH (col1) BUCKETS 1"
+        )
+        self.validate_identity(
+            "CREATE VIEW foo (foo_col1) SECURITY NONE AS SELECT bar_col1 FROM bar"
+        )
 
     def test_identity(self):
         self.validate_identity("SELECT CAST(`a`.`b` AS INT) FROM foo")
         self.validate_identity("SELECT APPROX_COUNT_DISTINCT(a) FROM x")
         self.validate_identity("SELECT [1, 2, 3]")
-        self.validate_identity("""SELECT CAST(PARSE_JSON(fieldvalue) -> '00000000-0000-0000-0000-00000000' AS VARCHAR) AS `code` FROM (SELECT '{"00000000-0000-0000-0000-00000000":"code01"}') AS t(fieldvalue)""")
-        self.validate_identity("SELECT text FROM example_table", write_sql="SELECT `text` FROM example_table")
+        self.validate_identity(
+            """SELECT CAST(PARSE_JSON(fieldvalue) -> '00000000-0000-0000-0000-00000000' AS VARCHAR) AS `code` FROM (SELECT '{"00000000-0000-0000-0000-00000000":"code01"}') AS t(fieldvalue)"""
+        )
+        self.validate_identity(
+            "SELECT text FROM example_table",
+            write_sql="SELECT `text` FROM example_table",
+        )
 
     def test_time(self):
         self.validate_identity("TIMESTAMP('2022-01-01')")
-        self.validate_identity("SELECT DATE_DIFF('SECOND', '2010-11-30 23:59:59', '2010-11-30 20:58:59')")
-        self.validate_identity("SELECT DATE_DIFF('MINUTE', '2010-11-30 23:59:59', '2010-11-30 20:58:59')")
+        self.validate_identity(
+            "SELECT DATE_DIFF('SECOND', '2010-11-30 23:59:59', '2010-11-30 20:58:59')"
+        )
+        self.validate_identity(
+            "SELECT DATE_DIFF('MINUTE', '2010-11-30 23:59:59', '2010-11-30 20:58:59')"
+        )
 
     def test_regex(self):
         self.validate_all(
@@ -123,11 +142,27 @@ class TestStarrocks(Validator):
 
     def test_analyze(self):
         self.validate_identity("ANALYZE TABLE TBL(c1, c2) PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE FULL TABLE TBL(c1, c2) PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE SAMPLE TABLE TBL(c1, c2) PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE TABLE TBL(c1, c2) WITH SYNC MODE PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE TABLE TBL(c1, c2) WITH ASYNC MODE PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 WITH 5 BUCKETS PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 WITH SYNC MODE WITH 5 BUCKETS PROPERTIES ('prop1'=val1)")
-        self.validate_identity("ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 WITH ASYNC MODE WITH 5 BUCKETS PROPERTIES ('prop1'=val1)")
+        self.validate_identity(
+            "ANALYZE FULL TABLE TBL(c1, c2) PROPERTIES ('prop1'=val1)"
+        )
+        self.validate_identity(
+            "ANALYZE SAMPLE TABLE TBL(c1, c2) PROPERTIES ('prop1'=val1)"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE TBL(c1, c2) WITH SYNC MODE PROPERTIES ('prop1'=val1)"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE TBL(c1, c2) WITH ASYNC MODE PROPERTIES ('prop1'=val1)"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 PROPERTIES ('prop1'=val1)"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 WITH 5 BUCKETS PROPERTIES ('prop1'=val1)"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 WITH SYNC MODE WITH 5 BUCKETS PROPERTIES ('prop1'=val1)"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE TBL UPDATE HISTOGRAM ON c1, c2 WITH ASYNC MODE WITH 5 BUCKETS PROPERTIES ('prop1'=val1)"
+        )

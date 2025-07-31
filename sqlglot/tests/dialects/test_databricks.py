@@ -19,7 +19,9 @@ class TestDatabricks(Validator):
         self.validate_identity("DESCRIBE HISTORY a.b")
         self.validate_identity("DESCRIBE history.tbl")
         self.validate_identity("CREATE TABLE t (a STRUCT<c: MAP<STRING, STRING>>)")
-        self.validate_identity("CREATE TABLE t (c STRUCT<interval: DOUBLE COMMENT 'aaa'>)")
+        self.validate_identity(
+            "CREATE TABLE t (c STRUCT<interval: DOUBLE COMMENT 'aaa'>)"
+        )
         self.validate_identity("CREATE TABLE my_table TBLPROPERTIES (a.b=15)")
         self.validate_identity("CREATE TABLE my_table TBLPROPERTIES ('a.b'=15)")
         self.validate_identity("SELECT CAST('11 23:4:0' AS INTERVAL DAY TO HOUR)")
@@ -33,16 +35,34 @@ class TestDatabricks(Validator):
         self.validate_identity("CREATE FUNCTION a.b(x INT) RETURNS INT RETURN x + 1")
         self.validate_identity("CREATE FUNCTION a AS b")
         self.validate_identity("SELECT ${x} FROM ${y} WHERE ${z} > 1")
-        self.validate_identity("CREATE TABLE foo (x DATE GENERATED ALWAYS AS (CAST(y AS DATE)))")
-        self.validate_identity("TRUNCATE TABLE t1 PARTITION(age = 10, name = 'test', address)")
+        self.validate_identity(
+            "CREATE TABLE foo (x DATE GENERATED ALWAYS AS (CAST(y AS DATE)))"
+        )
+        self.validate_identity(
+            "TRUNCATE TABLE t1 PARTITION(age = 10, name = 'test', address)"
+        )
         self.validate_identity("SELECT PARSE_JSON('{}')")
-        self.validate_identity("CREATE TABLE IF NOT EXISTS db.table (a TIMESTAMP, b BOOLEAN GENERATED ALWAYS AS (NOT a IS NULL)) USING DELTA")
-        self.validate_identity("SELECT * FROM sales UNPIVOT INCLUDE NULLS (sales FOR quarter IN (q1 AS `Jan-Mar`))")
-        self.validate_identity("SELECT * FROM sales UNPIVOT EXCLUDE NULLS (sales FOR quarter IN (q1 AS `Jan-Mar`))")
-        self.validate_identity("CREATE FUNCTION add_one(x INT) RETURNS INT LANGUAGE PYTHON AS $$def add_one(x):\n  return x+1$$")
-        self.validate_identity("CREATE FUNCTION add_one(x INT) RETURNS INT LANGUAGE PYTHON AS $FOO$def add_one(x):\n  return x+1$FOO$")
-        self.validate_identity("TRUNCATE TABLE t1 PARTITION(age = 10, name = 'test', city LIKE 'LA')")
-        self.validate_identity("COPY INTO target FROM `s3://link` FILEFORMAT = AVRO VALIDATE = ALL FILES = ('file1', 'file2') FORMAT_OPTIONS ('opt1'='true', 'opt2'='test') COPY_OPTIONS ('mergeSchema'='true')")
+        self.validate_identity(
+            "CREATE TABLE IF NOT EXISTS db.table (a TIMESTAMP, b BOOLEAN GENERATED ALWAYS AS (NOT a IS NULL)) USING DELTA"
+        )
+        self.validate_identity(
+            "SELECT * FROM sales UNPIVOT INCLUDE NULLS (sales FOR quarter IN (q1 AS `Jan-Mar`))"
+        )
+        self.validate_identity(
+            "SELECT * FROM sales UNPIVOT EXCLUDE NULLS (sales FOR quarter IN (q1 AS `Jan-Mar`))"
+        )
+        self.validate_identity(
+            "CREATE FUNCTION add_one(x INT) RETURNS INT LANGUAGE PYTHON AS $$def add_one(x):\n  return x+1$$"
+        )
+        self.validate_identity(
+            "CREATE FUNCTION add_one(x INT) RETURNS INT LANGUAGE PYTHON AS $FOO$def add_one(x):\n  return x+1$FOO$"
+        )
+        self.validate_identity(
+            "TRUNCATE TABLE t1 PARTITION(age = 10, name = 'test', city LIKE 'LA')"
+        )
+        self.validate_identity(
+            "COPY INTO target FROM `s3://link` FILEFORMAT = AVRO VALIDATE = ALL FILES = ('file1', 'file2') FORMAT_OPTIONS ('opt1'='true', 'opt2'='test') COPY_OPTIONS ('mergeSchema'='true')"
+        )
         self.validate_identity(
             "SELECT * FROM t1, t2",
             "SELECT * FROM t1 CROSS JOIN t2",
@@ -58,9 +78,7 @@ class TestDatabricks(Validator):
         self.validate_identity(
             "DATE_DIFF(day, created_at, current_date())",
             "DATEDIFF(DAY, created_at, CURRENT_DATE)",
-        ).args[
-            "unit"
-        ].assert_is(exp.Var)
+        ).args["unit"].assert_is(exp.Var)
         self.validate_identity(
             r'SELECT r"\\foo.bar\"',
             r"SELECT '\\\\foo.bar\\'",
@@ -180,7 +198,9 @@ class TestDatabricks(Validator):
 
         for option in ("", " (foo)", " MATCH FULL", " NOT ENFORCED"):
             with self.subTest(f"Databricks foreign key REFERENCES option: {option}."):
-                self.validate_identity(f"CREATE TABLE t1 (foo BIGINT NOT NULL CONSTRAINT foo_c FOREIGN KEY REFERENCES t2{option})")
+                self.validate_identity(
+                    f"CREATE TABLE t1 (foo BIGINT NOT NULL CONSTRAINT foo_c FOREIGN KEY REFERENCES t2{option})"
+                )
         self.validate_identity(
             "SELECT test, LISTAGG(email, '') AS Email FROM organizations GROUP BY test",
         )
@@ -194,11 +214,21 @@ class TestDatabricks(Validator):
     def test_json(self):
         self.validate_identity("SELECT c1:price, c1:price.foo, c1:price.bar[1]")
         self.validate_identity("SELECT TRY_CAST(c1:price AS ARRAY<VARIANT>)")
-        self.validate_identity("""SELECT TRY_CAST(c1:["foo bar"]["baz qux"] AS ARRAY<VARIANT>)""")
-        self.validate_identity("""SELECT c1:item[1].price FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)""")
-        self.validate_identity("""SELECT c1:item[*].price FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)""")
-        self.validate_identity("""SELECT FROM_JSON(c1:item[*].price, 'ARRAY<DOUBLE>')[0] FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)""")
-        self.validate_identity("""SELECT INLINE(FROM_JSON(c1:item[*], 'ARRAY<STRUCT<model STRING, price DOUBLE>>')) FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)""")
+        self.validate_identity(
+            """SELECT TRY_CAST(c1:["foo bar"]["baz qux"] AS ARRAY<VARIANT>)"""
+        )
+        self.validate_identity(
+            """SELECT c1:item[1].price FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)"""
+        )
+        self.validate_identity(
+            """SELECT c1:item[*].price FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)"""
+        )
+        self.validate_identity(
+            """SELECT FROM_JSON(c1:item[*].price, 'ARRAY<DOUBLE>')[0] FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)"""
+        )
+        self.validate_identity(
+            """SELECT INLINE(FROM_JSON(c1:item[*], 'ARRAY<STRUCT<model STRING, price DOUBLE>>')) FROM VALUES ('{ "item": [ { "model" : "basic", "price" : 6.12 }, { "model" : "medium", "price" : 9.24 } ] }') AS T(c1)"""
+        )
         self.validate_identity(
             """SELECT c1:['price'] FROM VALUES ('{ "price": 5 }') AS T(c1)""",
             """SELECT c1:price FROM VALUES ('{ "price": 5 }') AS T(c1)""",
@@ -334,24 +364,40 @@ class TestDatabricks(Validator):
         )
 
     def test_streaming_tables(self):
-        self.validate_identity("CREATE STREAMING TABLE raw_data AS SELECT * FROM STREAM READ_FILES('abfss://container@storageAccount.dfs.core.windows.net/base/path')")
-        self.validate_identity("CREATE OR REFRESH STREAMING TABLE csv_data (id INT, ts TIMESTAMP, event STRING) AS SELECT * FROM STREAM READ_FILES('s3://bucket/path', format => 'csv', schema => 'id int, ts timestamp, event string')")
+        self.validate_identity(
+            "CREATE STREAMING TABLE raw_data AS SELECT * FROM STREAM READ_FILES('abfss://container@storageAccount.dfs.core.windows.net/base/path')"
+        )
+        self.validate_identity(
+            "CREATE OR REFRESH STREAMING TABLE csv_data (id INT, ts TIMESTAMP, event STRING) AS SELECT * FROM STREAM READ_FILES('s3://bucket/path', format => 'csv', schema => 'id int, ts timestamp, event string')"
+        )
 
     def test_grant(self):
         self.validate_identity("GRANT CREATE ON SCHEMA my_schema TO `alf@melmak.et`")
         self.validate_identity("GRANT SELECT ON TABLE sample_data TO `alf@melmak.et`")
         self.validate_identity("GRANT ALL PRIVILEGES ON TABLE forecasts TO finance")
-        self.validate_identity("GRANT SELECT ON TABLE t TO `fab9e00e-ca35-11ec-9d64-0242ac120002`")
+        self.validate_identity(
+            "GRANT SELECT ON TABLE t TO `fab9e00e-ca35-11ec-9d64-0242ac120002`"
+        )
 
     def test_analyze(self):
         self.validate_identity("ANALYZE TABLE tbl COMPUTE DELTA STATISTICS NOSCAN")
-        self.validate_identity("ANALYZE TABLE tbl COMPUTE DELTA STATISTICS FOR ALL COLUMNS")
-        self.validate_identity("ANALYZE TABLE tbl COMPUTE DELTA STATISTICS FOR COLUMNS foo, bar")
-        self.validate_identity("ANALYZE TABLE ctlg.db.tbl COMPUTE DELTA STATISTICS NOSCAN")
+        self.validate_identity(
+            "ANALYZE TABLE tbl COMPUTE DELTA STATISTICS FOR ALL COLUMNS"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE tbl COMPUTE DELTA STATISTICS FOR COLUMNS foo, bar"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE ctlg.db.tbl COMPUTE DELTA STATISTICS NOSCAN"
+        )
         self.validate_identity("ANALYZE TABLES COMPUTE STATISTICS NOSCAN")
         self.validate_identity("ANALYZE TABLES FROM db COMPUTE STATISTICS")
         self.validate_identity("ANALYZE TABLES IN db COMPUTE STATISTICS")
-        self.validate_identity("ANALYZE TABLE ctlg.db.tbl PARTITION(foo = 'foo', bar = 'bar') COMPUTE STATISTICS NOSCAN")
+        self.validate_identity(
+            "ANALYZE TABLE ctlg.db.tbl PARTITION(foo = 'foo', bar = 'bar') COMPUTE STATISTICS NOSCAN"
+        )
 
     def test_udf_environment_property(self):
-        self.validate_identity("""CREATE FUNCTION a() ENVIRONMENT (dependencies = '["foo1==1", "foo2==2"]', environment_version = 'None')""")
+        self.validate_identity(
+            """CREATE FUNCTION a() ENVIRONMENT (dependencies = '["foo1==1", "foo2==2"]', environment_version = 'None')"""
+        )

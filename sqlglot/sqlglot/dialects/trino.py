@@ -39,7 +39,10 @@ class Trino(Presto):
         }
 
         def _parse_json_query_quote(self) -> t.Optional[exp.JSONExtractQuote]:
-            if not (self._match_text_seq("KEEP", "QUOTES") or self._match_text_seq("OMIT", "QUOTES")):
+            if not (
+                self._match_text_seq("KEEP", "QUOTES")
+                or self._match_text_seq("OMIT", "QUOTES")
+            ):
                 return None
 
             return self.expression(
@@ -53,7 +56,9 @@ class Trino(Presto):
                 exp.JSONExtract,
                 this=self._parse_bitwise(),
                 expression=self._match(TokenType.COMMA) and self._parse_bitwise(),
-                option=self._parse_var_from_options(self.JSON_QUERY_OPTIONS, raise_unmatched=False),
+                option=self._parse_var_from_options(
+                    self.JSON_QUERY_OPTIONS, raise_unmatched=False
+                ),
                 json_query=True,
                 quote=self._parse_json_query_quote(),
                 on_condition=self._parse_on_condition(),
@@ -81,7 +86,9 @@ class Trino(Presto):
                     amend_exploded_column_table,
                 ]
             ),
-            exp.TimeStrToTime: lambda self, e: timestrtotime_sql(self, e, include_precision=True),
+            exp.TimeStrToTime: lambda self, e: timestrtotime_sql(
+                self, e, include_precision=True
+            ),
             exp.Trim: trim_sql,
         }
 

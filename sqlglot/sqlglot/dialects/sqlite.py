@@ -45,7 +45,10 @@ def _transform_create(expression: exp.Expression) -> exp.Expression:
 
         if primary_key and len(primary_key.expressions) == 1:
             column = defs[primary_key.expressions[0].name]
-            column.append("constraints", exp.ColumnConstraint(kind=exp.PrimaryKeyColumnConstraint()))
+            column.append(
+                "constraints",
+                exp.ColumnConstraint(kind=exp.PrimaryKeyColumnConstraint()),
+            )
             schema.expressions.remove(primary_key)
         else:
             for column in defs.values():
@@ -74,7 +77,10 @@ def _generated_to_auto_increment(expression: exp.Expression) -> exp.Expression:
         if not_null:
             t.cast(exp.ColumnConstraint, not_null.parent).pop()
 
-        expression.append("constraints", exp.ColumnConstraint(kind=exp.AutoIncrementColumnConstraint()))
+        expression.append(
+            "constraints",
+            exp.ColumnConstraint(kind=exp.AutoIncrementColumnConstraint()),
+        )
 
     return expression
 
@@ -133,7 +139,11 @@ class SQLite(Dialect):
             self._match(TokenType.DATABASE)
             this = self._parse_expression()
 
-            return self.expression(exp.Attach, this=this) if is_attach else self.expression(exp.Detach, this=this)
+            return (
+                self.expression(exp.Attach, this=this)
+                if is_attach
+                else self.expression(exp.Detach, this=this)
+            )
 
     class Generator(generator.Generator):
         JOIN_HINTS = False
@@ -193,7 +203,9 @@ class SQLite(Dialect):
             exp.If: rename_func("IIF"),
             exp.ILike: no_ilike_sql,
             exp.JSONExtractScalar: arrow_json_extract_sql,
-            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(rename_func("EDITDIST3")),
+            exp.Levenshtein: unsupported_args(
+                "ins_cost", "del_cost", "sub_cost", "max_dist"
+            )(rename_func("EDITDIST3")),
             exp.LogicalOr: rename_func("MAX"),
             exp.LogicalAnd: rename_func("MIN"),
             exp.Pivot: no_pivot_sql,
@@ -205,17 +217,24 @@ class SQLite(Dialect):
                     transforms.eliminate_semi_and_anti_joins,
                 ]
             ),
-            exp.StrPosition: lambda self, e: strposition_sql(self, e, func_name="INSTR"),
+            exp.StrPosition: lambda self, e: strposition_sql(
+                self, e, func_name="INSTR"
+            ),
             exp.TableSample: no_tablesample_sql,
             exp.TimeStrToTime: lambda self, e: self.sql(e, "this"),
-            exp.TimeToStr: lambda self, e: self.func("STRFTIME", e.args.get("format"), e.this),
+            exp.TimeToStr: lambda self, e: self.func(
+                "STRFTIME", e.args.get("format"), e.this
+            ),
             exp.TryCast: no_trycast_sql,
             exp.TsOrDsToTimestamp: lambda self, e: self.sql(e, "this"),
         }
 
         # SQLite doesn't generally support CREATE TABLE .. properties
         # https://www.sqlite.org/lang_createtable.html
-        PROPERTIES_LOCATION = {prop: exp.Properties.Location.UNSUPPORTED for prop in generator.Generator.PROPERTIES_LOCATION}
+        PROPERTIES_LOCATION = {
+            prop: exp.Properties.Location.UNSUPPORTED
+            for prop in generator.Generator.PROPERTIES_LOCATION
+        }
 
         # There are a few exceptions (e.g. temporary tables) which are supported or
         # can be transpiled to SQLite, so we explicitly override them accordingly
@@ -236,7 +255,9 @@ class SQLite(Dialect):
             modifier = f"'{modifier} {unit.name}'" if unit else f"'{modifier}'"
             return self.func("DATE", expression.this, modifier)
 
-        def cast_sql(self, expression: exp.Cast, safe_prefix: t.Optional[str] = None) -> str:
+        def cast_sql(
+            self, expression: exp.Cast, safe_prefix: t.Optional[str] = None
+        ) -> str:
             if expression.is_type("date"):
                 return self.func("DATE", expression.this)
 
@@ -249,7 +270,11 @@ class SQLite(Dialect):
             if isinstance(alias, exp.TableAlias) and alias.columns:
                 column_alias = alias.columns[0]
                 alias.set("columns", None)
-                sql = self.sql(exp.select(exp.alias_("value", column_alias)).from_(expression).subquery())
+                sql = self.sql(
+                    exp.select(exp.alias_("value", column_alias))
+                    .from_(expression)
+                    .subquery()
+                )
             else:
                 sql = self.function_fallback_sql(expression)
 

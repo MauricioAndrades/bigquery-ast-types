@@ -48,11 +48,19 @@ class PRQL(Dialect):
             "SELECT": lambda self, query: self._parse_selection(query, append=False),
             "TAKE": lambda self, query: self._parse_take(query),
             "FILTER": lambda self, query: query.where(self._parse_disjunction()),
-            "APPEND": lambda self, query: query.union(_select_all(self._parse_table()), distinct=False, copy=False),
-            "REMOVE": lambda self, query: query.except_(_select_all(self._parse_table()), distinct=False, copy=False),
-            "INTERSECT": lambda self, query: query.intersect(_select_all(self._parse_table()), distinct=False, copy=False),
+            "APPEND": lambda self, query: query.union(
+                _select_all(self._parse_table()), distinct=False, copy=False
+            ),
+            "REMOVE": lambda self, query: query.except_(
+                _select_all(self._parse_table()), distinct=False, copy=False
+            ),
+            "INTERSECT": lambda self, query: query.intersect(
+                _select_all(self._parse_table()), distinct=False, copy=False
+            ),
             "SORT": lambda self, query: self._parse_order_by(query),
-            "AGGREGATE": lambda self, query: self._parse_selection(query, parse_method=self._parse_aggregate, append=False),
+            "AGGREGATE": lambda self, query: self._parse_selection(
+                query, parse_method=self._parse_aggregate, append=False
+            ),
         }
 
         FUNCTIONS = {
@@ -109,11 +117,20 @@ class PRQL(Dialect):
                 expression = parse_method()
                 selects = [expression] if expression else []
 
-            projections = {select.alias_or_name: select.this if isinstance(select, exp.Alias) else select for select in query.selects}
+            projections = {
+                select.alias_or_name: (
+                    select.this if isinstance(select, exp.Alias) else select
+                )
+                for select in query.selects
+            }
 
             selects = [
                 select.transform(
-                    lambda s: (projections[s.name].copy() if s.name in projections else s) if isinstance(s, exp.Column) else s,
+                    lambda s: (
+                        (projections[s.name].copy() if s.name in projections else s)
+                        if isinstance(s, exp.Column)
+                        else s
+                    ),
                     copy=False,
                 )
                 for select in selects
@@ -125,7 +142,9 @@ class PRQL(Dialect):
             num = self._parse_number()  # TODO: TAKE for ranges a..b
             return query.limit(num) if num else None
 
-        def _parse_ordered(self, parse_method: t.Optional[t.Callable] = None) -> t.Optional[exp.Ordered]:
+        def _parse_ordered(
+            self, parse_method: t.Optional[t.Callable] = None
+        ) -> t.Optional[exp.Ordered]:
             asc = self._match(TokenType.PLUS)
             desc = self._match(TokenType.DASH) or (asc and False)
             term = term = super()._parse_ordered(parse_method=parse_method)
@@ -139,7 +158,9 @@ class PRQL(Dialect):
             expressions = self._parse_csv(self._parse_ordered)
             if l_brace and not self._match(TokenType.R_BRACE):
                 self.raise_error("Expecting }")
-            return query.order_by(self.expression(exp.Order, expressions=expressions), copy=False)
+            return query.order_by(
+                self.expression(exp.Order, expressions=expressions), copy=False
+            )
 
         def _parse_aggregate(self) -> t.Optional[exp.Expression]:
             alias = None
@@ -163,7 +184,9 @@ class PRQL(Dialect):
             if self._next and self._next.token_type == TokenType.ALIAS:
                 alias = self._parse_id_var(True)
                 self._match(TokenType.ALIAS)
-                return self.expression(exp.Alias, this=self._parse_assignment(), alias=alias)
+                return self.expression(
+                    exp.Alias, this=self._parse_assignment(), alias=alias
+                )
             return self._parse_assignment()
 
         def _parse_table(
@@ -187,4 +210,8 @@ class PRQL(Dialect):
             if not skip_from_token and not self._match(TokenType.FROM):
                 return None
 
-            return self.expression(exp.From, comments=self._prev_comments, this=self._parse_table(joins=joins))
+            return self.expression(
+                exp.From,
+                comments=self._prev_comments,
+                this=self._parse_table(joins=joins),
+            )

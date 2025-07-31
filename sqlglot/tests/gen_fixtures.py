@@ -440,7 +440,11 @@ TPCDS_SCHEMA = {
         "p_purpose": "string",
         "p_discount_active": "string",
     },
-    "reason": {"r_reason_sk": "bigint", "r_reason_id": "string", "r_reason_desc": "string"},
+    "reason": {
+        "r_reason_sk": "bigint",
+        "r_reason_id": "string",
+        "r_reason_desc": "string",
+    },
     "ship_mode": {
         "sm_ship_mode_sk": "bigint",
         "sm_ship_mode_id": "string",
@@ -560,7 +564,11 @@ def rewrite_fixtures(in_path, out_path, schema, num, kind):
         for i in range(num):
             i = i + 1
             with open(in_path.format(i=i), encoding="utf-8") as file:
-                original = "\n".join(line.rstrip() for line in file.read().split(";")[0].split("\n") if not line.startswith("--"))
+                original = "\n".join(
+                    line.rstrip()
+                    for line in file.read().split(";")[0].split("\n")
+                    if not line.startswith("--")
+                )
                 original = original.replace("`", '"').strip()
                 now = time.time()
                 try:

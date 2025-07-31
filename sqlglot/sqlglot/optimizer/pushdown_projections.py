@@ -70,7 +70,9 @@ def pushdown_projections(
                 left, right = scope.union_scopes
                 if len(left.expression.selects) != len(right.expression.selects):
                     scope_sql = scope.expression.sql(dialect=dialect)
-                    raise OptimizeError(f"Invalid set operation due to column mismatch: {scope_sql}.")
+                    raise OptimizeError(
+                        f"Invalid set operation due to column mismatch: {scope_sql}."
+                    )
 
                 referenced_columns[left] = parent_selections
 
@@ -80,7 +82,12 @@ def pushdown_projections(
                     if scope.expression.args.get("by_name"):
                         referenced_columns[right] = referenced_columns[left]
                     else:
-                        referenced_columns[right] = {right.expression.selects[i].alias_or_name for i, select in enumerate(left.expression.selects) if SELECT_ALL in parent_selections or select.alias_or_name in parent_selections}
+                        referenced_columns[right] = {
+                            right.expression.selects[i].alias_or_name
+                            for i, select in enumerate(left.expression.selects)
+                            if SELECT_ALL in parent_selections
+                            or select.alias_or_name in parent_selections
+                        }
 
         if isinstance(scope.expression, exp.Select):
             if remove_unused_selections:
@@ -134,7 +141,12 @@ def _remove_unused_selections(scope, parent_selections, schema, alias_count):
     for selection in scope.expression.selects:
         name = selection.alias_or_name
 
-        if select_all or name in parent_selections or name in order_refs or alias_count > 0:
+        if (
+            select_all
+            or name in parent_selections
+            or name in order_refs
+            or alias_count > 0
+        ):
             new_selections.append(selection)
             alias_count -= 1
         else:
@@ -151,7 +163,13 @@ def _remove_unused_selections(scope, parent_selections, schema, alias_count):
 
         for name in sorted(parent_selections):
             if name not in names:
-                new_selections.append(alias(exp.column(name, table=resolver.get_table(name)), name, copy=False))
+                new_selections.append(
+                    alias(
+                        exp.column(name, table=resolver.get_table(name)),
+                        name,
+                        copy=False,
+                    )
+                )
 
     # If there are no remaining selections, just select a single constant
     if not new_selections:

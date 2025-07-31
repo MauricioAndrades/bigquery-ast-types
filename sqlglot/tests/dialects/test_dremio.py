@@ -59,8 +59,13 @@ class TestDremio(Validator):
 
     def test_null_ordering(self):
         # NULLS LAST is the default, so generator can drop the clause
-        self.validate_identity("SELECT * FROM t ORDER BY a NULLS LAST", "SELECT * FROM t ORDER BY a")
-        self.validate_identity("SELECT * FROM t ORDER BY a DESC NULLS LAST", "SELECT * FROM t ORDER BY a DESC")
+        self.validate_identity(
+            "SELECT * FROM t ORDER BY a NULLS LAST", "SELECT * FROM t ORDER BY a"
+        )
+        self.validate_identity(
+            "SELECT * FROM t ORDER BY a DESC NULLS LAST",
+            "SELECT * FROM t ORDER BY a DESC",
+        )
 
         # If the clause is not the default, it must be kept
         self.validate_identity(
@@ -133,7 +138,9 @@ class TestDremio(Validator):
             "SELECT DATE_ADD(TIMESTAMP '2022-01-01 12:00:00', CAST(-1 AS INTERVAL HOUR))",
             "SELECT DATE_ADD(CAST('2022-01-01 12:00:00' AS TIMESTAMP), CAST(-1 AS INTERVAL HOUR))",
         )
-        self.validate_identity("SELECT DATE_ADD(col, 2, 'HOUR')", "SELECT TIMESTAMPADD(HOUR, 2, col)")
+        self.validate_identity(
+            "SELECT DATE_ADD(col, 2, 'HOUR')", "SELECT TIMESTAMPADD(HOUR, 2, col)"
+        )
 
         self.validate_identity("SELECT DATE_SUB(col, 1)")
         self.validate_identity("SELECT DATE_SUB(col, CAST(1 AS INTERVAL HOUR))")
@@ -141,8 +148,14 @@ class TestDremio(Validator):
             "SELECT DATE_SUB(TIMESTAMP '2022-01-01 12:00:00', CAST(-1 AS INTERVAL HOUR))",
             "SELECT DATE_SUB(CAST('2022-01-01 12:00:00' AS TIMESTAMP), CAST(-1 AS INTERVAL HOUR))",
         )
-        self.validate_identity("SELECT DATE_SUB(col, 2, 'HOUR')", "SELECT TIMESTAMPADD(HOUR, -2, col)")
+        self.validate_identity(
+            "SELECT DATE_SUB(col, 2, 'HOUR')", "SELECT TIMESTAMPADD(HOUR, -2, col)"
+        )
 
-        self.validate_identity("SELECT DATE_ADD(col, 2, 'DAY')", "SELECT DATE_ADD(col, 2)")
+        self.validate_identity(
+            "SELECT DATE_ADD(col, 2, 'DAY')", "SELECT DATE_ADD(col, 2)"
+        )
 
-        self.validate_identity("SELECT DATE_SUB(col, a, 'HOUR')", "SELECT TIMESTAMPADD(HOUR, a * -1, col)")
+        self.validate_identity(
+            "SELECT DATE_SUB(col, a, 'HOUR')", "SELECT TIMESTAMPADD(HOUR, a * -1, col)"
+        )

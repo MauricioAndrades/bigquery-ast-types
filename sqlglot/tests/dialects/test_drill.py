@@ -5,7 +5,9 @@ class TestDrill(Validator):
     dialect = "drill"
 
     def test_drill(self):
-        self.validate_identity("SELECT * FROM table(dfs.`test_data.xlsx`(type => 'excel', sheetName => 'secondSheet'))")
+        self.validate_identity(
+            "SELECT * FROM table(dfs.`test_data.xlsx`(type => 'excel', sheetName => 'secondSheet'))"
+        )
         self.validate_identity(
             "SELECT * FROM (SELECT * FROM t) PIVOT(avg(c1) AS ac1 FOR c2 IN ('V' AS v))",
         )

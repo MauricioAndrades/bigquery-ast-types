@@ -14,23 +14,33 @@ class TestOracle(Validator):
                 "oracle": "SELECT CONNECT_BY_ROOT x AS y",
             },
         )
-        self.parse_one("ALTER TABLE tbl_name DROP FOREIGN KEY fk_symbol").assert_is(exp.Alter)
+        self.parse_one("ALTER TABLE tbl_name DROP FOREIGN KEY fk_symbol").assert_is(
+            exp.Alter
+        )
 
         self.validate_identity("DBMS_RANDOM.NORMAL")
         self.validate_identity("DBMS_RANDOM.VALUE(low, high)").assert_is(exp.Rand)
         self.validate_identity("DBMS_RANDOM.VALUE()").assert_is(exp.Rand)
         self.validate_identity("CAST(value AS NUMBER DEFAULT 0 ON CONVERSION ERROR)")
         self.validate_identity("SYSDATE")
-        self.validate_identity("CREATE GLOBAL TEMPORARY TABLE t AS SELECT * FROM orders")
-        self.validate_identity("CREATE PRIVATE TEMPORARY TABLE t AS SELECT * FROM orders")
+        self.validate_identity(
+            "CREATE GLOBAL TEMPORARY TABLE t AS SELECT * FROM orders"
+        )
+        self.validate_identity(
+            "CREATE PRIVATE TEMPORARY TABLE t AS SELECT * FROM orders"
+        )
         self.validate_identity("REGEXP_REPLACE('source', 'search')")
         self.validate_identity("TIMESTAMP(3) WITH TIME ZONE")
         self.validate_identity("CURRENT_TIMESTAMP(precision)")
         self.validate_identity("ALTER TABLE tbl_name DROP FOREIGN KEY fk_symbol")
         self.validate_identity("ALTER TABLE Payments ADD Stock NUMBER NOT NULL")
         self.validate_identity("SELECT x FROM t WHERE cond FOR UPDATE")
-        self.validate_identity("SELECT JSON_OBJECT(k1: v1 FORMAT JSON, k2: v2 FORMAT JSON)")
-        self.validate_identity("SELECT JSON_OBJECT('name': first_name || ' ' || last_name) FROM t")
+        self.validate_identity(
+            "SELECT JSON_OBJECT(k1: v1 FORMAT JSON, k2: v2 FORMAT JSON)"
+        )
+        self.validate_identity(
+            "SELECT JSON_OBJECT('name': first_name || ' ' || last_name) FROM t"
+        )
         self.validate_identity("COALESCE(c1, c2, c3)")
         self.validate_identity("SELECT * FROM TABLE(foo)")
         self.validate_identity("SELECT a$x#b")
@@ -44,24 +54,50 @@ class TestOracle(Validator):
         self.validate_identity("SELECT * FROM t FOR UPDATE OF s.t.c, s.t.v SKIP LOCKED")
         self.validate_identity("SELECT STANDARD_HASH('hello')")
         self.validate_identity("SELECT STANDARD_HASH('hello', 'MD5')")
-        self.validate_identity("SELECT * FROM table_name@dblink_name.database_link_domain")
+        self.validate_identity(
+            "SELECT * FROM table_name@dblink_name.database_link_domain"
+        )
         self.validate_identity("SELECT * FROM table_name SAMPLE (25) s")
         self.validate_identity("SELECT COUNT(*) * 10 FROM orders SAMPLE (10) SEED (1)")
         self.validate_identity("SELECT * FROM V$SESSION")
         self.validate_identity("SELECT TO_DATE('January 15, 1989, 11:00 A.M.')")
         self.validate_identity("SELECT INSTR(haystack, needle)")
-        self.validate_identity("SELECT * FROM consumer LEFT JOIN groceries ON consumer.groceries_id = consumer.id PIVOT(MAX(type_id) FOR consumer_type IN (1, 2, 3, 4))")
-        self.validate_identity("SELECT * FROM test UNPIVOT INCLUDE NULLS (value FOR Description IN (col AS 'PREFIX ' || CHR(38) || ' SUFFIX'))")
-        self.validate_identity("SELECT last_name, employee_id, manager_id, LEVEL FROM employees START WITH employee_id = 100 CONNECT BY PRIOR employee_id = manager_id ORDER SIBLINGS BY last_name")
-        self.validate_identity("ALTER TABLE Payments ADD (Stock NUMBER NOT NULL, dropid VARCHAR2(500) NOT NULL)")
-        self.validate_identity("SELECT JSON_ARRAYAGG(JSON_OBJECT('RNK': RNK, 'RATING_CODE': RATING_CODE, 'DATE_VALUE': DATE_VALUE, 'AGENT_ID': AGENT_ID RETURNING CLOB) RETURNING CLOB) AS JSON_DATA FROM tablename")
-        self.validate_identity("SELECT JSON_ARRAY(FOO() FORMAT JSON, BAR() NULL ON NULL RETURNING CLOB STRICT)")
-        self.validate_identity("SELECT JSON_ARRAYAGG(FOO() FORMAT JSON ORDER BY bar NULL ON NULL RETURNING CLOB STRICT)")
-        self.validate_identity("SELECT COUNT(1) INTO V_Temp FROM TABLE(CAST(somelist AS data_list)) WHERE col LIKE '%contact'")
-        self.validate_identity("SELECT department_id INTO v_department_id FROM departments FETCH FIRST 1 ROWS ONLY")
-        self.validate_identity("SELECT department_id BULK COLLECT INTO v_department_ids FROM departments")
-        self.validate_identity("SELECT department_id, department_name BULK COLLECT INTO v_department_ids, v_department_names FROM departments")
-        self.validate_identity("SELECT MIN(column_name) KEEP (DENSE_RANK FIRST ORDER BY column_name DESC) FROM table_name")
+        self.validate_identity(
+            "SELECT * FROM consumer LEFT JOIN groceries ON consumer.groceries_id = consumer.id PIVOT(MAX(type_id) FOR consumer_type IN (1, 2, 3, 4))"
+        )
+        self.validate_identity(
+            "SELECT * FROM test UNPIVOT INCLUDE NULLS (value FOR Description IN (col AS 'PREFIX ' || CHR(38) || ' SUFFIX'))"
+        )
+        self.validate_identity(
+            "SELECT last_name, employee_id, manager_id, LEVEL FROM employees START WITH employee_id = 100 CONNECT BY PRIOR employee_id = manager_id ORDER SIBLINGS BY last_name"
+        )
+        self.validate_identity(
+            "ALTER TABLE Payments ADD (Stock NUMBER NOT NULL, dropid VARCHAR2(500) NOT NULL)"
+        )
+        self.validate_identity(
+            "SELECT JSON_ARRAYAGG(JSON_OBJECT('RNK': RNK, 'RATING_CODE': RATING_CODE, 'DATE_VALUE': DATE_VALUE, 'AGENT_ID': AGENT_ID RETURNING CLOB) RETURNING CLOB) AS JSON_DATA FROM tablename"
+        )
+        self.validate_identity(
+            "SELECT JSON_ARRAY(FOO() FORMAT JSON, BAR() NULL ON NULL RETURNING CLOB STRICT)"
+        )
+        self.validate_identity(
+            "SELECT JSON_ARRAYAGG(FOO() FORMAT JSON ORDER BY bar NULL ON NULL RETURNING CLOB STRICT)"
+        )
+        self.validate_identity(
+            "SELECT COUNT(1) INTO V_Temp FROM TABLE(CAST(somelist AS data_list)) WHERE col LIKE '%contact'"
+        )
+        self.validate_identity(
+            "SELECT department_id INTO v_department_id FROM departments FETCH FIRST 1 ROWS ONLY"
+        )
+        self.validate_identity(
+            "SELECT department_id BULK COLLECT INTO v_department_ids FROM departments"
+        )
+        self.validate_identity(
+            "SELECT department_id, department_name BULK COLLECT INTO v_department_ids, v_department_names FROM departments"
+        )
+        self.validate_identity(
+            "SELECT MIN(column_name) KEEP (DENSE_RANK FIRST ORDER BY column_name DESC) FROM table_name"
+        )
         self.validate_identity(
             "SELECT CAST('January 15, 1989, 11:00 A.M.' AS DATE DEFAULT NULL ON CONVERSION ERROR, 'Month dd, YYYY, HH:MI A.M.') FROM DUAL",
             "SELECT TO_DATE('January 15, 1989, 11:00 A.M.', 'Month dd, YYYY, HH12:MI A.M.') FROM DUAL",
@@ -78,7 +114,11 @@ class TestOracle(Validator):
             "SELECT JSON_OBJECTAGG(KEY department_name VALUE department_id) FROM dep WHERE id <= 30",
             "SELECT JSON_OBJECTAGG(department_name: department_id) FROM dep WHERE id <= 30",
         )
-        self.validate_identity("SELECT last_name, department_id, salary, MIN(salary) KEEP (DENSE_RANK FIRST ORDER BY commission_pct) " 'OVER (PARTITION BY department_id) AS "Worst", MAX(salary) KEEP (DENSE_RANK LAST ORDER BY commission_pct) ' 'OVER (PARTITION BY department_id) AS "Best" FROM employees ORDER BY department_id, salary, last_name')
+        self.validate_identity(
+            "SELECT last_name, department_id, salary, MIN(salary) KEEP (DENSE_RANK FIRST ORDER BY commission_pct) "
+            'OVER (PARTITION BY department_id) AS "Worst", MAX(salary) KEEP (DENSE_RANK LAST ORDER BY commission_pct) '
+            'OVER (PARTITION BY department_id) AS "Best" FROM employees ORDER BY department_id, salary, last_name'
+        )
         self.validate_identity(
             "SELECT UNIQUE col1, col2 FROM table",
             "SELECT DISTINCT col1, col2 FROM table",
@@ -90,8 +130,12 @@ class TestOracle(Validator):
             "SELECT * FROM t SAMPLE (.25)",
             "SELECT * FROM t SAMPLE (0.25)",
         )
-        self.validate_identity("SELECT TO_CHAR(-100, 'L99', 'NL_CURRENCY = '' AusDollars '' ')")
-        self.validate_identity("SELECT * FROM t START WITH col CONNECT BY NOCYCLE PRIOR col1 = col2")
+        self.validate_identity(
+            "SELECT TO_CHAR(-100, 'L99', 'NL_CURRENCY = '' AusDollars '' ')"
+        )
+        self.validate_identity(
+            "SELECT * FROM t START WITH col CONNECT BY NOCYCLE PRIOR col1 = col2"
+        )
 
         self.validate_all(
             "SELECT DBMS_RANDOM.VALUE()",
@@ -287,7 +331,9 @@ class TestOracle(Validator):
                 "clickhouse": "TRIM(BOTH 'h' FROM 'Hello World')",
             },
         )
-        self.validate_identity("SELECT /*+ ORDERED */* FROM tbl", "SELECT /*+ ORDERED */ * FROM tbl")
+        self.validate_identity(
+            "SELECT /*+ ORDERED */* FROM tbl", "SELECT /*+ ORDERED */ * FROM tbl"
+        )
         self.validate_identity(
             "SELECT /* test */ /*+ ORDERED */* FROM tbl",
             "/* test */ SELECT /*+ ORDERED */ * FROM tbl",
@@ -306,13 +352,23 @@ class TestOracle(Validator):
         )
         self.validate_identity("CREATE OR REPLACE FORCE VIEW foo1.foo2")
         self.validate_identity("TO_TIMESTAMP('foo')")
-        self.validate_identity("SELECT TO_TIMESTAMP('05 Dec 2000 10:00 AM', 'DD Mon YYYY HH12:MI AM')")
-        self.validate_identity("SELECT TO_TIMESTAMP('05 Dec 2000 10:00 PM', 'DD Mon YYYY HH12:MI PM')")
-        self.validate_identity("SELECT TO_TIMESTAMP('05 Dec 2000 10:00 A.M.', 'DD Mon YYYY HH12:MI A.M.')")
-        self.validate_identity("SELECT TO_TIMESTAMP('05 Dec 2000 10:00 P.M.', 'DD Mon YYYY HH12:MI P.M.')")
+        self.validate_identity(
+            "SELECT TO_TIMESTAMP('05 Dec 2000 10:00 AM', 'DD Mon YYYY HH12:MI AM')"
+        )
+        self.validate_identity(
+            "SELECT TO_TIMESTAMP('05 Dec 2000 10:00 PM', 'DD Mon YYYY HH12:MI PM')"
+        )
+        self.validate_identity(
+            "SELECT TO_TIMESTAMP('05 Dec 2000 10:00 A.M.', 'DD Mon YYYY HH12:MI A.M.')"
+        )
+        self.validate_identity(
+            "SELECT TO_TIMESTAMP('05 Dec 2000 10:00 P.M.', 'DD Mon YYYY HH12:MI P.M.')"
+        )
 
     def test_join_marker(self):
-        self.validate_identity("SELECT e1.x, e2.x FROM e e1, e e2 WHERE e1.y (+) = e2.y")
+        self.validate_identity(
+            "SELECT e1.x, e2.x FROM e e1, e e2 WHERE e1.y (+) = e2.y"
+        )
 
         self.validate_all(
             "SELECT e1.x, e2.x FROM e e1, e e2 WHERE e1.y = e2.y (+)",
@@ -327,14 +383,30 @@ class TestOracle(Validator):
         )
 
     def test_hints(self):
-        self.validate_identity("SELECT /*+ USE_NL(A B) */ A.COL_TEST FROM TABLE_A A, TABLE_B B")
-        self.validate_identity("SELECT /*+ INDEX(v.j jhist_employee_ix (employee_id start_date)) */ * FROM v")
-        self.validate_identity("SELECT /*+ USE_NL(A B C) */ A.COL_TEST FROM TABLE_A A, TABLE_B B, TABLE_C C")
-        self.validate_identity("SELECT /*+ NO_INDEX(employees emp_empid) */ employee_id FROM employees WHERE employee_id > 200")
-        self.validate_identity("SELECT /*+ NO_INDEX_FFS(items item_order_ix) */ order_id FROM order_items items")
-        self.validate_identity("SELECT /*+ LEADING(e j) */ * FROM employees e, departments d, job_history j WHERE e.department_id = d.department_id AND e.hire_date = j.start_date")
-        self.validate_identity("INSERT /*+ APPEND */ INTO IAP_TBL (id, col1) VALUES (2, 'test2')")
-        self.validate_identity("INSERT /*+ APPEND_VALUES */ INTO dest_table VALUES (i, 'Value')")
+        self.validate_identity(
+            "SELECT /*+ USE_NL(A B) */ A.COL_TEST FROM TABLE_A A, TABLE_B B"
+        )
+        self.validate_identity(
+            "SELECT /*+ INDEX(v.j jhist_employee_ix (employee_id start_date)) */ * FROM v"
+        )
+        self.validate_identity(
+            "SELECT /*+ USE_NL(A B C) */ A.COL_TEST FROM TABLE_A A, TABLE_B B, TABLE_C C"
+        )
+        self.validate_identity(
+            "SELECT /*+ NO_INDEX(employees emp_empid) */ employee_id FROM employees WHERE employee_id > 200"
+        )
+        self.validate_identity(
+            "SELECT /*+ NO_INDEX_FFS(items item_order_ix) */ order_id FROM order_items items"
+        )
+        self.validate_identity(
+            "SELECT /*+ LEADING(e j) */ * FROM employees e, departments d, job_history j WHERE e.department_id = d.department_id AND e.hire_date = j.start_date"
+        )
+        self.validate_identity(
+            "INSERT /*+ APPEND */ INTO IAP_TBL (id, col1) VALUES (2, 'test2')"
+        )
+        self.validate_identity(
+            "INSERT /*+ APPEND_VALUES */ INTO dest_table VALUES (i, 'Value')"
+        )
         self.validate_identity(
             "SELECT /*+ LEADING(departments employees) USE_NL(employees) */ * FROM employees JOIN departments ON employees.department_id = departments.department_id",
             """SELECT /*+ LEADING(departments employees)
@@ -379,17 +451,25 @@ JOIN departments
             pretty=True,
         )
         # Test that parsing error with , inside hint function falls back
-        self.validate_identity("SELECT /*+ LEADING(departments, employees) */ * FROM employees JOIN departments ON employees.department_id = departments.department_id")
+        self.validate_identity(
+            "SELECT /*+ LEADING(departments, employees) */ * FROM employees JOIN departments ON employees.department_id = departments.department_id"
+        )
         # Test that parsing error with keyword inside hint function falls back
-        self.validate_identity("SELECT /*+ LEADING(departments select) */ * FROM employees JOIN departments ON employees.department_id = departments.department_id")
+        self.validate_identity(
+            "SELECT /*+ LEADING(departments select) */ * FROM employees JOIN departments ON employees.department_id = departments.department_id"
+        )
 
     def test_xml_table(self):
         self.validate_identity("XMLTABLE('x')")
         self.validate_identity("XMLTABLE('x' RETURNING SEQUENCE BY REF)")
         self.validate_identity("XMLTABLE('x' PASSING y)")
         self.validate_identity("XMLTABLE('x' PASSING y RETURNING SEQUENCE BY REF)")
-        self.validate_identity("XMLTABLE('x' RETURNING SEQUENCE BY REF COLUMNS a VARCHAR2, b FLOAT)")
-        self.validate_identity("SELECT x.* FROM example t, XMLTABLE(XMLNAMESPACES(DEFAULT 'http://example.com/default', 'http://example.com/ns1' AS \"ns1\"), '/root/data' PASSING t.xml COLUMNS id NUMBER PATH '@id', value VARCHAR2(100) PATH 'ns1:value/text()') x")
+        self.validate_identity(
+            "XMLTABLE('x' RETURNING SEQUENCE BY REF COLUMNS a VARCHAR2, b FLOAT)"
+        )
+        self.validate_identity(
+            "SELECT x.* FROM example t, XMLTABLE(XMLNAMESPACES(DEFAULT 'http://example.com/default', 'http://example.com/ns1' AS \"ns1\"), '/root/data' PASSING t.xml COLUMNS id NUMBER PATH '@id', value VARCHAR2(100) PATH 'ns1:value/text()') x"
+        )
 
         self.validate_all(
             """SELECT warehouse_name warehouse,
@@ -469,7 +549,9 @@ MATCH_RECOGNIZE (
         )
 
     def test_json_table(self):
-        self.validate_identity("SELECT * FROM JSON_TABLE(foo FORMAT JSON, 'bla' ERROR ON ERROR NULL ON EMPTY COLUMNS(foo PATH 'bar'))")
+        self.validate_identity(
+            "SELECT * FROM JSON_TABLE(foo FORMAT JSON, 'bla' ERROR ON ERROR NULL ON EMPTY COLUMNS(foo PATH 'bar'))"
+        )
         self.validate_identity(
             "SELECT * FROM JSON_TABLE(foo FORMAT JSON, 'bla' ERROR ON ERROR NULL ON EMPTY COLUMNS foo PATH 'bar')",
             "SELECT * FROM JSON_TABLE(foo FORMAT JSON, 'bla' ERROR ON ERROR NULL ON EMPTY COLUMNS(foo PATH 'bar'))",
@@ -521,24 +603,88 @@ CONNECT BY PRIOR employee_id = manager_id AND LEVEL <= 4"""
         for restriction in ("READ ONLY", "CHECK OPTION"):
             for constraint_name in (" CONSTRAINT name", ""):
                 with self.subTest(f"Restriction: {restriction}"):
-                    self.validate_identity(f"SELECT * FROM tbl WITH {restriction}{constraint_name}")
-                    self.validate_identity(f"CREATE VIEW view AS SELECT * FROM tbl WITH {restriction}{constraint_name}")
+                    self.validate_identity(
+                        f"SELECT * FROM tbl WITH {restriction}{constraint_name}"
+                    )
+                    self.validate_identity(
+                        f"CREATE VIEW view AS SELECT * FROM tbl WITH {restriction}{constraint_name}"
+                    )
 
     def test_multitable_inserts(self):
         self.maxDiff = None
-        self.validate_identity("INSERT ALL " "INTO dest_tab1 (id, description) VALUES (id, description) " "INTO dest_tab2 (id, description) VALUES (id, description) " "INTO dest_tab3 (id, description) VALUES (id, description) " "SELECT id, description FROM source_tab")
+        self.validate_identity(
+            "INSERT ALL "
+            "INTO dest_tab1 (id, description) VALUES (id, description) "
+            "INTO dest_tab2 (id, description) VALUES (id, description) "
+            "INTO dest_tab3 (id, description) VALUES (id, description) "
+            "SELECT id, description FROM source_tab"
+        )
 
-        self.validate_identity("INSERT ALL " "INTO pivot_dest (id, day, val) VALUES (id, 'mon', mon_val) " "INTO pivot_dest (id, day, val) VALUES (id, 'tue', tue_val) " "INTO pivot_dest (id, day, val) VALUES (id, 'wed', wed_val) " "INTO pivot_dest (id, day, val) VALUES (id, 'thu', thu_val) " "INTO pivot_dest (id, day, val) VALUES (id, 'fri', fri_val) " "SELECT * " "FROM pivot_source")
+        self.validate_identity(
+            "INSERT ALL "
+            "INTO pivot_dest (id, day, val) VALUES (id, 'mon', mon_val) "
+            "INTO pivot_dest (id, day, val) VALUES (id, 'tue', tue_val) "
+            "INTO pivot_dest (id, day, val) VALUES (id, 'wed', wed_val) "
+            "INTO pivot_dest (id, day, val) VALUES (id, 'thu', thu_val) "
+            "INTO pivot_dest (id, day, val) VALUES (id, 'fri', fri_val) "
+            "SELECT * "
+            "FROM pivot_source"
+        )
 
-        self.validate_identity("INSERT ALL " "WHEN id <= 3 THEN " "INTO dest_tab1 (id, description) VALUES (id, description) " "WHEN id BETWEEN 4 AND 7 THEN " "INTO dest_tab2 (id, description) VALUES (id, description) " "WHEN id >= 8 THEN " "INTO dest_tab3 (id, description) VALUES (id, description) " "SELECT id, description " "FROM source_tab")
+        self.validate_identity(
+            "INSERT ALL "
+            "WHEN id <= 3 THEN "
+            "INTO dest_tab1 (id, description) VALUES (id, description) "
+            "WHEN id BETWEEN 4 AND 7 THEN "
+            "INTO dest_tab2 (id, description) VALUES (id, description) "
+            "WHEN id >= 8 THEN "
+            "INTO dest_tab3 (id, description) VALUES (id, description) "
+            "SELECT id, description "
+            "FROM source_tab"
+        )
 
-        self.validate_identity("INSERT ALL " "WHEN id <= 3 THEN " "INTO dest_tab1 (id, description) VALUES (id, description) " "WHEN id BETWEEN 4 AND 7 THEN " "INTO dest_tab2 (id, description) VALUES (id, description) " "WHEN 1 = 1 THEN " "INTO dest_tab3 (id, description) VALUES (id, description) " "SELECT id, description " "FROM source_tab")
+        self.validate_identity(
+            "INSERT ALL "
+            "WHEN id <= 3 THEN "
+            "INTO dest_tab1 (id, description) VALUES (id, description) "
+            "WHEN id BETWEEN 4 AND 7 THEN "
+            "INTO dest_tab2 (id, description) VALUES (id, description) "
+            "WHEN 1 = 1 THEN "
+            "INTO dest_tab3 (id, description) VALUES (id, description) "
+            "SELECT id, description "
+            "FROM source_tab"
+        )
 
-        self.validate_identity("INSERT FIRST " "WHEN id <= 3 THEN " "INTO dest_tab1 (id, description) VALUES (id, description) " "WHEN id <= 5 THEN " "INTO dest_tab2 (id, description) VALUES (id, description) " "ELSE " "INTO dest_tab3 (id, description) VALUES (id, description) " "SELECT id, description " "FROM source_tab")
+        self.validate_identity(
+            "INSERT FIRST "
+            "WHEN id <= 3 THEN "
+            "INTO dest_tab1 (id, description) VALUES (id, description) "
+            "WHEN id <= 5 THEN "
+            "INTO dest_tab2 (id, description) VALUES (id, description) "
+            "ELSE "
+            "INTO dest_tab3 (id, description) VALUES (id, description) "
+            "SELECT id, description "
+            "FROM source_tab"
+        )
 
-        self.validate_identity("INSERT FIRST " "WHEN id <= 3 THEN " "INTO dest_tab1 (id, description) VALUES (id, description) " "ELSE " "INTO dest_tab2 (id, description) VALUES (id, description) " "INTO dest_tab3 (id, description) VALUES (id, description) " "SELECT id, description " "FROM source_tab")
+        self.validate_identity(
+            "INSERT FIRST "
+            "WHEN id <= 3 THEN "
+            "INTO dest_tab1 (id, description) VALUES (id, description) "
+            "ELSE "
+            "INTO dest_tab2 (id, description) VALUES (id, description) "
+            "INTO dest_tab3 (id, description) VALUES (id, description) "
+            "SELECT id, description "
+            "FROM source_tab"
+        )
 
-        self.validate_identity("/* COMMENT */ INSERT FIRST " "WHEN salary > 4000 THEN INTO emp2 " "WHEN salary > 5000 THEN INTO emp3 " "WHEN salary > 6000 THEN INTO emp4 " "SELECT salary FROM employees")
+        self.validate_identity(
+            "/* COMMENT */ INSERT FIRST "
+            "WHEN salary > 4000 THEN INTO emp2 "
+            "WHEN salary > 5000 THEN INTO emp3 "
+            "WHEN salary > 6000 THEN INTO emp4 "
+            "SELECT salary FROM employees"
+        )
 
     def test_json_functions(self):
         for format_json in ("", " FORMAT JSON"):
@@ -548,9 +694,14 @@ CONNECT BY PRIOR employee_id = manager_id AND LEVEL <= 4"""
                 " NULL ON EMPTY",
                 " DEFAULT 1 ON ERROR TRUE ON EMPTY",
             ):
-                for passing in ("", " PASSING 'name1' AS \"var1\", 'name2' AS \"var2\""):
+                for passing in (
+                    "",
+                    " PASSING 'name1' AS \"var1\", 'name2' AS \"var2\"",
+                ):
                     with self.subTest("Testing JSON_EXISTS()"):
-                        self.validate_identity(f"SELECT * FROM t WHERE JSON_EXISTS(name{format_json}, '$[1].middle'{passing}{on_cond})")
+                        self.validate_identity(
+                            f"SELECT * FROM t WHERE JSON_EXISTS(name{format_json}, '$[1].middle'{passing}{on_cond})"
+                        )
 
     def test_grant(self):
         grant_cmds = [
@@ -590,9 +741,15 @@ CONNECT BY PRIOR employee_id = manager_id AND LEVEL <= 4"""
     def test_analyze(self):
         self.validate_identity("ANALYZE TABLE tbl")
         self.validate_identity("ANALYZE INDEX ndx")
-        self.validate_identity("ANALYZE TABLE db.tbl PARTITION(foo = 'foo', bar = 'bar')")
-        self.validate_identity("ANALYZE TABLE db.tbl SUBPARTITION(foo = 'foo', bar = 'bar')")
-        self.validate_identity("ANALYZE INDEX db.ndx PARTITION(foo = 'foo', bar = 'bar')")
+        self.validate_identity(
+            "ANALYZE TABLE db.tbl PARTITION(foo = 'foo', bar = 'bar')"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE db.tbl SUBPARTITION(foo = 'foo', bar = 'bar')"
+        )
+        self.validate_identity(
+            "ANALYZE INDEX db.ndx PARTITION(foo = 'foo', bar = 'bar')"
+        )
         self.validate_identity("ANALYZE INDEX db.ndx PARTITION(part1)")
         self.validate_identity("ANALYZE CLUSTER db.cluster")
         self.validate_identity("ANALYZE TABLE tbl VALIDATE REF UPDATE")
@@ -604,11 +761,17 @@ CONNECT BY PRIOR employee_id = manager_id AND LEVEL <= 4"""
         self.validate_identity("ANALYZE VALIDATE REF UPDATE SET DANGLING TO NULL")
         self.validate_identity("ANALYZE VALIDATE STRUCTURE")
         self.validate_identity("ANALYZE VALIDATE STRUCTURE CASCADE FAST")
-        self.validate_identity("ANALYZE TABLE tbl VALIDATE STRUCTURE CASCADE COMPLETE ONLINE INTO db.tbl")
-        self.validate_identity("ANALYZE TABLE tbl VALIDATE STRUCTURE CASCADE COMPLETE OFFLINE INTO db.tbl")
+        self.validate_identity(
+            "ANALYZE TABLE tbl VALIDATE STRUCTURE CASCADE COMPLETE ONLINE INTO db.tbl"
+        )
+        self.validate_identity(
+            "ANALYZE TABLE tbl VALIDATE STRUCTURE CASCADE COMPLETE OFFLINE INTO db.tbl"
+        )
 
     def test_prior(self):
-        self.validate_identity("SELECT id, PRIOR name AS parent_name, name FROM tree CONNECT BY NOCYCLE PRIOR id = parent_id")
+        self.validate_identity(
+            "SELECT id, PRIOR name AS parent_name, name FROM tree CONNECT BY NOCYCLE PRIOR id = parent_id"
+        )
 
         with self.assertRaises(ParseError):
             parse_one("PRIOR as foo", read="oracle")

@@ -17,13 +17,23 @@ class TestSpark(Validator):
         self.validate_identity("DROP NAMESPACE my_catalog.my_namespace")
         self.validate_identity("CREATE NAMESPACE my_catalog.my_namespace")
         self.validate_identity("INSERT OVERWRITE TABLE db1.tb1 TABLE db2.tb2")
-        self.validate_identity("CREATE TABLE foo AS WITH t AS (SELECT 1 AS col) SELECT col FROM t")
+        self.validate_identity(
+            "CREATE TABLE foo AS WITH t AS (SELECT 1 AS col) SELECT col FROM t"
+        )
         self.validate_identity("CREATE TEMPORARY VIEW test AS SELECT 1")
         self.validate_identity("CREATE TABLE foo (col VARCHAR(50))")
-        self.validate_identity("CREATE TABLE foo (col STRUCT<struct_col_a: VARCHAR((50))>)")
-        self.validate_identity("CREATE TABLE foo (col STRING) CLUSTERED BY (col) INTO 10 BUCKETS")
-        self.validate_identity("CREATE TABLE foo (col STRING) CLUSTERED BY (col) SORTED BY (col) INTO 10 BUCKETS")
-        self.validate_identity("TRUNCATE TABLE t1 PARTITION(age = 10, name = 'test', address)")
+        self.validate_identity(
+            "CREATE TABLE foo (col STRUCT<struct_col_a: VARCHAR((50))>)"
+        )
+        self.validate_identity(
+            "CREATE TABLE foo (col STRING) CLUSTERED BY (col) INTO 10 BUCKETS"
+        )
+        self.validate_identity(
+            "CREATE TABLE foo (col STRING) CLUSTERED BY (col) SORTED BY (col) INTO 10 BUCKETS"
+        )
+        self.validate_identity(
+            "TRUNCATE TABLE t1 PARTITION(age = 10, name = 'test', address)"
+        )
 
         self.validate_all(
             "CREATE TABLE db.example_table (col_a struct<struct_col_a:int, struct_col_b:string>)",
@@ -120,7 +130,9 @@ TBLPROPERTIES (
 
         self.validate_all(
             "CACHE TABLE testCache OPTIONS ('storageLevel' 'DISK_ONLY') SELECT * FROM testData",
-            write={"spark": "CACHE TABLE testCache OPTIONS('storageLevel' = 'DISK_ONLY') AS SELECT * FROM testData"},
+            write={
+                "spark": "CACHE TABLE testCache OPTIONS('storageLevel' = 'DISK_ONLY') AS SELECT * FROM testData"
+            },
         )
         self.validate_all(
             "ALTER TABLE StudentInfo ADD COLUMNS (LastName STRING, DOB TIMESTAMP)",
@@ -134,10 +146,18 @@ TBLPROPERTIES (
                 "spark": "ALTER TABLE StudentInfo DROP COLUMNS (LastName, DOB)",
             },
         )
-        self.validate_identity("ALTER VIEW StudentInfoView AS SELECT * FROM StudentInfo")
-        self.validate_identity("ALTER VIEW StudentInfoView AS SELECT LastName FROM StudentInfo")
-        self.validate_identity("ALTER VIEW StudentInfoView RENAME TO StudentInfoViewRenamed")
-        self.validate_identity("ALTER VIEW StudentInfoView SET TBLPROPERTIES ('key1'='val1', 'key2'='val2')")
+        self.validate_identity(
+            "ALTER VIEW StudentInfoView AS SELECT * FROM StudentInfo"
+        )
+        self.validate_identity(
+            "ALTER VIEW StudentInfoView AS SELECT LastName FROM StudentInfo"
+        )
+        self.validate_identity(
+            "ALTER VIEW StudentInfoView RENAME TO StudentInfoViewRenamed"
+        )
+        self.validate_identity(
+            "ALTER VIEW StudentInfoView SET TBLPROPERTIES ('key1'='val1', 'key2'='val2')"
+        )
         self.validate_identity(
             "ALTER VIEW StudentInfoView UNSET TBLPROPERTIES ('key1', 'key2')",
             check_command_warning=True,
@@ -242,16 +262,22 @@ TBLPROPERTIES (
 
     def test_spark(self):
         self.assertEqual(
-            parse_one("REFRESH TABLE t", read="spark").assert_is(exp.Refresh).sql(dialect="spark"),
+            parse_one("REFRESH TABLE t", read="spark")
+            .assert_is(exp.Refresh)
+            .sql(dialect="spark"),
             "REFRESH TABLE t",
         )
 
         self.validate_identity("ALTER TABLE foo ADD PARTITION(event = 'click')")
-        self.validate_identity("ALTER TABLE foo ADD IF NOT EXISTS PARTITION(event = 'click')")
+        self.validate_identity(
+            "ALTER TABLE foo ADD IF NOT EXISTS PARTITION(event = 'click')"
+        )
         self.validate_identity("IF(cond, foo AS bar, bla AS baz)")
         self.validate_identity("any_value(col, true)", "ANY_VALUE(col) IGNORE NULLS")
         self.validate_identity("first(col, true)", "FIRST(col) IGNORE NULLS")
-        self.validate_identity("first_value(col, true)", "FIRST_VALUE(col) IGNORE NULLS")
+        self.validate_identity(
+            "first_value(col, true)", "FIRST_VALUE(col) IGNORE NULLS"
+        )
         self.validate_identity("last(col, true)", "LAST(col) IGNORE NULLS")
         self.validate_identity("last_value(col, true)", "LAST_VALUE(col) IGNORE NULLS")
         self.validate_identity("DESCRIBE EXTENDED db.tbl")
@@ -547,7 +573,9 @@ TBLPROPERTIES (
                 "spark": "UNHEX(MD5(x))",
             },
         )
-        self.validate_all("SELECT * FROM ((VALUES 1))", write={"spark": "SELECT * FROM (VALUES (1))"})
+        self.validate_all(
+            "SELECT * FROM ((VALUES 1))", write={"spark": "SELECT * FROM (VALUES (1))"}
+        )
         self.validate_all(
             "SELECT CAST(STRUCT('fooo') AS STRUCT<a: VARCHAR(2)>)",
             write={"spark": "SELECT CAST(STRUCT('fooo' AS col1) AS STRUCT<a: STRING>)"},
@@ -663,7 +691,9 @@ TBLPROPERTIES (
                 "spark": "AGGREGATE(my_arr, 0, (acc, x) -> acc + x, s -> s * 2)",
             },
         )
-        self.validate_all("TRIM('SL', 'SSparkSQLS')", write={"spark": "TRIM('SL' FROM 'SSparkSQLS')"})
+        self.validate_all(
+            "TRIM('SL', 'SSparkSQLS')", write={"spark": "TRIM('SL' FROM 'SSparkSQLS')"}
+        )
         self.validate_all(
             "ARRAY_SORT(x, (left, right) -> -1)",
             write={
@@ -776,7 +806,9 @@ TBLPROPERTIES (
 
         self.validate_all(
             "SELECT ANY_VALUE(col, true), FIRST(col, true), FIRST_VALUE(col, true) OVER ()",
-            write={"duckdb": "SELECT ANY_VALUE(col), FIRST(col), FIRST_VALUE(col IGNORE NULLS) OVER ()"},
+            write={
+                "duckdb": "SELECT ANY_VALUE(col), FIRST(col), FIRST_VALUE(col IGNORE NULLS) OVER ()"
+            },
         )
 
         self.validate_all(
@@ -870,11 +902,21 @@ TBLPROPERTIES (
 
     def test_transform_query(self):
         self.validate_identity("SELECT TRANSFORM(x) USING 'x' AS (x INT) FROM t")
-        self.validate_identity("SELECT TRANSFORM(zip_code, name, age) USING 'cat' AS (a, b, c) FROM person WHERE zip_code > 94511")
-        self.validate_identity("SELECT TRANSFORM(zip_code, name, age) USING 'cat' AS (a STRING, b STRING, c STRING) FROM person WHERE zip_code > 94511")
-        self.validate_identity("SELECT TRANSFORM(name, age) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n' NULL DEFINED AS 'NULL' USING 'cat' AS (name_age STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '@' LINES TERMINATED BY '\\n' NULL DEFINED AS 'NULL' FROM person")
-        self.validate_identity("SELECT TRANSFORM(zip_code, name, age) ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' WITH SERDEPROPERTIES ('field.delim'='\\t') USING 'cat' AS (a STRING, b STRING, c STRING) ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' WITH SERDEPROPERTIES ('field.delim'='\\t') FROM person WHERE zip_code > 94511")
-        self.validate_identity("SELECT TRANSFORM(zip_code, name, age) USING 'cat' FROM person WHERE zip_code > 94500")
+        self.validate_identity(
+            "SELECT TRANSFORM(zip_code, name, age) USING 'cat' AS (a, b, c) FROM person WHERE zip_code > 94511"
+        )
+        self.validate_identity(
+            "SELECT TRANSFORM(zip_code, name, age) USING 'cat' AS (a STRING, b STRING, c STRING) FROM person WHERE zip_code > 94511"
+        )
+        self.validate_identity(
+            "SELECT TRANSFORM(name, age) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n' NULL DEFINED AS 'NULL' USING 'cat' AS (name_age STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY '@' LINES TERMINATED BY '\\n' NULL DEFINED AS 'NULL' FROM person"
+        )
+        self.validate_identity(
+            "SELECT TRANSFORM(zip_code, name, age) ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' WITH SERDEPROPERTIES ('field.delim'='\\t') USING 'cat' AS (a STRING, b STRING, c STRING) ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe' WITH SERDEPROPERTIES ('field.delim'='\\t') FROM person WHERE zip_code > 94511"
+        )
+        self.validate_identity(
+            "SELECT TRANSFORM(zip_code, name, age) USING 'cat' FROM person WHERE zip_code > 94500"
+        )
 
     def test_insert_cte(self):
         self.validate_all(
@@ -973,7 +1015,9 @@ TBLPROPERTIES (
         query = self.parse_one(with_modifiers)
 
         for dialect in Dialects:
-            with self.subTest(f"Transpiling query with CLUSTER/DISTRIBUTE/SORT BY to {dialect}"):
+            with self.subTest(
+                f"Transpiling query with CLUSTER/DISTRIBUTE/SORT BY to {dialect}"
+            ):
                 name = dialect.value
                 if name in ("", "databricks", "hive", "spark", "spark2"):
                     self.assertEqual(query.sql(name), with_modifiers)
@@ -987,8 +1031,12 @@ TBLPROPERTIES (
             "TYPE EVOLUTION",
             "EVOLUTION",
         ):
-            with self.subTest(f"Test roundtrip of VIEW schema binding {schema_binding}"):
-                self.validate_identity(f"CREATE VIEW emp_v WITH SCHEMA {schema_binding} AS SELECT * FROM emp")
+            with self.subTest(
+                f"Test roundtrip of VIEW schema binding {schema_binding}"
+            ):
+                self.validate_identity(
+                    f"CREATE VIEW emp_v WITH SCHEMA {schema_binding} AS SELECT * FROM emp"
+                )
 
     def test_minus(self):
         self.validate_all(
@@ -1008,12 +1056,16 @@ TBLPROPERTIES (
     def test_analyze(self):
         self.validate_identity("ANALYZE TABLE tbl COMPUTE STATISTICS NOSCAN")
         self.validate_identity("ANALYZE TABLE tbl COMPUTE STATISTICS FOR ALL COLUMNS")
-        self.validate_identity("ANALYZE TABLE tbl COMPUTE STATISTICS FOR COLUMNS foo, bar")
+        self.validate_identity(
+            "ANALYZE TABLE tbl COMPUTE STATISTICS FOR COLUMNS foo, bar"
+        )
         self.validate_identity("ANALYZE TABLE ctlg.db.tbl COMPUTE STATISTICS NOSCAN")
         self.validate_identity("ANALYZE TABLES COMPUTE STATISTICS NOSCAN")
         self.validate_identity("ANALYZE TABLES FROM db COMPUTE STATISTICS")
         self.validate_identity("ANALYZE TABLES IN db COMPUTE STATISTICS")
-        self.validate_identity("ANALYZE TABLE ctlg.db.tbl PARTITION(foo = 'foo', bar = 'bar') COMPUTE STATISTICS NOSCAN")
+        self.validate_identity(
+            "ANALYZE TABLE ctlg.db.tbl PARTITION(foo = 'foo', bar = 'bar') COMPUTE STATISTICS NOSCAN"
+        )
 
     def test_transpile_annotated_exploded_column(self):
         from sqlglot.optimizer.annotate_types import annotate_types

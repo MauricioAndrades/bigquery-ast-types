@@ -16,7 +16,9 @@ from sqlglot.tokens import TokenType
 from sqlglot.optimizer.annotate_types import TypeAnnotator
 
 
-def _jsonextract_sql(self: Databricks.Generator, expression: exp.JSONExtract | exp.JSONExtractScalar) -> str:
+def _jsonextract_sql(
+    self: Databricks.Generator, expression: exp.JSONExtract | exp.JSONExtractScalar
+) -> str:
     this = self.sql(expression, "this")
     expr = self.sql(expression, "expression")
     return f"{this}:{expr}"
@@ -76,7 +78,9 @@ class Databricks(Spark):
             **Spark.Generator.TRANSFORMS,
             exp.DateAdd: date_delta_sql("DATEADD"),
             exp.DateDiff: date_delta_sql("DATEDIFF"),
-            exp.DatetimeAdd: lambda self, e: self.func("TIMESTAMPADD", e.unit, e.expression, e.this),
+            exp.DatetimeAdd: lambda self, e: self.func(
+                "TIMESTAMPADD", e.unit, e.expression, e.this
+            ),
             exp.DatetimeSub: lambda self, e: self.func(
                 "TIMESTAMPADD",
                 e.unit,
@@ -108,13 +112,19 @@ class Databricks(Spark):
         def columndef_sql(self, expression: exp.ColumnDef, sep: str = " ") -> str:
             constraint = expression.find(exp.GeneratedAsIdentityColumnConstraint)
             kind = expression.kind
-            if constraint and isinstance(kind, exp.DataType) and kind.this in exp.DataType.INTEGER_TYPES:
+            if (
+                constraint
+                and isinstance(kind, exp.DataType)
+                and kind.this in exp.DataType.INTEGER_TYPES
+            ):
                 # only BIGINT generated identity constraints are supported
                 expression.set("kind", exp.DataType.build("bigint"))
 
             return super().columndef_sql(expression, sep)
 
-        def generatedasidentitycolumnconstraint_sql(self, expression: exp.GeneratedAsIdentityColumnConstraint) -> str:
+        def generatedasidentitycolumnconstraint_sql(
+            self, expression: exp.GeneratedAsIdentityColumnConstraint
+        ) -> str:
             expression.set("this", True)  # trigger ALWAYS in super class
             return super().generatedasidentitycolumnconstraint_sql(expression)
 

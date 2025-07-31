@@ -44,28 +44,43 @@ if t.TYPE_CHECKING:
 logger = logging.getLogger("sqlglot")
 
 
-JSON_EXTRACT_TYPE = t.Union[exp.JSONExtract, exp.JSONExtractScalar, exp.JSONExtractArray]
+JSON_EXTRACT_TYPE = t.Union[
+    exp.JSONExtract, exp.JSONExtractScalar, exp.JSONExtractArray
+]
 
 DQUOTES_ESCAPING_JSON_FUNCTIONS = ("JSON_QUERY", "JSON_VALUE", "JSON_QUERY_ARRAY")
 
 
-def _derived_table_values_to_unnest(self: BigQuery.Generator, expression: exp.Values) -> str:
+def _derived_table_values_to_unnest(
+    self: BigQuery.Generator, expression: exp.Values
+) -> str:
     if not expression.find_ancestor(exp.From, exp.Join):
         return self.values_sql(expression)
 
     structs = []
     alias = expression.args.get("alias")
     for tup in expression.find_all(exp.Tuple):
-        field_aliases = alias.columns if alias and alias.columns else (f"_c{i}" for i in range(len(tup.expressions)))
-        expressions = [exp.PropertyEQ(this=exp.to_identifier(name), expression=fld) for name, fld in zip(field_aliases, tup.expressions)]
+        field_aliases = (
+            alias.columns
+            if alias and alias.columns
+            else (f"_c{i}" for i in range(len(tup.expressions)))
+        )
+        expressions = [
+            exp.PropertyEQ(this=exp.to_identifier(name), expression=fld)
+            for name, fld in zip(field_aliases, tup.expressions)
+        ]
         structs.append(exp.Struct(expressions=expressions))
 
     # Due to `UNNEST_COLUMN_ONLY`, it is expected that the table alias be contained in the columns expression
     alias_name_only = exp.TableAlias(columns=[alias.this]) if alias else None
-    return self.unnest_sql(exp.Unnest(expressions=[exp.array(*structs, copy=False)], alias=alias_name_only))
+    return self.unnest_sql(
+        exp.Unnest(expressions=[exp.array(*structs, copy=False)], alias=alias_name_only)
+    )
 
 
-def _returnsproperty_sql(self: BigQuery.Generator, expression: exp.ReturnsProperty) -> str:
+def _returnsproperty_sql(
+    self: BigQuery.Generator, expression: exp.ReturnsProperty
+) -> str:
     this = expression.this
     if isinstance(this, exp.Schema):
         this = f"{self.sql(this, 'this')} <{self.expressions(this)}>"
@@ -98,7 +113,11 @@ def _alias_ordered_group(expression: exp.Expression) -> exp.Expression:
         order = expression.args.get("order")
 
         if group and order:
-            aliases = {select.this: select.args["alias"] for select in expression.selects if isinstance(select, exp.Alias)}
+            aliases = {
+                select.this: select.args["alias"]
+                for select in expression.selects
+                if isinstance(select, exp.Alias)
+            }
 
             for grouped in group.expressions:
                 if grouped.is_int:
@@ -116,7 +135,10 @@ def _pushdown_cte_column_names(expression: exp.Expression) -> exp.Expression:
         cte_query = expression.this
 
         if cte_query.is_star:
-            logger.warning("Can't push down CTE column names for star queries. Run the query through" " the optimizer or use 'qualify' to expand the star projections first.")
+            logger.warning(
+                "Can't push down CTE column names for star queries. Run the query through"
+                " the optimizer or use 'qualify' to expand the star projections first."
+            )
             return expression
 
         column_names = expression.alias_column_names
@@ -135,7 +157,9 @@ def _pushdown_cte_column_names(expression: exp.Expression) -> exp.Expression:
 
 
 def _build_parse_timestamp(args: t.List) -> exp.StrToTime:
-    this = build_formatted_time(exp.StrToTime, "bigquery")([seq_get(args, 1), seq_get(args, 0)])
+    this = build_formatted_time(exp.StrToTime, "bigquery")(
+        [seq_get(args, 1), seq_get(args, 0)]
+    )
     this.set("zone", seq_get(args, 2))
     return this
 
@@ -154,11 +178,23 @@ def _build_date(args: t.List) -> exp.Date | exp.DateFromParts:
 def _build_to_hex(args: t.List) -> exp.Hex | exp.MD5:
     # TO_HEX(MD5(..)) is common in BigQuery, so it's parsed into MD5 to simplify its transpilation
     arg = seq_get(args, 0)
-    return exp.MD5(this=arg.this) if isinstance(arg, exp.MD5Digest) else exp.LowerHex(this=arg)
+    return (
+        exp.MD5(this=arg.this)
+        if isinstance(arg, exp.MD5Digest)
+        else exp.LowerHex(this=arg)
+    )
 
 
 def _array_contains_sql(self: BigQuery.Generator, expression: exp.ArrayContains) -> str:
-    return self.sql(exp.Exists(this=exp.select("1").from_(exp.Unnest(expressions=[expression.left]).as_("_unnest", table=["_col"])).where(exp.column("_col").eq(expression.right))))
+    return self.sql(
+        exp.Exists(
+            this=exp.select("1")
+            .from_(
+                exp.Unnest(expressions=[expression.left]).as_("_unnest", table=["_col"])
+            )
+            .where(exp.column("_col").eq(expression.right))
+        )
+    )
 
 
 def _ts_or_ds_add_sql(self: BigQuery.Generator, expression: exp.TsOrDsAdd) -> str:
@@ -167,7 +203,9 @@ def _ts_or_ds_add_sql(self: BigQuery.Generator, expression: exp.TsOrDsAdd) -> st
 
 def _ts_or_ds_diff_sql(self: BigQuery.Generator, expression: exp.TsOrDsDiff) -> str:
     expression.this.replace(exp.cast(expression.this, exp.DataType.Type.TIMESTAMP))
-    expression.expression.replace(exp.cast(expression.expression, exp.DataType.Type.TIMESTAMP))
+    expression.expression.replace(
+        exp.cast(expression.expression, exp.DataType.Type.TIMESTAMP)
+    )
     unit = unit_to_var(expression)
     return self.func("DATE_DIFF", expression.this, expression.expression, unit)
 
@@ -183,7 +221,10 @@ def _unix_to_time_sql(self: BigQuery.Generator, expression: exp.UnixToTime) -> s
     if scale == exp.UnixToTime.MICROS:
         return self.func("TIMESTAMP_MICROS", timestamp)
 
-    unix_seconds = exp.cast(exp.Div(this=timestamp, expression=exp.func("POW", 10, scale)), exp.DataType.Type.BIGINT)
+    unix_seconds = exp.cast(
+        exp.Div(this=timestamp, expression=exp.func("POW", 10, scale)),
+        exp.DataType.Type.BIGINT,
+    )
     return self.func("TIMESTAMP_SECONDS", unix_seconds)
 
 
@@ -203,7 +244,9 @@ def _build_datetime(args: t.List) -> exp.Func:
     return exp.TimestampFromParts.from_arg_list(args)
 
 
-def _build_regexp_extract(expr_type: t.Type[E], default_group: t.Optional[exp.Expression] = None) -> t.Callable[[t.List], E]:
+def _build_regexp_extract(
+    expr_type: t.Type[E], default_group: t.Optional[exp.Expression] = None
+) -> t.Callable[[t.List], E]:
     def _builder(args: t.List) -> E:
         try:
             group = re.compile(args[1].name).groups == 1
@@ -222,7 +265,9 @@ def _build_regexp_extract(expr_type: t.Type[E], default_group: t.Optional[exp.Ex
     return _builder
 
 
-def _build_extract_json_with_default_path(expr_type: t.Type[E]) -> t.Callable[[t.List, Dialect], E]:
+def _build_extract_json_with_default_path(
+    expr_type: t.Type[E],
+) -> t.Callable[[t.List, Dialect], E]:
     def _builder(args: t.List, dialect: Dialect) -> E:
         if len(args) == 1:
             # The default value for the JSONPath is '$' i.e all of the data
@@ -232,7 +277,9 @@ def _build_extract_json_with_default_path(expr_type: t.Type[E]) -> t.Callable[[t
     return _builder
 
 
-def _str_to_datetime_sql(self: BigQuery.Generator, expression: exp.StrToDate | exp.StrToTime) -> str:
+def _str_to_datetime_sql(
+    self: BigQuery.Generator, expression: exp.StrToDate | exp.StrToTime
+) -> str:
     this = self.sql(expression, "this")
     dtype = "DATE" if isinstance(expression, exp.StrToDate) else "TIMESTAMP"
 
@@ -263,7 +310,11 @@ def _annotate_math_functions(self: TypeAnnotator, expression: E) -> E:
 
     self._set_type(
         expression,
-        exp.DataType.Type.DOUBLE if this.is_type(*exp.DataType.INTEGER_TYPES) else this.type,
+        (
+            exp.DataType.Type.DOUBLE
+            if this.is_type(*exp.DataType.INTEGER_TYPES)
+            else this.type
+        ),
     )
     return expression
 
@@ -286,7 +337,9 @@ def _build_levenshtein(args: t.List) -> exp.Levenshtein:
     )
 
 
-def _build_format_time(expr_type: t.Type[exp.Expression]) -> t.Callable[[t.List], exp.TimeToStr]:
+def _build_format_time(
+    expr_type: t.Type[exp.Expression],
+) -> t.Callable[[t.List], exp.TimeToStr]:
     def _builder(args: t.List) -> exp.TimeToStr:
         return exp.TimeToStr(
             this=expr_type(this=seq_get(args, 1)),
@@ -344,7 +397,16 @@ def _annotate_array(self: TypeAnnotator, expression: exp.Array) -> exp.Array:
     #
     # SELECT t, TYPEOF(t) FROM (SELECT 'foo') AS t            -- foo, STRUCT<STRING>
     # SELECT ARRAY(SELECT 'foo'), TYPEOF(ARRAY(SELECT 'foo')) -- foo, ARRAY<STRING>
-    if len(array_args) == 1 and isinstance(select := array_args[0].unnest(), exp.Select) and (query_type := select.meta.get("query_type")) is not None and query_type.is_type(exp.DataType.Type.STRUCT) and len(query_type.expressions) == 1 and isinstance(col_def := query_type.expressions[0], exp.ColumnDef) and (projection_type := col_def.kind) is not None and not projection_type.is_type(exp.DataType.Type.UNKNOWN):
+    if (
+        len(array_args) == 1
+        and isinstance(select := array_args[0].unnest(), exp.Select)
+        and (query_type := select.meta.get("query_type")) is not None
+        and query_type.is_type(exp.DataType.Type.STRUCT)
+        and len(query_type.expressions) == 1
+        and isinstance(col_def := query_type.expressions[0], exp.ColumnDef)
+        and (projection_type := col_def.kind) is not None
+        and not projection_type.is_type(exp.DataType.Type.UNKNOWN)
+    ):
         array_type = exp.DataType(
             this=exp.DataType.Type.ARRAY,
             expressions=[projection_type.copy()],
@@ -400,19 +462,38 @@ class BigQuery(Dialect):
     PSEUDOCOLUMNS = {"_PARTITIONTIME", "_PARTITIONDATE"}
 
     # All set operations require either a DISTINCT or ALL specifier
-    SET_OP_DISTINCT_BY_DEFAULT = dict.fromkeys((exp.Except, exp.Intersect, exp.Union), None)
+    SET_OP_DISTINCT_BY_DEFAULT = dict.fromkeys(
+        (exp.Except, exp.Intersect, exp.Union), None
+    )
 
     # BigQuery maps Type.TIMESTAMP to DATETIME, so we need to amend the inferred types
     TYPE_TO_EXPRESSIONS = {
         **Dialect.TYPE_TO_EXPRESSIONS,
-        exp.DataType.Type.TIMESTAMPTZ: Dialect.TYPE_TO_EXPRESSIONS[exp.DataType.Type.TIMESTAMP],
+        exp.DataType.Type.TIMESTAMPTZ: Dialect.TYPE_TO_EXPRESSIONS[
+            exp.DataType.Type.TIMESTAMP
+        ],
     }
     TYPE_TO_EXPRESSIONS.pop(exp.DataType.Type.TIMESTAMP)
 
     ANNOTATORS = {
         **Dialect.ANNOTATORS,
-        **{expr_type: annotate_with_type_lambda(data_type) for data_type, expressions in TYPE_TO_EXPRESSIONS.items() for expr_type in expressions},
-        **{expr_type: lambda self, e: _annotate_math_functions(self, e) for expr_type in (exp.Floor, exp.Ceil, exp.Log, exp.Ln, exp.Sqrt, exp.Exp, exp.Round)},
+        **{
+            expr_type: annotate_with_type_lambda(data_type)
+            for data_type, expressions in TYPE_TO_EXPRESSIONS.items()
+            for expr_type in expressions
+        },
+        **{
+            expr_type: lambda self, e: _annotate_math_functions(self, e)
+            for expr_type in (
+                exp.Floor,
+                exp.Ceil,
+                exp.Log,
+                exp.Ln,
+                exp.Sqrt,
+                exp.Exp,
+                exp.Round,
+            )
+        },
         **{
             expr_type: lambda self, e: self._annotate_by_args(e, "this")
             for expr_type in (
@@ -429,31 +510,62 @@ class BigQuery(Dialect):
             )
         },
         exp.Array: _annotate_array,
-        exp.ArrayConcat: lambda self, e: self._annotate_by_args(e, "this", "expressions"),
-        exp.Ascii: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BIGINT),
-        exp.BitwiseAndAgg: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BIGINT),
-        exp.BitwiseOrAgg: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BIGINT),
-        exp.BitwiseXorAgg: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BIGINT),
-        exp.BitwiseCountAgg: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BIGINT),
+        exp.ArrayConcat: lambda self, e: self._annotate_by_args(
+            e, "this", "expressions"
+        ),
+        exp.Ascii: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.BIGINT
+        ),
+        exp.BitwiseAndAgg: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.BIGINT
+        ),
+        exp.BitwiseOrAgg: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.BIGINT
+        ),
+        exp.BitwiseXorAgg: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.BIGINT
+        ),
+        exp.BitwiseCountAgg: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.BIGINT
+        ),
         exp.Concat: _annotate_concat,
         exp.Corr: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.DOUBLE),
-        exp.CovarPop: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.DOUBLE),
-        exp.CovarSamp: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.DOUBLE),
-        exp.JSONArray: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.JSON),
-        exp.JSONExtractScalar: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.VARCHAR),
-        exp.JSONValueArray: lambda self, e: self._annotate_with_type(e, exp.DataType.build("ARRAY<VARCHAR>")),
-        exp.JSONType: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.VARCHAR),
+        exp.CovarPop: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.DOUBLE
+        ),
+        exp.CovarSamp: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.DOUBLE
+        ),
+        exp.JSONArray: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.JSON
+        ),
+        exp.JSONExtractScalar: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.VARCHAR
+        ),
+        exp.JSONValueArray: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.build("ARRAY<VARCHAR>")
+        ),
+        exp.JSONType: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.VARCHAR
+        ),
         exp.Lag: lambda self, e: self._annotate_by_args(e, "this", "default"),
         exp.SHA: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BINARY),
         exp.SHA2: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BINARY),
         exp.Sign: lambda self, e: self._annotate_by_args(e, "this"),
         exp.Split: lambda self, e: self._annotate_by_args(e, "this", array=True),
-        exp.TimestampFromParts: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.DATETIME),
-        exp.Unicode: lambda self, e: self._annotate_with_type(e, exp.DataType.Type.BIGINT),
+        exp.TimestampFromParts: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.DATETIME
+        ),
+        exp.Unicode: lambda self, e: self._annotate_with_type(
+            e, exp.DataType.Type.BIGINT
+        ),
     }
 
     def normalize_identifier(self, expression: E) -> E:
-        if isinstance(expression, exp.Identifier) and self.normalization_strategy is NormalizationStrategy.CASE_INSENSITIVE:
+        if (
+            isinstance(expression, exp.Identifier)
+            and self.normalization_strategy is NormalizationStrategy.CASE_INSENSITIVE
+        ):
             parent = expression.parent
             while isinstance(parent, exp.Dot):
                 parent = parent.parent
@@ -462,7 +574,18 @@ class BigQuery(Dialect):
             # by default. The following check uses a heuristic to detect tables based on whether
             # they are qualified. This should generally be correct, because tables in BigQuery
             # must be qualified with at least a dataset, unless @@dataset_id is set.
-            case_sensitive = isinstance(parent, exp.UserDefinedFunction) or (isinstance(parent, exp.Table) and parent.db and (parent.meta.get("quoted_table") or not parent.meta.get("maybe_column"))) or expression.meta.get("is_table")
+            case_sensitive = (
+                isinstance(parent, exp.UserDefinedFunction)
+                or (
+                    isinstance(parent, exp.Table)
+                    and parent.db
+                    and (
+                        parent.meta.get("quoted_table")
+                        or not parent.meta.get("maybe_column")
+                    )
+                )
+                or expression.meta.get("is_table")
+            )
             if not case_sensitive:
                 expression.set("this", expression.this.lower())
 
@@ -478,9 +601,17 @@ class BigQuery(Dialect):
 
         HEX_STRINGS = [("0x", ""), ("0X", "")]
 
-        BYTE_STRINGS = [(prefix + q, q) for q in t.cast(t.List[str], QUOTES) for prefix in ("b", "B")]
+        BYTE_STRINGS = [
+            (prefix + q, q)
+            for q in t.cast(t.List[str], QUOTES)
+            for prefix in ("b", "B")
+        ]
 
-        RAW_STRINGS = [(prefix + q, q) for q in t.cast(t.List[str], QUOTES) for prefix in ("r", "R")]
+        RAW_STRINGS = [
+            (prefix + q, q)
+            for q in t.cast(t.List[str], QUOTES)
+            for prefix in ("r", "R")
+        ]
 
         NESTED_COMMENTS = False
 
@@ -517,12 +648,18 @@ class BigQuery(Dialect):
         # BigQuery does not allow ASC/DESC to be used as an identifier
         ID_VAR_TOKENS = parser.Parser.ID_VAR_TOKENS - {TokenType.ASC, TokenType.DESC}
         ALIAS_TOKENS = parser.Parser.ALIAS_TOKENS - {TokenType.ASC, TokenType.DESC}
-        TABLE_ALIAS_TOKENS = parser.Parser.TABLE_ALIAS_TOKENS - {TokenType.ASC, TokenType.DESC}
+        TABLE_ALIAS_TOKENS = parser.Parser.TABLE_ALIAS_TOKENS - {
+            TokenType.ASC,
+            TokenType.DESC,
+        }
         COMMENT_TABLE_ALIAS_TOKENS = parser.Parser.COMMENT_TABLE_ALIAS_TOKENS - {
             TokenType.ASC,
             TokenType.DESC,
         }
-        UPDATE_ALIAS_TOKENS = parser.Parser.UPDATE_ALIAS_TOKENS - {TokenType.ASC, TokenType.DESC}
+        UPDATE_ALIAS_TOKENS = parser.Parser.UPDATE_ALIAS_TOKENS - {
+            TokenType.ASC,
+            TokenType.DESC,
+        }
 
         FUNCTIONS = {
             **parser.Parser.FUNCTIONS,
@@ -542,23 +679,39 @@ class BigQuery(Dialect):
             "EDIT_DISTANCE": _build_levenshtein,
             "FORMAT_DATE": _build_format_time(exp.TsOrDsToDate),
             "GENERATE_ARRAY": exp.GenerateSeries.from_arg_list,
-            "JSON_EXTRACT_SCALAR": _build_extract_json_with_default_path(exp.JSONExtractScalar),
-            "JSON_EXTRACT_ARRAY": _build_extract_json_with_default_path(exp.JSONExtractArray),
+            "JSON_EXTRACT_SCALAR": _build_extract_json_with_default_path(
+                exp.JSONExtractScalar
+            ),
+            "JSON_EXTRACT_ARRAY": _build_extract_json_with_default_path(
+                exp.JSONExtractArray
+            ),
             "JSON_QUERY": parser.build_extract_json_with_path(exp.JSONExtract),
-            "JSON_QUERY_ARRAY": _build_extract_json_with_default_path(exp.JSONExtractArray),
+            "JSON_QUERY_ARRAY": _build_extract_json_with_default_path(
+                exp.JSONExtractArray
+            ),
             "JSON_VALUE": _build_extract_json_with_default_path(exp.JSONExtractScalar),
-            "JSON_VALUE_ARRAY": _build_extract_json_with_default_path(exp.JSONValueArray),
+            "JSON_VALUE_ARRAY": _build_extract_json_with_default_path(
+                exp.JSONValueArray
+            ),
             "LENGTH": lambda args: exp.Length(this=seq_get(args, 0), binary=True),
             "MD5": exp.MD5Digest.from_arg_list,
             "TO_HEX": _build_to_hex,
-            "PARSE_DATE": lambda args: build_formatted_time(exp.StrToDate, "bigquery")([seq_get(args, 1), seq_get(args, 0)]),
+            "PARSE_DATE": lambda args: build_formatted_time(exp.StrToDate, "bigquery")(
+                [seq_get(args, 1), seq_get(args, 0)]
+            ),
             "PARSE_TIMESTAMP": _build_parse_timestamp,
             "REGEXP_CONTAINS": exp.RegexpLike.from_arg_list,
             "REGEXP_EXTRACT": _build_regexp_extract(exp.RegexpExtract),
             "REGEXP_SUBSTR": _build_regexp_extract(exp.RegexpExtract),
-            "REGEXP_EXTRACT_ALL": _build_regexp_extract(exp.RegexpExtractAll, default_group=exp.Literal.number(0)),
-            "SHA256": lambda args: exp.SHA2(this=seq_get(args, 0), length=exp.Literal.number(256)),
-            "SHA512": lambda args: exp.SHA2(this=seq_get(args, 0), length=exp.Literal.number(512)),
+            "REGEXP_EXTRACT_ALL": _build_regexp_extract(
+                exp.RegexpExtractAll, default_group=exp.Literal.number(0)
+            ),
+            "SHA256": lambda args: exp.SHA2(
+                this=seq_get(args, 0), length=exp.Literal.number(256)
+            ),
+            "SHA512": lambda args: exp.SHA2(
+                this=seq_get(args, 0), length=exp.Literal.number(512)
+            ),
             "SPLIT": lambda args: exp.Split(
                 # https://cloud.google.com/bigquery/docs/reference/standard-sql/string_functions#split
                 this=seq_get(args, 0),
@@ -571,8 +724,12 @@ class BigQuery(Dialect):
             "TIMESTAMP": _build_timestamp,
             "TIMESTAMP_ADD": build_date_delta_with_interval(exp.TimestampAdd),
             "TIMESTAMP_SUB": build_date_delta_with_interval(exp.TimestampSub),
-            "TIMESTAMP_MICROS": lambda args: exp.UnixToTime(this=seq_get(args, 0), scale=exp.UnixToTime.MICROS),
-            "TIMESTAMP_MILLIS": lambda args: exp.UnixToTime(this=seq_get(args, 0), scale=exp.UnixToTime.MILLIS),
+            "TIMESTAMP_MICROS": lambda args: exp.UnixToTime(
+                this=seq_get(args, 0), scale=exp.UnixToTime.MICROS
+            ),
+            "TIMESTAMP_MILLIS": lambda args: exp.UnixToTime(
+                this=seq_get(args, 0), scale=exp.UnixToTime.MILLIS
+            ),
             "TIMESTAMP_SECONDS": lambda args: exp.UnixToTime(this=seq_get(args, 0)),
             "TO_JSON_STRING": exp.JSONFormat.from_arg_list,
             "FORMAT_DATETIME": _build_format_time(exp.TsOrDsToDatetime),
@@ -581,8 +738,12 @@ class BigQuery(Dialect):
 
         FUNCTION_PARSERS = {
             **parser.Parser.FUNCTION_PARSERS,
-            "ARRAY": lambda self: self.expression(exp.Array, expressions=[self._parse_statement()]),
-            "JSON_ARRAY": lambda self: self.expression(exp.JSONArray, expressions=self._parse_csv(self._parse_bitwise)),
+            "ARRAY": lambda self: self.expression(
+                exp.Array, expressions=[self._parse_statement()]
+            ),
+            "JSON_ARRAY": lambda self: self.expression(
+                exp.JSONArray, expressions=self._parse_csv(self._parse_bitwise)
+            ),
             "MAKE_INTERVAL": lambda self: self._parse_make_interval(),
             "FEATURES_AT_TIME": lambda self: self._parse_features_at_time(),
         }
@@ -600,13 +761,17 @@ class BigQuery(Dialect):
 
         PROPERTY_PARSERS = {
             **parser.Parser.PROPERTY_PARSERS,
-            "NOT DETERMINISTIC": lambda self: self.expression(exp.StabilityProperty, this=exp.Literal.string("VOLATILE")),
+            "NOT DETERMINISTIC": lambda self: self.expression(
+                exp.StabilityProperty, this=exp.Literal.string("VOLATILE")
+            ),
             "OPTIONS": lambda self: self._parse_with_property(),
         }
 
         CONSTRAINT_PARSERS = {
             **parser.Parser.CONSTRAINT_PARSERS,
-            "OPTIONS": lambda self: exp.Properties(expressions=self._parse_with_property()),
+            "OPTIONS": lambda self: exp.Properties(
+                expressions=self._parse_with_property()
+            ),
         }
 
         RANGE_PARSERS = parser.Parser.RANGE_PARSERS.copy()
@@ -614,7 +779,11 @@ class BigQuery(Dialect):
 
         NULL_TOKENS = {TokenType.NULL, TokenType.UNKNOWN}
 
-        DASHED_TABLE_PART_FOLLOW_TOKENS = {TokenType.DOT, TokenType.L_PAREN, TokenType.R_PAREN}
+        DASHED_TABLE_PART_FOLLOW_TOKENS = {
+            TokenType.DOT,
+            TokenType.L_PAREN,
+            TokenType.R_PAREN,
+        }
 
         STATEMENT_PARSERS = {
             **parser.Parser.STATEMENT_PARSERS,
@@ -635,7 +804,9 @@ class BigQuery(Dialect):
         def _parse_for_in(self) -> exp.ForIn:
             this = self._parse_range()
             self._match_text_seq("DO")
-            return self.expression(exp.ForIn, this=this, expression=self._parse_statement())
+            return self.expression(
+                exp.ForIn, this=this, expression=self._parse_statement()
+            )
 
         def _parse_table_part(self, schema: bool = False) -> t.Optional[exp.Expression]:
             this = super()._parse_table_part(schema=schema) or self._parse_number()
@@ -645,7 +816,9 @@ class BigQuery(Dialect):
                 table_name = this.name
                 while self._match(TokenType.DASH, advance=False) and self._next:
                     start = self._curr
-                    while self._is_connected() and not self._match_set(self.DASHED_TABLE_PART_FOLLOW_TOKENS, advance=False):
+                    while self._is_connected() and not self._match_set(
+                        self.DASHED_TABLE_PART_FOLLOW_TOKENS, advance=False
+                    ):
                         self._advance()
 
                     if start == self._curr:
@@ -653,19 +826,30 @@ class BigQuery(Dialect):
 
                     table_name += self._find_sql(start, self._prev)
 
-                this = exp.Identifier(this=table_name, quoted=this.args.get("quoted")).update_positions(this)
+                this = exp.Identifier(
+                    this=table_name, quoted=this.args.get("quoted")
+                ).update_positions(this)
             elif isinstance(this, exp.Literal):
                 table_name = this.name
 
                 if self._is_connected() and self._parse_var(any_token=True):
                     table_name += self._prev.text
 
-                this = exp.Identifier(this=table_name, quoted=True).update_positions(this)
+                this = exp.Identifier(this=table_name, quoted=True).update_positions(
+                    this
+                )
 
             return this
 
-        def _parse_table_parts(self, schema: bool = False, is_db_reference: bool = False, wildcard: bool = False) -> exp.Table:
-            table = super()._parse_table_parts(schema=schema, is_db_reference=is_db_reference, wildcard=True)
+        def _parse_table_parts(
+            self,
+            schema: bool = False,
+            is_db_reference: bool = False,
+            wildcard: bool = False,
+        ) -> exp.Table:
+            table = super()._parse_table_parts(
+                schema=schema, is_db_reference=is_db_reference, wildcard=True
+            )
 
             # proj-1.db.tbl -- `1.` is tokenized as a float so we need to unravel it here
             if not table.catalog:
@@ -673,18 +857,41 @@ class BigQuery(Dialect):
                     previous_db = table.args["db"]
                     parts = table.db.split(".")
                     if len(parts) == 2 and not table.args["db"].quoted:
-                        table.set("catalog", exp.Identifier(this=parts[0]).update_positions(previous_db))
-                        table.set("db", exp.Identifier(this=parts[1]).update_positions(previous_db))
+                        table.set(
+                            "catalog",
+                            exp.Identifier(this=parts[0]).update_positions(previous_db),
+                        )
+                        table.set(
+                            "db",
+                            exp.Identifier(this=parts[1]).update_positions(previous_db),
+                        )
                 else:
                     previous_this = table.this
                     parts = table.name.split(".")
                     if len(parts) == 2 and not table.this.quoted:
-                        table.set("db", exp.Identifier(this=parts[0]).update_positions(previous_this))
-                        table.set("this", exp.Identifier(this=parts[1]).update_positions(previous_this))
+                        table.set(
+                            "db",
+                            exp.Identifier(this=parts[0]).update_positions(
+                                previous_this
+                            ),
+                        )
+                        table.set(
+                            "this",
+                            exp.Identifier(this=parts[1]).update_positions(
+                                previous_this
+                            ),
+                        )
 
-            if isinstance(table.this, exp.Identifier) and any("." in p.name for p in table.parts):
+            if isinstance(table.this, exp.Identifier) and any(
+                "." in p.name for p in table.parts
+            ):
                 alias = table.this
-                catalog, db, this, *rest = (exp.to_identifier(p, quoted=True) for p in split_num_words(".".join(p.name for p in table.parts), ".", 3))
+                catalog, db, this, *rest = (
+                    exp.to_identifier(p, quoted=True)
+                    for p in split_num_words(
+                        ".".join(p.name for p in table.parts), ".", 3
+                    )
+                )
 
                 for part in (catalog, db, this):
                     if part:
@@ -693,7 +900,9 @@ class BigQuery(Dialect):
                 if rest and this:
                     this = exp.Dot.build([this, *rest])  # type: ignore
 
-                table = exp.Table(this=this, db=db, catalog=catalog, pivots=table.args.get("pivots"))
+                table = exp.Table(
+                    this=this, db=db, catalog=catalog, pivots=table.args.get("pivots")
+                )
                 table.meta["quoted_table"] = True
             else:
                 alias = None
@@ -709,7 +918,10 @@ class BigQuery(Dialect):
             #
             # See: https://cloud.google.com/bigquery/docs/information-schema-intro#syntax
             table_parts = table.parts
-            if len(table_parts) > 1 and table_parts[-2].name.upper() == "INFORMATION_SCHEMA":
+            if (
+                len(table_parts) > 1
+                and table_parts[-2].name.upper() == "INFORMATION_SCHEMA"
+            ):
                 # We need to alias the table here to avoid breaking existing qualified columns.
                 # This is expected to be safe, because if there's an actual alias coming up in
                 # the token stream, it will overwrite this one. If there isn't one, we are only
@@ -722,7 +934,9 @@ class BigQuery(Dialect):
                 )
 
                 info_schema_view = f"{table_parts[-2].name}.{table_parts[-1].name}"
-                new_this = exp.Identifier(this=info_schema_view, quoted=True).update_positions(
+                new_this = exp.Identifier(
+                    this=info_schema_view, quoted=True
+                ).update_positions(
                     line=table_parts[-2].meta.get("line"),
                     col=table_parts[-1].meta.get("col"),
                     start=table_parts[-2].meta.get("start"),
@@ -739,7 +953,12 @@ class BigQuery(Dialect):
             if isinstance(column, exp.Column):
                 parts = column.parts
                 if any("." in p.name for p in parts):
-                    catalog, db, table, this, *rest = (exp.to_identifier(p, quoted=True) for p in split_num_words(".".join(p.name for p in parts), ".", 4))
+                    catalog, db, table, this, *rest = (
+                        exp.to_identifier(p, quoted=True)
+                        for p in split_num_words(
+                            ".".join(p.name for p in parts), ".", 4
+                        )
+                    )
 
                     if rest and this:
                         this = exp.Dot.build([this, *rest])  # type: ignore
@@ -761,18 +980,27 @@ class BigQuery(Dialect):
 
             # Converts BQ's "signature 2" of JSON_OBJECT into SQLGlot's canonical representation
             # https://cloud.google.com/bigquery/docs/reference/standard-sql/json_functions#json_object_signature2
-            if array_kv_pair and isinstance(array_kv_pair.this, exp.Array) and isinstance(array_kv_pair.expression, exp.Array):
+            if (
+                array_kv_pair
+                and isinstance(array_kv_pair.this, exp.Array)
+                and isinstance(array_kv_pair.expression, exp.Array)
+            ):
                 keys = array_kv_pair.this.expressions
                 values = array_kv_pair.expression.expressions
 
                 json_object.set(
                     "expressions",
-                    [exp.JSONKeyValue(this=k, expression=v) for k, v in zip(keys, values)],
+                    [
+                        exp.JSONKeyValue(this=k, expression=v)
+                        for k, v in zip(keys, values)
+                    ],
                 )
 
             return json_object
 
-        def _parse_bracket(self, this: t.Optional[exp.Expression] = None) -> t.Optional[exp.Expression]:
+        def _parse_bracket(
+            self, this: t.Optional[exp.Expression] = None
+        ) -> t.Optional[exp.Expression]:
             bracket = super()._parse_bracket(this)
 
             if this is bracket:
@@ -806,7 +1034,10 @@ class BigQuery(Dialect):
 
                 # Unnesting a nested array (i.e array of structs) explodes the top-level struct fields,
                 # in contrast to other dialects such as DuckDB which flattens only the array by default
-                if unnest_expr.is_type(exp.DataType.Type.ARRAY) and any(array_elem.is_type(exp.DataType.Type.STRUCT) for array_elem in unnest_expr._type.expressions):
+                if unnest_expr.is_type(exp.DataType.Type.ARRAY) and any(
+                    array_elem.is_type(exp.DataType.Type.STRUCT)
+                    for array_elem in unnest_expr._type.expressions
+                ):
                     unnest.set("explode_array", True)
 
             return unnest
@@ -834,7 +1065,8 @@ class BigQuery(Dialect):
         def _parse_features_at_time(self) -> exp.FeaturesAtTime:
             expr = self.expression(
                 exp.FeaturesAtTime,
-                this=(self._match(TokenType.TABLE) and self._parse_table()) or self._parse_select(nested=True),
+                this=(self._match(TokenType.TABLE) and self._parse_table())
+                or self._parse_select(nested=True),
             )
 
             while self._match(TokenType.COMMA):
@@ -852,7 +1084,8 @@ class BigQuery(Dialect):
 
             return self.expression(
                 exp.Export,
-                connection=self._match_text_seq("WITH", "CONNECTION") and self._parse_table_parts(),
+                connection=self._match_text_seq("WITH", "CONNECTION")
+                and self._parse_table_parts(),
                 options=self._parse_properties(),
                 this=self._match_text_seq("AS") and self._parse_select(),
             )
@@ -892,24 +1125,40 @@ class BigQuery(Dialect):
             exp.ArrayContains: _array_contains_sql,
             exp.ArrayFilter: filter_array_using_unnest,
             exp.ArrayRemove: filter_array_using_unnest,
-            exp.Cast: transforms.preprocess([transforms.remove_precision_parameterized_types]),
-            exp.CollateProperty: lambda self, e: (f"DEFAULT COLLATE {self.sql(e, 'this')}" if e.args.get("default") else f"COLLATE {self.sql(e, 'this')}"),
+            exp.Cast: transforms.preprocess(
+                [transforms.remove_precision_parameterized_types]
+            ),
+            exp.CollateProperty: lambda self, e: (
+                f"DEFAULT COLLATE {self.sql(e, 'this')}"
+                if e.args.get("default")
+                else f"COLLATE {self.sql(e, 'this')}"
+            ),
             exp.Commit: lambda *_: "COMMIT TRANSACTION",
             exp.CountIf: rename_func("COUNTIF"),
             exp.Create: _create_sql,
             exp.CTE: transforms.preprocess([_pushdown_cte_column_names]),
             exp.DateAdd: date_add_interval_sql("DATE", "ADD"),
-            exp.DateDiff: lambda self, e: self.func("DATE_DIFF", e.this, e.expression, unit_to_var(e)),
+            exp.DateDiff: lambda self, e: self.func(
+                "DATE_DIFF", e.this, e.expression, unit_to_var(e)
+            ),
             exp.DateFromParts: rename_func("DATE"),
             exp.DateStrToDate: datestrtodate_sql,
             exp.DateSub: date_add_interval_sql("DATE", "SUB"),
             exp.DatetimeAdd: date_add_interval_sql("DATETIME", "ADD"),
             exp.DatetimeSub: date_add_interval_sql("DATETIME", "SUB"),
-            exp.FromTimeZone: lambda self, e: self.func("DATETIME", self.func("TIMESTAMP", e.this, e.args.get("zone")), "'UTC'"),
+            exp.FromTimeZone: lambda self, e: self.func(
+                "DATETIME", self.func("TIMESTAMP", e.this, e.args.get("zone")), "'UTC'"
+            ),
             exp.GenerateSeries: rename_func("GENERATE_ARRAY"),
-            exp.GroupConcat: lambda self, e: groupconcat_sql(self, e, func_name="STRING_AGG", within_group=False),
-            exp.Hex: lambda self, e: self.func("UPPER", self.func("TO_HEX", self.sql(e, "this"))),
-            exp.HexString: lambda self, e: self.hexstring_sql(e, binary_function_repr="FROM_HEX"),
+            exp.GroupConcat: lambda self, e: groupconcat_sql(
+                self, e, func_name="STRING_AGG", within_group=False
+            ),
+            exp.Hex: lambda self, e: self.func(
+                "UPPER", self.func("TO_HEX", self.sql(e, "this"))
+            ),
+            exp.HexString: lambda self, e: self.hexstring_sql(
+                e, binary_function_repr="FROM_HEX"
+            ),
             exp.If: if_sql(false_value="NULL"),
             exp.ILike: no_ilike_sql,
             exp.IntDiv: rename_func("DIV"),
@@ -931,7 +1180,9 @@ class BigQuery(Dialect):
                 e.args.get("position"),
                 e.args.get("occurrence"),
             ),
-            exp.RegexpExtractAll: lambda self, e: self.func("REGEXP_EXTRACT_ALL", e.this, e.expression),
+            exp.RegexpExtractAll: lambda self, e: self.func(
+                "REGEXP_EXTRACT_ALL", e.this, e.expression
+            ),
             exp.RegexpReplace: regexp_replace_sql,
             exp.RegexpLike: rename_func("REGEXP_CONTAINS"),
             exp.ReturnsProperty: _returnsproperty_sql,
@@ -948,9 +1199,19 @@ class BigQuery(Dialect):
             exp.SHA: rename_func("SHA1"),
             exp.SHA2: sha256_sql,
             exp.Space: space_sql,
-            exp.StabilityProperty: lambda self, e: ("DETERMINISTIC" if e.name == "IMMUTABLE" else "NOT DETERMINISTIC"),
+            exp.StabilityProperty: lambda self, e: (
+                "DETERMINISTIC" if e.name == "IMMUTABLE" else "NOT DETERMINISTIC"
+            ),
             exp.String: rename_func("STRING"),
-            exp.StrPosition: lambda self, e: (strposition_sql(self, e, func_name="INSTR", supports_position=True, supports_occurrence=True)),
+            exp.StrPosition: lambda self, e: (
+                strposition_sql(
+                    self,
+                    e,
+                    func_name="INSTR",
+                    supports_position=True,
+                    supports_occurrence=True,
+                )
+            ),
             exp.StrToDate: _str_to_datetime_sql,
             exp.StrToTime: _str_to_datetime_sql,
             exp.TimeAdd: date_add_interval_sql("TIME", "ADD"),
@@ -1126,7 +1387,9 @@ class BigQuery(Dialect):
         def datetrunc_sql(self, expression: exp.DateTrunc) -> str:
             unit = expression.unit
             unit_sql = unit.name if unit.is_string else self.sql(unit)
-            return self.func("DATE_TRUNC", expression.this, unit_sql, expression.args.get("zone"))
+            return self.func(
+                "DATE_TRUNC", expression.this, unit_sql, expression.args.get("zone")
+            )
 
         def mod_sql(self, expression: exp.Mod) -> str:
             this = expression.this
@@ -1171,12 +1434,26 @@ class BigQuery(Dialect):
             else:
                 func_name = "FORMAT_DATE"
 
-            time_expr = this if isinstance(this, (exp.TsOrDsToDatetime, exp.TsOrDsToTimestamp, exp.TsOrDsToDate)) else expression
-            return self.func(func_name, self.format_time(expression), time_expr.this, expression.args.get("zone"))
+            time_expr = (
+                this
+                if isinstance(
+                    this,
+                    (exp.TsOrDsToDatetime, exp.TsOrDsToTimestamp, exp.TsOrDsToDate),
+                )
+                else expression
+            )
+            return self.func(
+                func_name,
+                self.format_time(expression),
+                time_expr.this,
+                expression.args.get("zone"),
+            )
 
         def eq_sql(self, expression: exp.EQ) -> str:
             # Operands of = cannot be NULL in BigQuery
-            if isinstance(expression.left, exp.Null) or isinstance(expression.right, exp.Null):
+            if isinstance(expression.left, exp.Null) or isinstance(
+                expression.right, exp.Null
+            ):
                 if not isinstance(expression.parent, exp.Update):
                     return "NULL"
 
@@ -1188,7 +1465,10 @@ class BigQuery(Dialect):
             # BigQuery allows CAST(.. AS {STRING|TIMESTAMP} [FORMAT <fmt> [AT TIME ZONE <tz>]]).
             # Only the TIMESTAMP one should use the below conversion, when AT TIME ZONE is included.
             if not isinstance(parent, exp.Cast) or not parent.to.is_type("text"):
-                return self.func("TIMESTAMP", self.func("DATETIME", expression.this, expression.args.get("zone")))
+                return self.func(
+                    "TIMESTAMP",
+                    self.func("DATETIME", expression.this, expression.args.get("zone")),
+                )
 
             return super().attimezone_sql(expression)
 
@@ -1199,7 +1479,11 @@ class BigQuery(Dialect):
             this = expression.this
             expressions = expression.expressions
 
-            if len(expressions) == 1 and this and this.is_type(exp.DataType.Type.STRUCT):
+            if (
+                len(expressions) == 1
+                and this
+                and this.is_type(exp.DataType.Type.STRUCT)
+            ):
                 arg = expressions[0]
                 if arg.type is None:
                     from sqlglot.optimizer.annotate_types import annotate_types
@@ -1243,7 +1527,9 @@ class BigQuery(Dialect):
 
             return self.func("CONTAINS_SUBSTR", this, expr)
 
-        def cast_sql(self, expression: exp.Cast, safe_prefix: t.Optional[str] = None) -> str:
+        def cast_sql(
+            self, expression: exp.Cast, safe_prefix: t.Optional[str] = None
+        ) -> str:
             this = expression.this
 
             # This ensures that inline type-annotated ARRAY literals like ARRAY<INT64>[1, 2, 3]

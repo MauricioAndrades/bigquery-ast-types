@@ -48,7 +48,11 @@ from sqlglot.expressions import (
 from sqlglot.generator import Generator as Generator
 from sqlglot.parser import Parser as Parser
 from sqlglot.schema import MappingSchema as MappingSchema, Schema as Schema
-from sqlglot.tokens import Token as Token, Tokenizer as Tokenizer, TokenType as TokenType
+from sqlglot.tokens import (
+    Token as Token,
+    Tokenizer as Tokenizer,
+    TokenType as TokenType,
+)
 
 if t.TYPE_CHECKING:
     from sqlglot._typing import E
@@ -60,14 +64,18 @@ logger = logging.getLogger("sqlglot")
 try:
     from sqlglot._version import __version__, __version_tuple__
 except ImportError:
-    logger.error("Unable to set __version__, run `pip install -e .` or `python setup.py develop` first.")
+    logger.error(
+        "Unable to set __version__, run `pip install -e .` or `python setup.py develop` first."
+    )
 
 
 pretty = False
 """Whether to format generated SQL by default."""
 
 
-def tokenize(sql: str, read: DialectType = None, dialect: DialectType = None) -> t.List[Token]:
+def tokenize(
+    sql: str, read: DialectType = None, dialect: DialectType = None
+) -> t.List[Token]:
     """
     Tokenizes the given SQL string.
 
@@ -82,7 +90,9 @@ def tokenize(sql: str, read: DialectType = None, dialect: DialectType = None) ->
     return Dialect.get_or_raise(read or dialect).tokenize(sql)
 
 
-def parse(sql: str, read: DialectType = None, dialect: DialectType = None, **opts) -> t.List[t.Optional[Expression]]:
+def parse(
+    sql: str, read: DialectType = None, dialect: DialectType = None, **opts
+) -> t.List[t.Optional[Expression]]:
     """
     Parses the given SQL string into a collection of syntax trees, one per parsed SQL statement.
 
@@ -168,4 +178,7 @@ def transpile(
     """
     write = (read if write is None else write) if identity else write
     write = Dialect.get_or_raise(write)
-    return [write.generate(expression, copy=False, **opts) if expression else "" for expression in parse(sql, read, error_level=error_level)]
+    return [
+        write.generate(expression, copy=False, **opts) if expression else ""
+        for expression in parse(sql, read, error_level=error_level)
+    ]

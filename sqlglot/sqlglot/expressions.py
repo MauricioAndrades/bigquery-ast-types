@@ -102,7 +102,16 @@ class Expression(metaclass=_Expression):
 
     key = "expression"
     arg_types = {"this": True}
-    __slots__ = ("args", "parent", "arg_key", "index", "comments", "_type", "_meta", "_hash")
+    __slots__ = (
+        "args",
+        "parent",
+        "arg_key",
+        "index",
+        "comments",
+        "_type",
+        "_meta",
+        "_hash",
+    )
 
     def __init__(self, **args: t.Any):
         self.args: t.Dict[str, t.Any] = args
@@ -122,7 +131,11 @@ class Expression(metaclass=_Expression):
 
     @property
     def hashable_args(self) -> t.Any:
-        return frozenset((k, tuple(_norm_arg(a) for a in v) if type(v) is list else _norm_arg(v)) for k, v in self.args.items() if not (v is None or v is False or (type(v) is list and not v)))
+        return frozenset(
+            (k, tuple(_norm_arg(a) for a in v) if type(v) is list else _norm_arg(v))
+            for k, v in self.args.items()
+            if not (v is None or v is False or (type(v) is list and not v))
+        )
 
     def __hash__(self) -> int:
         if self._hash is not None:
@@ -177,7 +190,9 @@ class Expression(metaclass=_Expression):
         """
         Checks whether a Literal expression is a number.
         """
-        return (isinstance(self, Literal) and not self.args["is_string"]) or (isinstance(self, Neg) and self.this.is_number)
+        return (isinstance(self, Literal) and not self.args["is_string"]) or (
+            isinstance(self, Neg) and self.this.is_number
+        )
 
     def to_py(self) -> t.Any:
         """
@@ -195,7 +210,9 @@ class Expression(metaclass=_Expression):
     @property
     def is_star(self) -> bool:
         """Checks whether an expression is a star."""
-        return isinstance(self, Star) or (isinstance(self, Column) and isinstance(self.this, Star))
+        return isinstance(self, Star) or (
+            isinstance(self, Column) and isinstance(self.this, Star)
+        )
 
     @property
     def alias(self) -> str:
@@ -301,7 +318,9 @@ class Expression(metaclass=_Expression):
         """
         return deepcopy(self)
 
-    def add_comments(self, comments: t.Optional[t.List[str]] = None, prepend: bool = False) -> None:
+    def add_comments(
+        self, comments: t.Optional[t.List[str]] = None, prepend: bool = False
+    ) -> None:
         if self.comments is None:
             self.comments = []
 
@@ -385,7 +404,9 @@ class Expression(metaclass=_Expression):
         self.args[arg_key] = value
         self._set_parent(arg_key, value, index)
 
-    def _set_parent(self, arg_key: str, value: t.Any, index: t.Optional[int] = None) -> None:
+    def _set_parent(
+        self, arg_key: str, value: t.Any, index: t.Optional[int] = None
+    ) -> None:
         if hasattr(value, "parent"):
             value.parent = self
             value.arg_key = arg_key
@@ -483,7 +504,9 @@ class Expression(metaclass=_Expression):
             expression = expression.parent
         return expression
 
-    def walk(self, bfs: bool = True, prune: t.Optional[t.Callable[[Expression], bool]] = None) -> t.Iterator[Expression]:
+    def walk(
+        self, bfs: bool = True, prune: t.Optional[t.Callable[[Expression], bool]] = None
+    ) -> t.Iterator[Expression]:
         """
         Returns a generator object which visits all nodes in this tree.
 
@@ -501,7 +524,9 @@ class Expression(metaclass=_Expression):
         else:
             yield from self.dfs(prune=prune)
 
-    def dfs(self, prune: t.Optional[t.Callable[[Expression], bool]] = None) -> t.Iterator[Expression]:
+    def dfs(
+        self, prune: t.Optional[t.Callable[[Expression], bool]] = None
+    ) -> t.Iterator[Expression]:
         """
         Returns a generator object which visits all nodes in this tree in
         the DFS (Depth-first) order.
@@ -522,7 +547,9 @@ class Expression(metaclass=_Expression):
             for v in node.iter_expressions(reverse=True):
                 stack.append(v)
 
-    def bfs(self, prune: t.Optional[t.Callable[[Expression], bool]] = None) -> t.Iterator[Expression]:
+    def bfs(
+        self, prune: t.Optional[t.Callable[[Expression], bool]] = None
+    ) -> t.Iterator[Expression]:
         """
         Returns a generator object which visits all nodes in this tree in
         the BFS (Breadth-first) order.
@@ -572,9 +599,13 @@ class Expression(metaclass=_Expression):
 
         A AND B AND C -> [A, B, C]
         """
-        for node in self.dfs(prune=lambda n: n.parent and type(n) is not self.__class__):
+        for node in self.dfs(
+            prune=lambda n: n.parent and type(n) is not self.__class__
+        ):
             if type(node) is not self.__class__:
-                yield node.unnest() if unnest and not isinstance(node, Subquery) else node
+                yield (
+                    node.unnest() if unnest and not isinstance(node, Subquery) else node
+                )
 
     def __str__(self) -> str:
         return self.sql()
@@ -604,7 +635,9 @@ class Expression(metaclass=_Expression):
 
         return Dialect.get_or_raise(dialect).generate(self, **opts)
 
-    def transform(self, fun: t.Callable, *args: t.Any, copy: bool = True, **kwargs) -> Expression:
+    def transform(
+        self, fun: t.Callable, *args: t.Any, copy: bool = True, **kwargs
+    ) -> Expression:
         """
         Visits all tree nodes (excluding already transformed ones)
         and applies the given transformation function to each node.
@@ -622,7 +655,9 @@ class Expression(metaclass=_Expression):
         root = None
         new_node = None
 
-        for node in (self.copy() if copy else self).dfs(prune=lambda n: n is not new_node):
+        for node in (self.copy() if copy else self).dfs(
+            prune=lambda n: n is not new_node
+        ):
             parent, arg_key, index = node.parent, node.arg_key, node.index
             new_node = fun(node, *args, **kwargs)
 
@@ -730,8 +765,16 @@ class Expression(metaclass=_Expression):
             if mandatory and (v is None or (isinstance(v, list) and not v)):
                 errors.append(f"Required keyword: '{k}' missing for {self.__class__}")
 
-        if args and isinstance(self, Func) and len(args) > len(self.arg_types) and not self.is_var_len_args:
-            errors.append(f"The number of provided arguments ({len(args)}) is greater than " f"the maximum number of supported arguments ({len(self.arg_types)})")
+        if (
+            args
+            and isinstance(self, Func)
+            and len(args) > len(self.arg_types)
+            and not self.is_var_len_args
+        ):
+            errors.append(
+                f"The number of provided arguments ({len(args)}) is greater than "
+                f"the maximum number of supported arguments ({len(self.arg_types)})"
+            )
 
         return errors
 
@@ -828,7 +871,9 @@ class Expression(metaclass=_Expression):
         """
         return not_(self, copy=copy)
 
-    def update_positions(self: E, other: t.Optional[Token | Expression] = None, **kwargs: t.Any) -> E:
+    def update_positions(
+        self: E, other: t.Optional[Token | Expression] = None, **kwargs: t.Any
+    ) -> E:
         """
         Update this expression with positions from a token or other expression.
 
@@ -839,7 +884,9 @@ class Expression(metaclass=_Expression):
             The updated expression.
         """
         if isinstance(other, Expression):
-            self.meta.update({k: v for k, v in other.meta.items() if k in POSITION_META_KEYS})
+            self.meta.update(
+                {k: v for k, v in other.meta.items() if k in POSITION_META_KEYS}
+            )
         elif other is not None:
             self.meta.update(
                 {
@@ -873,7 +920,10 @@ class Expression(metaclass=_Expression):
         return klass(this=this, expression=other)
 
     def __getitem__(self, other: ExpOrStr | t.Tuple[ExpOrStr]) -> Bracket:
-        return Bracket(this=self.copy(), expressions=[convert(e, copy=True) for e in ensure_list(other)])
+        return Bracket(
+            this=self.copy(),
+            expressions=[convert(e, copy=True) for e in ensure_list(other)],
+        )
 
     def __iter__(self) -> t.Iterator:
         if "expressions" in self.arg_types:
@@ -899,7 +949,16 @@ class Expression(metaclass=_Expression):
             this=maybe_copy(self, copy),
             expressions=[convert(e, copy=copy) for e in expressions],
             query=subquery,
-            unnest=(Unnest(expressions=[maybe_parse(t.cast(ExpOrStr, e), copy=copy, **opts) for e in ensure_list(unnest)]) if unnest else None),
+            unnest=(
+                Unnest(
+                    expressions=[
+                        maybe_parse(t.cast(ExpOrStr, e), copy=copy, **opts)
+                        for e in ensure_list(unnest)
+                    ]
+                )
+                if unnest
+                else None
+            ),
         )
 
     def between(
@@ -1050,7 +1109,9 @@ class DerivedTable(Expression):
 
 
 class Query(Expression):
-    def subquery(self, alias: t.Optional[ExpOrStr] = None, copy: bool = True) -> Subquery:
+    def subquery(
+        self, alias: t.Optional[ExpOrStr] = None, copy: bool = True
+    ) -> Subquery:
         """
         Returns a `Subquery` that wraps around this query.
 
@@ -1069,7 +1130,13 @@ class Query(Expression):
 
         return Subquery(this=instance, alias=alias)
 
-    def limit(self: Q, expression: ExpOrStr | int, dialect: DialectType = None, copy: bool = True, **opts) -> Q:
+    def limit(
+        self: Q,
+        expression: ExpOrStr | int,
+        dialect: DialectType = None,
+        copy: bool = True,
+        **opts,
+    ) -> Q:
         """
         Adds a LIMIT clause to this query.
 
@@ -1101,7 +1168,13 @@ class Query(Expression):
             **opts,
         )
 
-    def offset(self: Q, expression: ExpOrStr | int, dialect: DialectType = None, copy: bool = True, **opts) -> Q:
+    def offset(
+        self: Q,
+        expression: ExpOrStr | int,
+        dialect: DialectType = None,
+        copy: bool = True,
+        **opts,
+    ) -> Q:
         """
         Set the OFFSET expression.
 
@@ -1306,7 +1379,13 @@ class Query(Expression):
             **opts,
         )
 
-    def union(self, *expressions: ExpOrStr, distinct: bool = True, dialect: DialectType = None, **opts) -> Union:
+    def union(
+        self,
+        *expressions: ExpOrStr,
+        distinct: bool = True,
+        dialect: DialectType = None,
+        **opts,
+    ) -> Union:
         """
         Builds a UNION expression.
 
@@ -1327,7 +1406,13 @@ class Query(Expression):
         """
         return union(self, *expressions, distinct=distinct, dialect=dialect, **opts)
 
-    def intersect(self, *expressions: ExpOrStr, distinct: bool = True, dialect: DialectType = None, **opts) -> Intersect:
+    def intersect(
+        self,
+        *expressions: ExpOrStr,
+        distinct: bool = True,
+        dialect: DialectType = None,
+        **opts,
+    ) -> Intersect:
         """
         Builds an INTERSECT expression.
 
@@ -1348,7 +1433,13 @@ class Query(Expression):
         """
         return intersect(self, *expressions, distinct=distinct, dialect=dialect, **opts)
 
-    def except_(self, *expressions: ExpOrStr, distinct: bool = True, dialect: DialectType = None, **opts) -> Except:
+    def except_(
+        self,
+        *expressions: ExpOrStr,
+        distinct: bool = True,
+        dialect: DialectType = None,
+        **opts,
+    ) -> Except:
         """
         Builds an EXCEPT expression.
 
@@ -1412,7 +1503,9 @@ class DDL(Expression):
         If this statement contains a query (e.g. a CTAS), this returns the output
         names of the query's projections.
         """
-        return self.expression.named_selects if isinstance(self.expression, Query) else []
+        return (
+            self.expression.named_selects if isinstance(self.expression, Query) else []
+        )
 
 
 class DML(Expression):
@@ -1665,7 +1758,13 @@ class UnicodeString(Condition):
 
 
 class Column(Condition):
-    arg_types = {"this": True, "table": False, "db": False, "catalog": False, "join_mark": False}
+    arg_types = {
+        "this": True,
+        "table": False,
+        "db": False,
+        "catalog": False,
+        "join_mark": False,
+    }
 
     @property
     def table(self) -> str:
@@ -1686,7 +1785,11 @@ class Column(Condition):
     @property
     def parts(self) -> t.List[Identifier]:
         """Return the parts of a column in order catalog, db, table, name."""
-        return [t.cast(Identifier, self.args[part]) for part in ("catalog", "db", "table", "this") if self.args.get(part)]
+        return [
+            t.cast(Identifier, self.args[part])
+            for part in ("catalog", "db", "table", "this")
+            if self.args.get(part)
+        ]
 
     def to_dot(self, include_dots: bool = True) -> Dot | Identifier:
         """Converts the column into a dot expression."""
@@ -3242,7 +3345,9 @@ class Properties(Expression):
             if property_cls:
                 expressions.append(property_cls(this=convert(value)))
             else:
-                expressions.append(Property(this=Literal.string(key), value=convert(value)))
+                expressions.append(
+                    Property(this=Literal.string(key), value=convert(value))
+                )
 
         return cls(expressions=expressions)
 
@@ -3279,7 +3384,16 @@ class Tuple(Expression):
             this=maybe_copy(self, copy),
             expressions=[convert(e, copy=copy) for e in expressions],
             query=maybe_parse(query, copy=copy, **opts) if query else None,
-            unnest=(Unnest(expressions=[maybe_parse(t.cast(ExpOrStr, e), copy=copy, **opts) for e in ensure_list(unnest)]) if unnest else None),
+            unnest=(
+                Unnest(
+                    expressions=[
+                        maybe_parse(t.cast(ExpOrStr, e), copy=copy, **opts)
+                        for e in ensure_list(unnest)
+                    ]
+                )
+                if unnest
+                else None
+            ),
         )
 
 
@@ -3439,8 +3553,12 @@ class SetOperation(Query):
         **opts,
     ) -> S:
         this = maybe_copy(self, copy)
-        this.this.unnest().select(*expressions, append=append, dialect=dialect, copy=False, **opts)
-        this.expression.unnest().select(*expressions, append=append, dialect=dialect, copy=False, **opts)
+        this.this.unnest().select(
+            *expressions, append=append, dialect=dialect, copy=False, **opts
+        )
+        this.expression.unnest().select(
+            *expressions, append=append, dialect=dialect, copy=False, **opts
+        )
         return this
 
     @property
@@ -3496,7 +3614,13 @@ class Update(DML):
         "limit": False,
     }
 
-    def table(self, expression: ExpOrStr, dialect: DialectType = None, copy: bool = True, **opts) -> Update:
+    def table(
+        self,
+        expression: ExpOrStr,
+        dialect: DialectType = None,
+        copy: bool = True,
+        **opts,
+    ) -> Update:
         """
         Set the table to update.
 
@@ -3734,7 +3858,13 @@ class Select(Query):
         **QUERY_MODIFIERS,
     }
 
-    def from_(self, expression: ExpOrStr, dialect: DialectType = None, copy: bool = True, **opts) -> Select:
+    def from_(
+        self,
+        expression: ExpOrStr,
+        dialect: DialectType = None,
+        copy: bool = True,
+        **opts,
+    ) -> Select:
         """
         Set the FROM expression.
 
@@ -4121,7 +4251,9 @@ class Select(Query):
             **opts,
         )
 
-    def distinct(self, *ons: t.Optional[ExpOrStr], distinct: bool = True, copy: bool = True) -> Select:
+    def distinct(
+        self, *ons: t.Optional[ExpOrStr], distinct: bool = True, copy: bool = True
+    ) -> Select:
         """
         Set the OFFSET expression.
 
@@ -4138,7 +4270,11 @@ class Select(Query):
             Select: the modified expression.
         """
         instance = maybe_copy(self, copy)
-        on = Tuple(expressions=[maybe_parse(on, copy=copy) for on in ons if on]) if ons else None
+        on = (
+            Tuple(expressions=[maybe_parse(on, copy=copy) for on in ons if on])
+            if ons
+            else None
+        )
         instance.set("distinct", Distinct(on=on) if distinct else None)
         return instance
 
@@ -4205,7 +4341,9 @@ class Select(Query):
 
         return inst
 
-    def hint(self, *hints: ExpOrStr, dialect: DialectType = None, copy: bool = True) -> Select:
+    def hint(
+        self, *hints: ExpOrStr, dialect: DialectType = None, copy: bool = True
+    ) -> Select:
         """
         Set hints for this expression.
 
@@ -4223,7 +4361,12 @@ class Select(Query):
             The modified expression.
         """
         inst = maybe_copy(self, copy)
-        inst.set("hint", Hint(expressions=[maybe_parse(h, copy=copy, dialect=dialect) for h in hints]))
+        inst.set(
+            "hint",
+            Hint(
+                expressions=[maybe_parse(h, copy=copy, dialect=dialect) for h in hints]
+            ),
+        )
 
         return inst
 
@@ -4273,7 +4416,9 @@ class Subquery(DerivedTable, Query):
         **opts,
     ) -> Subquery:
         this = maybe_copy(self, copy)
-        this.unnest().select(*expressions, append=append, dialect=dialect, copy=False, **opts)
+        this.unnest().select(
+            *expressions, append=append, dialect=dialect, copy=False, **opts
+        )
         return this
 
     @property
@@ -4700,10 +4845,14 @@ class DataType(Expression):
                 return DataType(this=DataType.Type.UNKNOWN, **kwargs)
 
             try:
-                data_type_exp = parse_one(dtype, read=dialect, into=DataType, error_level=ErrorLevel.IGNORE)
+                data_type_exp = parse_one(
+                    dtype, read=dialect, into=DataType, error_level=ErrorLevel.IGNORE
+                )
             except ParseError:
                 if udt:
-                    return DataType(this=DataType.Type.USERDEFINED, kind=dtype, **kwargs)
+                    return DataType(
+                        this=DataType.Type.USERDEFINED, kind=dtype, **kwargs
+                    )
                 raise
         elif isinstance(dtype, (Identifier, Dot)) and udt:
             return DataType(this=DataType.Type.USERDEFINED, kind=dtype, **kwargs)
@@ -4712,7 +4861,9 @@ class DataType(Expression):
         elif isinstance(dtype, DataType):
             return maybe_copy(dtype, copy)
         else:
-            raise ValueError(f"Invalid data type: {type(dtype)}. Expected str or DataType.Type")
+            raise ValueError(
+                f"Invalid data type: {type(dtype)}. Expected str or DataType.Type"
+            )
 
         return DataType(**{**data_type_exp.args, **kwargs})
 
@@ -4733,7 +4884,12 @@ class DataType(Expression):
         for dtype in dtypes:
             other_type = DataType.build(dtype, copy=False, udt=True)
             other_is_nullable = other_type.args.get("nullable")
-            if other_type.expressions or (check_nullable and (self_is_nullable or other_is_nullable)) or self.this == DataType.Type.USERDEFINED or other_type.this == DataType.Type.USERDEFINED:
+            if (
+                other_type.expressions
+                or (check_nullable and (self_is_nullable or other_is_nullable))
+                or self.this == DataType.Type.USERDEFINED
+                or other_type.this == DataType.Type.USERDEFINED
+            ):
                 matches = self == other_type
             else:
                 matches = self.this == other_type.this
@@ -5220,7 +5376,9 @@ class TimeUnit(Expression):
     def __init__(self, **args):
         unit = args.get("unit")
         if isinstance(unit, self.VAR_LIKE):
-            args["unit"] = Var(this=(self.UNABBREVIATED_UNIT_NAME.get(unit.name) or unit.name).upper())
+            args["unit"] = Var(
+                this=(self.UNABBREVIATED_UNIT_NAME.get(unit.name) or unit.name).upper()
+            )
         elif isinstance(unit, Week):
             unit.set("this", Var(this=unit.this.name.upper()))
 
@@ -5286,10 +5444,14 @@ class Func(Condition):
         if cls.is_var_len_args:
             all_arg_keys = list(cls.arg_types)
             # If this function supports variable length argument treat the last argument as such.
-            non_var_len_arg_keys = all_arg_keys[:-1] if cls.is_var_len_args else all_arg_keys
+            non_var_len_arg_keys = (
+                all_arg_keys[:-1] if cls.is_var_len_args else all_arg_keys
+            )
             num_non_var = len(non_var_len_arg_keys)
 
-            args_dict = {arg_key: arg for arg, arg_key in zip(args, non_var_len_arg_keys)}
+            args_dict = {
+                arg_key: arg for arg, arg_key in zip(args, non_var_len_arg_keys)
+            }
             args_dict[all_arg_keys[-1]] = args[num_non_var:]
         else:
             args_dict = {arg_key: arg for arg, arg_key in zip(args, cls.arg_types)}
@@ -5299,7 +5461,9 @@ class Func(Condition):
     @classmethod
     def sql_names(cls):
         if cls is Func:
-            raise NotImplementedError("SQL name is only supported by concrete function implementations")
+            raise NotImplementedError(
+                "SQL name is only supported by concrete function implementations"
+            )
         if "_sql_names" not in cls.__dict__:
             cls._sql_names = [camel_to_snake_case(cls.__name__)]
         return cls._sql_names
@@ -5435,7 +5599,12 @@ class List(Func):
 
 # String pad, kind True -> LPAD, False -> RPAD
 class Pad(Func):
-    arg_types = {"this": True, "expression": True, "fill_pattern": False, "is_left": True}
+    arg_types = {
+        "this": True,
+        "expression": True,
+        "fill_pattern": False,
+        "is_left": True,
+    }
 
 
 # https://docs.snowflake.com/en/sql-reference/functions/to_char
@@ -5651,7 +5820,9 @@ class NthValue(AggFunc):
 class Case(Func):
     arg_types = {"this": False, "ifs": True, "default": False}
 
-    def when(self, condition: ExpOrStr, then: ExpOrStr, copy: bool = True, **opts) -> Case:
+    def when(
+        self, condition: ExpOrStr, then: ExpOrStr, copy: bool = True, **opts
+    ) -> Case:
         instance = maybe_copy(self, copy)
         instance.append(
             "ifs",
@@ -6074,7 +6245,12 @@ class FromBase64(Func):
 
 
 class FeaturesAtTime(Func):
-    arg_types = {"this": True, "time": False, "num_rows": False, "ignore_feature_nulls": False}
+    arg_types = {
+        "this": True,
+        "time": False,
+        "num_rows": False,
+        "ignore_feature_nulls": False,
+    }
 
 
 class ToBase64(Func):
@@ -6398,7 +6574,12 @@ class JSONExtractArray(Func):
 
 
 class JSONExtractScalar(Binary, Func):
-    arg_types = {"this": True, "expression": True, "only_json_types": False, "expressions": False}
+    arg_types = {
+        "this": True,
+        "expression": True,
+        "only_json_types": False,
+        "expressions": False,
+    }
     _sql_names = ["JSON_EXTRACT_SCALAR"]
     is_var_len_args = True
 
@@ -7187,13 +7368,17 @@ def maybe_copy(instance, copy=True):
     return instance.copy() if copy and instance else instance
 
 
-def _to_s(node: t.Any, verbose: bool = False, level: int = 0, repr_str: bool = False) -> str:
+def _to_s(
+    node: t.Any, verbose: bool = False, level: int = 0, repr_str: bool = False
+) -> str:
     """Generate a textual representation of an Expression tree"""
     indent = "\n" + ("  " * (level + 1))
     delim = f",{indent}"
 
     if isinstance(node, Expression):
-        args = {k: v for k, v in node.args.items() if (v is not None and v != []) or verbose}
+        args = {
+            k: v for k, v in node.args.items() if (v is not None and v != []) or verbose
+        }
 
         if (node.type or verbose) and not isinstance(node, DataType):
             args["_type"] = node.type
@@ -7209,7 +7394,12 @@ def _to_s(node: t.Any, verbose: bool = False, level: int = 0, repr_str: bool = F
             delim = ", "
 
         repr_str = node.is_string or (isinstance(node, Identifier) and node.quoted)
-        items = delim.join([f"{k}={_to_s(v, verbose, level + 1, repr_str=repr_str)}" for k, v in args.items()])
+        items = delim.join(
+            [
+                f"{k}={_to_s(v, verbose, level + 1, repr_str=repr_str)}"
+                for k, v in args.items()
+            ]
+        )
         return f"{node.__class__.__name__}({indent}{items})"
 
     if isinstance(node, list):
@@ -7376,7 +7566,12 @@ def _apply_cte_builder(
     if scalar and not isinstance(as_expression, Subquery):
         # scalar CTE must be wrapped in a subquery
         as_expression = Subquery(this=as_expression)
-    cte = CTE(this=as_expression, alias=alias_expression, materialized=materialized, scalar=scalar)
+    cte = CTE(
+        this=as_expression,
+        alias=alias_expression,
+        materialized=materialized,
+        scalar=scalar,
+    )
     return _apply_child_list_builder(
         cte,
         instance=instance,
@@ -7396,13 +7591,19 @@ def _combine(
     wrap: bool = True,
     **opts,
 ) -> Expression:
-    conditions = [condition(expression, dialect=dialect, copy=copy, **opts) for expression in expressions if expression is not None]
+    conditions = [
+        condition(expression, dialect=dialect, copy=copy, **opts)
+        for expression in expressions
+        if expression is not None
+    ]
 
     this, *rest = conditions
     if rest and wrap:
         this = _wrap(this, Connector)
     for expression in rest:
-        this = operator(this=this, expression=_wrap(expression, Connector) if wrap else expression)
+        this = operator(
+            this=this, expression=_wrap(expression, Connector) if wrap else expression
+        )
 
     return this
 
@@ -7459,7 +7660,14 @@ def union(
         The new Union instance.
     """
     assert len(expressions) >= 2, "At least two expressions are required by `union`."
-    return _apply_set_operation(*expressions, set_operation=Union, distinct=distinct, dialect=dialect, copy=copy, **opts)
+    return _apply_set_operation(
+        *expressions,
+        set_operation=Union,
+        distinct=distinct,
+        dialect=dialect,
+        copy=copy,
+        **opts,
+    )
 
 
 def intersect(
@@ -7487,8 +7695,17 @@ def intersect(
     Returns:
         The new Intersect instance.
     """
-    assert len(expressions) >= 2, "At least two expressions are required by `intersect`."
-    return _apply_set_operation(*expressions, set_operation=Intersect, distinct=distinct, dialect=dialect, copy=copy, **opts)
+    assert (
+        len(expressions) >= 2
+    ), "At least two expressions are required by `intersect`."
+    return _apply_set_operation(
+        *expressions,
+        set_operation=Intersect,
+        distinct=distinct,
+        dialect=dialect,
+        copy=copy,
+        **opts,
+    )
 
 
 def except_(
@@ -7517,7 +7734,14 @@ def except_(
         The new Except instance.
     """
     assert len(expressions) >= 2, "At least two expressions are required by `except_`."
-    return _apply_set_operation(*expressions, set_operation=Except, distinct=distinct, dialect=dialect, copy=copy, **opts)
+    return _apply_set_operation(
+        *expressions,
+        set_operation=Except,
+        distinct=distinct,
+        dialect=dialect,
+        copy=copy,
+        **opts,
+    )
 
 
 def select(*expressions: ExpOrStr, dialect: DialectType = None, **opts) -> Select:
@@ -7596,7 +7820,10 @@ def update(
     if properties:
         update_expr.set(
             "expressions",
-            [EQ(this=maybe_parse(k, dialect=dialect, **opts), expression=convert(v)) for k, v in properties.items()],
+            [
+                EQ(this=maybe_parse(k, dialect=dialect, **opts), expression=convert(v))
+                for k, v in properties.items()
+            ],
         )
     if from_:
         update_expr.set(
@@ -7611,7 +7838,12 @@ def update(
             maybe_parse(where, into=Where, dialect=dialect, prefix="WHERE", **opts),
         )
     if with_:
-        cte_list = [alias_(CTE(this=maybe_parse(qry, dialect=dialect, **opts)), alias, table=True) for alias, qry in with_.items()]
+        cte_list = [
+            alias_(
+                CTE(this=maybe_parse(qry, dialect=dialect, **opts)), alias, table=True
+            )
+            for alias, qry in with_.items()
+        ]
         update_expr.set(
             "with",
             With(expressions=cte_list),
@@ -7646,7 +7878,9 @@ def delete(
     if where:
         delete_expr = delete_expr.where(where, dialect=dialect, copy=False, **opts)
     if returning:
-        delete_expr = delete_expr.returning(returning, dialect=dialect, copy=False, **opts)
+        delete_expr = delete_expr.returning(
+            returning, dialect=dialect, copy=False, **opts
+        )
     return delete_expr
 
 
@@ -7681,10 +7915,14 @@ def insert(
         Insert: the syntax tree for the INSERT statement.
     """
     expr = maybe_parse(expression, dialect=dialect, copy=copy, **opts)
-    this: Table | Schema = maybe_parse(into, into=Table, dialect=dialect, copy=copy, **opts)
+    this: Table | Schema = maybe_parse(
+        into, into=Table, dialect=dialect, copy=copy, **opts
+    )
 
     if columns:
-        this = Schema(this=this, expressions=[to_identifier(c, copy=copy) for c in columns])
+        this = Schema(
+            this=this, expressions=[to_identifier(c, copy=copy) for c in columns]
+        )
 
     insert = Insert(this=this, expression=expr, overwrite=overwrite)
 
@@ -7730,8 +7968,12 @@ def merge(
     """
     expressions: t.List[Expression] = []
     for when_expr in when_exprs:
-        expression = maybe_parse(when_expr, dialect=dialect, copy=copy, into=Whens, **opts)
-        expressions.extend([expression] if isinstance(expression, When) else expression.expressions)
+        expression = maybe_parse(
+            when_expr, dialect=dialect, copy=copy, into=Whens, **opts
+        )
+        expressions.extend(
+            [expression] if isinstance(expression, When) else expression.expressions
+        )
 
     merge = Merge(
         this=maybe_parse(into, dialect=dialect, copy=copy, **opts),
@@ -7745,7 +7987,9 @@ def merge(
     return merge
 
 
-def condition(expression: ExpOrStr, dialect: DialectType = None, copy: bool = True, **opts) -> Condition:
+def condition(
+    expression: ExpOrStr, dialect: DialectType = None, copy: bool = True, **opts
+) -> Condition:
     """
     Initialize a logical condition expression.
 
@@ -7807,7 +8051,9 @@ def and_(
     Returns:
         The new condition
     """
-    return t.cast(Condition, _combine(expressions, And, dialect, copy=copy, wrap=wrap, **opts))
+    return t.cast(
+        Condition, _combine(expressions, And, dialect, copy=copy, wrap=wrap, **opts)
+    )
 
 
 def or_(
@@ -7837,7 +8083,9 @@ def or_(
     Returns:
         The new condition
     """
-    return t.cast(Condition, _combine(expressions, Or, dialect, copy=copy, wrap=wrap, **opts))
+    return t.cast(
+        Condition, _combine(expressions, Or, dialect, copy=copy, wrap=wrap, **opts)
+    )
 
 
 def xor(
@@ -7867,10 +8115,14 @@ def xor(
     Returns:
         The new condition
     """
-    return t.cast(Condition, _combine(expressions, Xor, dialect, copy=copy, wrap=wrap, **opts))
+    return t.cast(
+        Condition, _combine(expressions, Xor, dialect, copy=copy, wrap=wrap, **opts)
+    )
 
 
-def not_(expression: ExpOrStr, dialect: DialectType = None, copy: bool = True, **opts) -> Not:
+def not_(
+    expression: ExpOrStr, dialect: DialectType = None, copy: bool = True, **opts
+) -> Not:
     """
     Wrap a condition with a NOT operator.
 
@@ -7920,11 +8172,15 @@ SAFE_IDENTIFIER_RE: t.Pattern[str] = re.compile(r"^[_a-zA-Z][\w]*$")
 
 
 @t.overload
-def to_identifier(name: None, quoted: t.Optional[bool] = None, copy: bool = True) -> None: ...
+def to_identifier(
+    name: None, quoted: t.Optional[bool] = None, copy: bool = True
+) -> None: ...
 
 
 @t.overload
-def to_identifier(name: str | Identifier, quoted: t.Optional[bool] = None, copy: bool = True) -> Identifier: ...
+def to_identifier(
+    name: str | Identifier, quoted: t.Optional[bool] = None, copy: bool = True
+) -> Identifier: ...
 
 
 def to_identifier(name, quoted=None, copy=True):
@@ -7950,7 +8206,9 @@ def to_identifier(name, quoted=None, copy=True):
             quoted=not SAFE_IDENTIFIER_RE.match(name) if quoted is None else quoted,
         )
     else:
-        raise ValueError(f"Name needs to be a string or an Identifier, got: {name.__class__}")
+        raise ValueError(
+            f"Name needs to be a string or an Identifier, got: {name.__class__}"
+        )
     return identifier
 
 
@@ -7989,7 +8247,9 @@ def to_interval(interval: str | Literal) -> Interval:
     return interval
 
 
-def to_table(sql_path: str | Table, dialect: DialectType = None, copy: bool = True, **kwargs) -> Table:
+def to_table(
+    sql_path: str | Table, dialect: DialectType = None, copy: bool = True, **kwargs
+) -> Table:
     """
     Create a table expression from a `[catalog].[schema].[table]` sql path. Catalog and schema are optional.
     If a table is passed in then that table is returned.
@@ -8142,7 +8402,9 @@ def subquery(
         A new Select instance with the subquery expression included.
     """
 
-    expression = maybe_parse(expression, dialect=dialect, **opts).subquery(alias, **opts)
+    expression = maybe_parse(expression, dialect=dialect, **opts).subquery(
+        alias, **opts
+    )
     return Select().from_(expression, dialect=dialect, **opts)
 
 
@@ -8210,11 +8472,22 @@ def column(
     )
 
     if fields:
-        this = Dot.build((this, *(to_identifier(field, quoted=quoted, copy=copy) for field in fields)))
+        this = Dot.build(
+            (
+                this,
+                *(to_identifier(field, quoted=quoted, copy=copy) for field in fields),
+            )
+        )
     return this
 
 
-def cast(expression: ExpOrStr, to: DATA_TYPE, copy: bool = True, dialect: DialectType = None, **opts) -> Cast:
+def cast(
+    expression: ExpOrStr,
+    to: DATA_TYPE,
+    copy: bool = True,
+    dialect: DialectType = None,
+    **opts,
+) -> Cast:
     """Cast an expression to a data type.
 
     Example:
@@ -8251,7 +8524,9 @@ def cast(expression: ExpOrStr, to: DATA_TYPE, copy: bool = True, dialect: Dialec
 
         existing_cast_type: DataType.Type = expr.to.this
         new_cast_type: DataType.Type = data_type.this
-        types_are_equivalent = type_mapping.get(existing_cast_type, existing_cast_type.value) == type_mapping.get(new_cast_type, new_cast_type.value)
+        types_are_equivalent = type_mapping.get(
+            existing_cast_type, existing_cast_type.value
+        ) == type_mapping.get(new_cast_type, new_cast_type.value)
 
         if expr.is_type(data_type) or types_are_equivalent:
             return expr
@@ -8314,7 +8589,13 @@ def values(
 
     return Values(
         expressions=[convert(tup) for tup in values],
-        alias=(TableAlias(this=to_identifier(alias), columns=[to_identifier(x) for x in columns]) if columns else (TableAlias(this=to_identifier(alias)) if alias else None)),
+        alias=(
+            TableAlias(
+                this=to_identifier(alias), columns=[to_identifier(x) for x in columns]
+            )
+            if columns
+            else (TableAlias(this=to_identifier(alias)) if alias else None)
+        ),
     )
 
 
@@ -8441,7 +8722,15 @@ def convert(value: t.Any, copy: bool = False) -> Expression:
         return TsOrDsToTime(this=time_literal)
     if isinstance(value, tuple):
         if hasattr(value, "_fields"):
-            return Struct(expressions=[PropertyEQ(this=to_identifier(k), expression=convert(getattr(value, k), copy=copy)) for k in value._fields])
+            return Struct(
+                expressions=[
+                    PropertyEQ(
+                        this=to_identifier(k),
+                        expression=convert(getattr(value, k), copy=copy),
+                    )
+                    for k in value._fields
+                ]
+            )
         return Tuple(expressions=[convert(v, copy=copy) for v in value])
     if isinstance(value, list):
         return Array(expressions=[convert(v, copy=copy) for v in value])
@@ -8451,7 +8740,12 @@ def convert(value: t.Any, copy: bool = False) -> Expression:
             values=Array(expressions=[convert(v, copy=copy) for v in value.values()]),
         )
     if hasattr(value, "__dict__"):
-        return Struct(expressions=[PropertyEQ(this=to_identifier(k), expression=convert(v, copy=copy)) for k, v in value.__dict__.items()])
+        return Struct(
+            expressions=[
+                PropertyEQ(this=to_identifier(k), expression=convert(v, copy=copy))
+                for k, v in value.__dict__.items()
+            ]
+        )
     raise ValueError(f"Cannot convert {value}")
 
 
@@ -8472,7 +8766,9 @@ def replace_children(expression: Expression, fun: t.Callable, *args, **kwargs) -
             else:
                 new_child_nodes.append(cn)
 
-        expression.set(k, new_child_nodes if is_list_arg else seq_get(new_child_nodes, 0))
+        expression.set(
+            k, new_child_nodes if is_list_arg else seq_get(new_child_nodes, 0)
+        )
 
 
 def replace_tree(
@@ -8517,10 +8813,16 @@ def column_table_names(expression: Expression, exclude: str = "") -> t.Set[str]:
     Returns:
         A list of unique names.
     """
-    return {table for table in (column.table for column in expression.find_all(Column)) if table and table != exclude}
+    return {
+        table
+        for table in (column.table for column in expression.find_all(Column))
+        if table and table != exclude
+    }
 
 
-def table_name(table: Table | str, dialect: DialectType = None, identify: bool = False) -> str:
+def table_name(
+    table: Table | str, dialect: DialectType = None, identify: bool = False
+) -> str:
     """Get the full name of a table as a string.
 
     Args:
@@ -8544,10 +8846,19 @@ def table_name(table: Table | str, dialect: DialectType = None, identify: bool =
     if not table:
         raise ValueError(f"Cannot parse {table}")
 
-    return ".".join((part.sql(dialect=dialect, identify=True, copy=False, comments=False) if identify or not SAFE_IDENTIFIER_RE.match(part.name) else part.name) for part in table.parts)
+    return ".".join(
+        (
+            part.sql(dialect=dialect, identify=True, copy=False, comments=False)
+            if identify or not SAFE_IDENTIFIER_RE.match(part.name)
+            else part.name
+        )
+        for part in table.parts
+    )
 
 
-def normalize_table_name(table: str | Table, dialect: DialectType = None, copy: bool = True) -> str:
+def normalize_table_name(
+    table: str | Table, dialect: DialectType = None, copy: bool = True
+) -> str:
     """Returns a case normalized table name without quotes.
 
     Args:
@@ -8561,10 +8872,20 @@ def normalize_table_name(table: str | Table, dialect: DialectType = None, copy: 
     """
     from sqlglot.optimizer.normalize_identifiers import normalize_identifiers
 
-    return ".".join(p.name for p in normalize_identifiers(to_table(table, dialect=dialect, copy=copy), dialect=dialect).parts)
+    return ".".join(
+        p.name
+        for p in normalize_identifiers(
+            to_table(table, dialect=dialect, copy=copy), dialect=dialect
+        ).parts
+    )
 
 
-def replace_tables(expression: E, mapping: t.Dict[str, str], dialect: DialectType = None, copy: bool = True) -> E:
+def replace_tables(
+    expression: E,
+    mapping: t.Dict[str, str],
+    dialect: DialectType = None,
+    copy: bool = True,
+) -> E:
     """Replace all tables in expression according to the mapping.
 
     Args:
@@ -8663,7 +8984,9 @@ def expand(
     Returns:
         The transformed expression.
     """
-    normalized_sources = {normalize_table_name(k, dialect=dialect): v for k, v in sources.items()}
+    normalized_sources = {
+        normalize_table_name(k, dialect=dialect): v for k, v in sources.items()
+    }
 
     def _expand(node: Expression):
         if isinstance(node, Table):
@@ -8684,7 +9007,9 @@ def expand(
     return expression.transform(_expand, copy=copy)
 
 
-def func(name: str, *args, copy: bool = True, dialect: DialectType = None, **kwargs) -> Func:
+def func(
+    name: str, *args, copy: bool = True, dialect: DialectType = None, **kwargs
+) -> Func:
     """
     Returns a Func expression.
 
@@ -8716,8 +9041,13 @@ def func(name: str, *args, copy: bool = True, dialect: DialectType = None, **kwa
 
     dialect = Dialect.get_or_raise(dialect)
 
-    converted: t.List[Expression] = [maybe_parse(arg, dialect=dialect, copy=copy) for arg in args]
-    kwargs = {key: maybe_parse(value, dialect=dialect, copy=copy) for key, value in kwargs.items()}
+    converted: t.List[Expression] = [
+        maybe_parse(arg, dialect=dialect, copy=copy) for arg in args
+    ]
+    kwargs = {
+        key: maybe_parse(value, dialect=dialect, copy=copy)
+        for key, value in kwargs.items()
+    }
 
     constructor = dialect.parser_class.FUNCTIONS.get(name.upper())
     if constructor:
@@ -8733,7 +9063,10 @@ def func(name: str, *args, copy: bool = True, dialect: DialectType = None, **kwa
             if constructor:
                 function = constructor(**kwargs)
             else:
-                raise ValueError(f"Unable to convert '{name}' into a Func. Either manually construct " "the Func expression of interest or parse the function call.")
+                raise ValueError(
+                    f"Unable to convert '{name}' into a Func. Either manually construct "
+                    "the Func expression of interest or parse the function call."
+                )
     else:
         kwargs = kwargs or {"expressions": converted}
         function = Anonymous(this=name, **kwargs)
@@ -8765,7 +9098,9 @@ def case(
     return Case(this=this, ifs=[])
 
 
-def array(*expressions: ExpOrStr, copy: bool = True, dialect: DialectType = None, **kwargs) -> Array:
+def array(
+    *expressions: ExpOrStr, copy: bool = True, dialect: DialectType = None, **kwargs
+) -> Array:
     """
     Returns an array.
 
@@ -8782,10 +9117,17 @@ def array(*expressions: ExpOrStr, copy: bool = True, dialect: DialectType = None
     Returns:
         An array expression.
     """
-    return Array(expressions=[maybe_parse(expression, copy=copy, dialect=dialect, **kwargs) for expression in expressions])
+    return Array(
+        expressions=[
+            maybe_parse(expression, copy=copy, dialect=dialect, **kwargs)
+            for expression in expressions
+        ]
+    )
 
 
-def tuple_(*expressions: ExpOrStr, copy: bool = True, dialect: DialectType = None, **kwargs) -> Tuple:
+def tuple_(
+    *expressions: ExpOrStr, copy: bool = True, dialect: DialectType = None, **kwargs
+) -> Tuple:
     """
     Returns an tuple.
 
@@ -8802,7 +9144,12 @@ def tuple_(*expressions: ExpOrStr, copy: bool = True, dialect: DialectType = Non
     Returns:
         A tuple expression.
     """
-    return Tuple(expressions=[maybe_parse(expression, copy=copy, dialect=dialect, **kwargs) for expression in expressions])
+    return Tuple(
+        expressions=[
+            maybe_parse(expression, copy=copy, dialect=dialect, **kwargs)
+            for expression in expressions
+        ]
+    )
 
 
 def true() -> Boolean:

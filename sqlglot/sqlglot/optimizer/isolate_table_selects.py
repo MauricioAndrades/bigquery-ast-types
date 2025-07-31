@@ -27,11 +27,18 @@ def isolate_table_selects(
         for _, source in scope.selected_sources.values():
             assert source.parent
 
-            if not isinstance(source, exp.Table) or not schema.column_names(source) or isinstance(source.parent, exp.Subquery) or isinstance(source.parent.parent, exp.Table):
+            if (
+                not isinstance(source, exp.Table)
+                or not schema.column_names(source)
+                or isinstance(source.parent, exp.Subquery)
+                or isinstance(source.parent.parent, exp.Table)
+            ):
                 continue
 
             if not source.alias:
-                raise OptimizeError("Tables require an alias. Run qualify_tables optimization.")
+                raise OptimizeError(
+                    "Tables require an alias. Run qualify_tables optimization."
+                )
 
             source.replace(
                 exp.select("*")

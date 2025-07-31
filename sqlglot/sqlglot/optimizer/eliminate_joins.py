@@ -44,7 +44,17 @@ def eliminate_joins(expression):
 
 def _should_eliminate_join(scope, join, alias):
     inner_source = scope.sources.get(alias)
-    return isinstance(inner_source, Scope) and not _join_is_used(scope, join, alias) and ((join.side == "LEFT" and _is_joined_on_all_unique_outputs(inner_source, join)) or (not join.args.get("on") and _has_single_output_row(inner_source)))
+    return (
+        isinstance(inner_source, Scope)
+        and not _join_is_used(scope, join, alias)
+        and (
+            (
+                join.side == "LEFT"
+                and _is_joined_on_all_unique_outputs(inner_source, join)
+            )
+            or (not join.args.get("on") and _has_single_output_row(inner_source))
+        )
+    )
 
 
 def _join_is_used(scope, join, alias):
@@ -55,7 +65,11 @@ def _join_is_used(scope, join, alias):
         on_clause_columns = {id(column) for column in on.find_all(exp.Column)}
     else:
         on_clause_columns = set()
-    return any(column for column in scope.source_columns(alias) if id(column) not in on_clause_columns)
+    return any(
+        column
+        for column in scope.source_columns(alias)
+        if id(column) not in on_clause_columns
+    )
 
 
 def _is_joined_on_all_unique_outputs(scope, join):
@@ -98,7 +112,11 @@ def _unique_outputs(scope):
 
 
 def _has_single_output_row(scope):
-    return isinstance(scope.expression, exp.Select) and (all(isinstance(e.unalias(), exp.AggFunc) for e in scope.expression.selects) or _is_limit_1(scope) or not scope.expression.args.get("from"))
+    return isinstance(scope.expression, exp.Select) and (
+        all(isinstance(e.unalias(), exp.AggFunc) for e in scope.expression.selects)
+        or _is_limit_1(scope)
+        or not scope.expression.args.get("from")
+    )
 
 
 def _is_limit_1(scope):

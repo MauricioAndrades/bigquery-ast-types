@@ -26,7 +26,13 @@ class PythonExecutor:
         while queue:
             node = queue.pop()
             try:
-                context = self.context({name: table for dep in node.dependencies for name, table in contexts[dep].tables.items()})
+                context = self.context(
+                    {
+                        name: table
+                        for dep in node.dependencies
+                        for name, table in contexts[dep].tables.items()
+                    }
+                )
 
                 if isinstance(node, planner.Scan):
                     contexts[node] = self.scan(node, context)
@@ -74,7 +80,14 @@ class PythonExecutor:
         return Context(tables, env=self.env)
 
     def table(self, expressions):
-        return Table(expression.alias_or_name if isinstance(expression, exp.Expression) else expression for expression in expressions)
+        return Table(
+            (
+                expression.alias_or_name
+                if isinstance(expression, exp.Expression)
+                else expression
+            )
+            for expression in expressions
+        )
 
     def scan(self, step, context):
         source = step.source
@@ -88,13 +101,17 @@ class PythonExecutor:
             if not step.projections and not step.condition:
                 return self.context({step.name: context.tables[source]})
             table_iter = context.table_iter(source)
-        elif isinstance(step.source, exp.Table) and isinstance(step.source.this, exp.ReadCSV):
+        elif isinstance(step.source, exp.Table) and isinstance(
+            step.source.this, exp.ReadCSV
+        ):
             table_iter = self.scan_csv(step)
             context = next(table_iter)
         else:
             context, table_iter = self.scan_table(step)
 
-        return self.context({step.name: self._project_and_filter(context, step, table_iter)})
+        return self.context(
+            {step.name: self._project_and_filter(context, step, table_iter)}
+        )
 
     def _project_and_filter(self, context, step, table_iter):
         sink = self.table(step.projections if step.projections else context.columns)
@@ -142,7 +159,12 @@ class PythonExecutor:
                             types.append(str)
 
                 # We can't cast empty values ('') to non-string types, so we convert them to None instead
-                context.set_row(tuple(None if (t is not str and v == "") else t(v) for t, v in zip(types, row)))
+                context.set_row(
+                    tuple(
+                        None if (t is not str and v == "") else t(v)
+                        for t, v in zip(types, row)
+                    )
+                )
                 yield context.table.reader
 
     def join(self, step, context):
@@ -163,7 +185,12 @@ class PythonExecutor:
             else:
                 table = self.nested_loop_join(join, source_context, join_context)
 
-            source_context = self.context({name: Table(table.columns, table.rows, column_range) for name, column_range in column_ranges.items()})
+            source_context = self.context(
+                {
+                    name: Table(table.columns, table.rows, column_range)
+                    for name, column_range in column_ranges.items()
+                }
+            )
             condition = self.generate(join["condition"])
             if condition:
                 source_context.filter(condition)
@@ -180,7 +207,12 @@ class PythonExecutor:
         if step.projections:
             return self.context({step.name: sink})
         else:
-            return self.context({name: Table(table.columns, sink.rows, table.column_range) for name, table in source_context.tables.items()})
+            return self.context(
+                {
+                    name: Table(table.columns, sink.rows, table.column_range)
+                    for name, table in source_context.tables.items()
+                }
+            )
 
     def nested_loop_join(self, _join, source_context, join_context):
         table = Table(source_context.columns + join_context.columns)
@@ -205,7 +237,9 @@ class PythonExecutor:
             results[ctx.eval_tuple(join_key)][1].append(reader.row)
 
         table = Table(source_context.columns + join_context.columns)
-        nulls = [(None,) * len(join_context.columns if left else source_context.columns)]
+        nulls = [
+            (None,) * len(join_context.columns if left else source_context.columns)
+        ]
 
         for a_group, b_group in results.values():
             if left:
@@ -279,7 +313,9 @@ class PythonExecutor:
             context.set_range(0, 0)
             table.append(context.eval_tuple(aggregations))
 
-        context = self.context({step.name: table, **{name: table for name in context.tables}})
+        context = self.context(
+            {step.name: table, **{name: table for name in context.tables}}
+        )
 
         if step.projections or step.condition:
             return self.scan(step, context)
@@ -306,7 +342,9 @@ class PythonExecutor:
 
         output = Table(
             projection_columns,
-            rows=[r[len(context.columns) : len(all_columns)] for r in sort_ctx.table.rows],
+            rows=[
+                r[len(context.columns) : len(all_columns)] for r in sort_ctx.table.rows
+            ],
         )
         return self.context({step.name: output})
 
@@ -349,7 +387,9 @@ def _rename(self, e):
             return self.func(e.key, *values)
 
         if isinstance(e, exp.Func) and e.is_var_len_args:
-            args = itertools.chain.from_iterable(x if isinstance(x, list) else [x] for x in values)
+            args = itertools.chain.from_iterable(
+                x if isinstance(x, list) else [x] for x in values
+            )
             return self.func(e.key, *args)
 
         return self.func(e.key, *values)
@@ -373,7 +413,13 @@ def _case_sql(self, expression):
 def _lambda_sql(self, e: exp.Lambda) -> str:
     names = {e.name.lower() for e in e.expressions}
 
-    e = e.transform(lambda n: (exp.var(n.name) if isinstance(n, exp.Identifier) and n.name.lower() in names else n)).assert_is(exp.Lambda)
+    e = e.transform(
+        lambda n: (
+            exp.var(n.name)
+            if isinstance(n, exp.Identifier) and n.name.lower() in names
+            else n
+        )
+    ).assert_is(exp.Lambda)
 
     return f"lambda {self.expressions(e, flat=True)}: {self.sql(e, 'this')}"
 
@@ -408,14 +454,22 @@ class Python(Dialect):
             exp.Boolean: lambda self, e: "True" if e.this else "False",
             exp.Cast: lambda self, e: f"CAST({self.sql(e.this)}, exp.DataType.Type.{e.args['to']})",
             exp.Column: lambda self, e: f"scope[{self.sql(e, 'table') or None}][{self.sql(e.this)}]",
-            exp.Concat: lambda self, e: self.func("SAFECONCAT" if e.args.get("safe") else "CONCAT", *e.expressions),
+            exp.Concat: lambda self, e: self.func(
+                "SAFECONCAT" if e.args.get("safe") else "CONCAT", *e.expressions
+            ),
             exp.Distinct: lambda self, e: f"set({self.sql(e, 'this')})",
             exp.Div: _div_sql,
             exp.Extract: lambda self, e: f"EXTRACT('{e.name.lower()}', {self.sql(e, 'expression')})",
             exp.In: lambda self, e: f"{self.sql(e, 'this')} in {{{self.expressions(e, flat=True)}}}",
             exp.Interval: lambda self, e: f"INTERVAL({self.sql(e.this)}, '{self.sql(e.unit)}')",
-            exp.Is: lambda self, e: (self.binary(e, "==") if isinstance(e.this, exp.Literal) else self.binary(e, "is")),
-            exp.JSONExtract: lambda self, e: self.func(e.key, e.this, e.expression, *e.expressions),
+            exp.Is: lambda self, e: (
+                self.binary(e, "==")
+                if isinstance(e.this, exp.Literal)
+                else self.binary(e, "is")
+            ),
+            exp.JSONExtract: lambda self, e: self.func(
+                e.key, e.this, e.expression, *e.expressions
+            ),
             exp.JSONPath: lambda self, e: f"[{','.join(self.sql(p) for p in e.expressions[1:])}]",
             exp.JSONPathKey: lambda self, e: f"'{self.sql(e.this)}'",
             exp.JSONPathSubscript: lambda self, e: f"'{e.this}'",

@@ -501,16 +501,25 @@ class _Tokenizer(type):
         klass = super().__new__(cls, clsname, bases, attrs)
 
         def _convert_quotes(arr: t.List[str | t.Tuple[str, str]]) -> t.Dict[str, str]:
-            return dict((item, item) if isinstance(item, str) else (item[0], item[1]) for item in arr)
+            return dict(
+                (item, item) if isinstance(item, str) else (item[0], item[1])
+                for item in arr
+            )
 
-        def _quotes_to_format(token_type: TokenType, arr: t.List[str | t.Tuple[str, str]]) -> t.Dict[str, t.Tuple[str, TokenType]]:
+        def _quotes_to_format(
+            token_type: TokenType, arr: t.List[str | t.Tuple[str, str]]
+        ) -> t.Dict[str, t.Tuple[str, TokenType]]:
             return {k: (v, token_type) for k, v in _convert_quotes(arr).items()}
 
         klass._QUOTES = _convert_quotes(klass.QUOTES)
         klass._IDENTIFIERS = _convert_quotes(klass.IDENTIFIERS)
 
         klass._FORMAT_STRINGS = {
-            **{p + s: (e, TokenType.NATIONAL_STRING) for s, e in klass._QUOTES.items() for p in ("n", "N")},
+            **{
+                p + s: (e, TokenType.NATIONAL_STRING)
+                for s, e in klass._QUOTES.items()
+                for p in ("n", "N")
+            },
             **_quotes_to_format(TokenType.BIT_STRING, klass.BIT_STRINGS),
             **_quotes_to_format(TokenType.BYTE_STRING, klass.BYTE_STRINGS),
             **_quotes_to_format(TokenType.HEX_STRING, klass.HEX_STRINGS),
@@ -522,7 +531,14 @@ class _Tokenizer(type):
         klass._STRING_ESCAPES = set(klass.STRING_ESCAPES)
         klass._IDENTIFIER_ESCAPES = set(klass.IDENTIFIER_ESCAPES)
         klass._COMMENTS = {
-            **dict((comment, None) if isinstance(comment, str) else (comment[0], comment[1]) for comment in klass.COMMENTS),
+            **dict(
+                (
+                    (comment, None)
+                    if isinstance(comment, str)
+                    else (comment[0], comment[1])
+                )
+                for comment in klass.COMMENTS
+            ),
             "{#": "#}",  # Ensure Jinja comments are tokenized correctly in all dialects
         }
         if klass.HINT_START in klass.KEYWORDS:
@@ -541,26 +557,39 @@ class _Tokenizer(type):
 
         if USE_RS_TOKENIZER:
             settings = RsTokenizerSettings(
-                white_space={k: _TOKEN_TYPE_TO_INDEX[v] for k, v in klass.WHITE_SPACE.items()},
-                single_tokens={k: _TOKEN_TYPE_TO_INDEX[v] for k, v in klass.SINGLE_TOKENS.items()},
-                keywords={k: _TOKEN_TYPE_TO_INDEX[v] for k, v in klass.KEYWORDS.items()},
+                white_space={
+                    k: _TOKEN_TYPE_TO_INDEX[v] for k, v in klass.WHITE_SPACE.items()
+                },
+                single_tokens={
+                    k: _TOKEN_TYPE_TO_INDEX[v] for k, v in klass.SINGLE_TOKENS.items()
+                },
+                keywords={
+                    k: _TOKEN_TYPE_TO_INDEX[v] for k, v in klass.KEYWORDS.items()
+                },
                 numeric_literals=klass.NUMERIC_LITERALS,
                 identifiers=klass._IDENTIFIERS,
                 identifier_escapes=klass._IDENTIFIER_ESCAPES,
                 string_escapes=klass._STRING_ESCAPES,
                 quotes=klass._QUOTES,
-                format_strings={k: (v1, _TOKEN_TYPE_TO_INDEX[v2]) for k, (v1, v2) in klass._FORMAT_STRINGS.items()},
+                format_strings={
+                    k: (v1, _TOKEN_TYPE_TO_INDEX[v2])
+                    for k, (v1, v2) in klass._FORMAT_STRINGS.items()
+                },
                 has_bit_strings=bool(klass.BIT_STRINGS),
                 has_hex_strings=bool(klass.HEX_STRINGS),
                 comments=klass._COMMENTS,
                 var_single_tokens=klass.VAR_SINGLE_TOKENS,
                 commands={_TOKEN_TYPE_TO_INDEX[v] for v in klass.COMMANDS},
-                command_prefix_tokens={_TOKEN_TYPE_TO_INDEX[v] for v in klass.COMMAND_PREFIX_TOKENS},
+                command_prefix_tokens={
+                    _TOKEN_TYPE_TO_INDEX[v] for v in klass.COMMAND_PREFIX_TOKENS
+                },
                 heredoc_tag_is_identifier=klass.HEREDOC_TAG_IS_IDENTIFIER,
                 string_escapes_allowed_in_raw_strings=klass.STRING_ESCAPES_ALLOWED_IN_RAW_STRINGS,
                 nested_comments=klass.NESTED_COMMENTS,
                 hint_start=klass.HINT_START,
-                tokens_preceding_hint={_TOKEN_TYPE_TO_INDEX[v] for v in klass.TOKENS_PRECEDING_HINT},
+                tokens_preceding_hint={
+                    _TOKEN_TYPE_TO_INDEX[v] for v in klass.TOKENS_PRECEDING_HINT
+                },
             )
             token_types = RsTokenTypeSettings(
                 bit_string=_TOKEN_TYPE_TO_INDEX[TokenType.BIT_STRING],
@@ -575,7 +604,9 @@ class _Tokenizer(type):
                 semicolon=_TOKEN_TYPE_TO_INDEX[TokenType.SEMICOLON],
                 string=_TOKEN_TYPE_TO_INDEX[TokenType.STRING],
                 var=_TOKEN_TYPE_TO_INDEX[TokenType.VAR],
-                heredoc_string_alternative=_TOKEN_TYPE_TO_INDEX[klass.HEREDOC_STRING_ALTERNATIVE],
+                heredoc_string_alternative=_TOKEN_TYPE_TO_INDEX[
+                    klass.HEREDOC_STRING_ALTERNATIVE
+                ],
                 hint=_TOKEN_TYPE_TO_INDEX[TokenType.HINT],
             )
             klass._RS_TOKENIZER = RsTokenizer(settings, token_types)
@@ -649,7 +680,12 @@ class Tokenizer(metaclass=_Tokenizer):
 
     HINT_START = "/*+"
 
-    TOKENS_PRECEDING_HINT = {TokenType.SELECT, TokenType.INSERT, TokenType.UPDATE, TokenType.DELETE}
+    TOKENS_PRECEDING_HINT = {
+        TokenType.SELECT,
+        TokenType.INSERT,
+        TokenType.UPDATE,
+        TokenType.DELETE,
+    }
 
     # Autofilled
     _COMMENTS: t.Dict[str, str] = {}
@@ -1013,7 +1049,9 @@ class Tokenizer(metaclass=_Tokenizer):
         self.dialect = Dialect.get_or_raise(dialect)
 
         # initialize `use_rs_tokenizer`, and allow it to be overwritten per Tokenizer instance
-        self.use_rs_tokenizer = use_rs_tokenizer if use_rs_tokenizer is not None else USE_RS_TOKENIZER
+        self.use_rs_tokenizer = (
+            use_rs_tokenizer if use_rs_tokenizer is not None else USE_RS_TOKENIZER
+        )
 
         if self.use_rs_tokenizer:
             self._rs_dialect_settings = RsTokenizerDialectSettings(
@@ -1158,7 +1196,14 @@ class Tokenizer(metaclass=_Tokenizer):
 
         # If we have either a semicolon or a begin token before the command's token, we'll parse
         # whatever follows the command's token as a string
-        if token_type in self.COMMANDS and self._peek != ";" and (len(self.tokens) == 1 or self.tokens[-2].token_type in self.COMMAND_PREFIX_TOKENS):
+        if (
+            token_type in self.COMMANDS
+            and self._peek != ";"
+            and (
+                len(self.tokens) == 1
+                or self.tokens[-2].token_type in self.COMMAND_PREFIX_TOKENS
+            )
+        ):
             start = self._current
             tokens = len(self.tokens)
             self._scan(lambda: self._peek == ";")
@@ -1249,18 +1294,31 @@ class Tokenizer(metaclass=_Tokenizer):
                 self._advance(alnum=True)
 
                 # Nested comments are allowed by some dialects, e.g. databricks, duckdb, postgres
-                if self.NESTED_COMMENTS and not self._end and self._chars(comment_end_size) == comment_start:
+                if (
+                    self.NESTED_COMMENTS
+                    and not self._end
+                    and self._chars(comment_end_size) == comment_start
+                ):
                     self._advance(comment_start_size)
                     comment_count += 1
 
-            self._comments.append(self._text[comment_start_size : -comment_end_size + 1])
+            self._comments.append(
+                self._text[comment_start_size : -comment_end_size + 1]
+            )
             self._advance(comment_end_size - 1)
         else:
-            while not self._end and self.WHITE_SPACE.get(self._peek) is not TokenType.BREAK:
+            while (
+                not self._end
+                and self.WHITE_SPACE.get(self._peek) is not TokenType.BREAK
+            ):
                 self._advance(alnum=True)
             self._comments.append(self._text[comment_start_size:])
 
-        if comment_start == self.HINT_START and self.tokens and self.tokens[-1].token_type in self.TOKENS_PRECEDING_HINT:
+        if (
+            comment_start == self.HINT_START
+            and self.tokens
+            and self.tokens[-1].token_type in self.TOKENS_PRECEDING_HINT
+        ):
             self._add(TokenType.HINT)
 
         # Leading comment is attached to the succeeding token, whilst trailing comment to the preceding.
@@ -1276,9 +1334,17 @@ class Tokenizer(metaclass=_Tokenizer):
         if self._char == "0":
             peek = self._peek.upper()
             if peek == "B":
-                return self._scan_bits() if self.BIT_STRINGS else self._add(TokenType.NUMBER)
+                return (
+                    self._scan_bits()
+                    if self.BIT_STRINGS
+                    else self._add(TokenType.NUMBER)
+                )
             elif peek == "X":
-                return self._scan_hex() if self.HEX_STRINGS else self._add(TokenType.NUMBER)
+                return (
+                    self._scan_hex()
+                    if self.HEX_STRINGS
+                    else self._add(TokenType.NUMBER)
+                )
 
         decimal = False
         scientific = 0
@@ -1305,7 +1371,9 @@ class Tokenizer(metaclass=_Tokenizer):
                     literal += self._peek
                     self._advance()
 
-                token_type = self.KEYWORDS.get(self.NUMERIC_LITERALS.get(literal.upper(), ""))
+                token_type = self.KEYWORDS.get(
+                    self.NUMERIC_LITERALS.get(literal.upper(), "")
+                )
 
                 if token_type:
                     self._add(TokenType.NUMBER, number_text)
@@ -1313,7 +1381,10 @@ class Tokenizer(metaclass=_Tokenizer):
                     return self._add(token_type, literal)
                 else:
                     replaced = literal.replace("_", "")
-                    if self.dialect.NUMBERS_CAN_BE_UNDERSCORE_SEPARATED and replaced.isdigit():
+                    if (
+                        self.dialect.NUMBERS_CAN_BE_UNDERSCORE_SEPARATED
+                        and replaced.isdigit()
+                    ):
                         return self._add(TokenType.NUMBER, number_text + replaced)
                     if self.dialect.IDENTIFIERS_CAN_START_WITH_DIGIT:
                         return self._add(TokenType.VAR)
@@ -1378,7 +1449,11 @@ class Tokenizer(metaclass=_Tokenizer):
                         raise_unmatched=not self.HEREDOC_TAG_IS_IDENTIFIER,
                     )
 
-                if tag and self.HEREDOC_TAG_IS_IDENTIFIER and (self._end or not tag.isidentifier()):
+                if (
+                    tag
+                    and self.HEREDOC_TAG_IS_IDENTIFIER
+                    and (self._end or not tag.isidentifier())
+                ):
                     if not self._end:
                         self._advance(-1)
 
@@ -1397,25 +1472,35 @@ class Tokenizer(metaclass=_Tokenizer):
             try:
                 int(text, base)
             except Exception:
-                raise TokenError(f"Numeric string contains invalid characters from {self._line}:{self._start}")
+                raise TokenError(
+                    f"Numeric string contains invalid characters from {self._line}:{self._start}"
+                )
 
         self._add(token_type, text)
         return True
 
     def _scan_identifier(self, identifier_end: str) -> None:
         self._advance()
-        text = self._extract_string(identifier_end, escapes=self._IDENTIFIER_ESCAPES | {identifier_end})
+        text = self._extract_string(
+            identifier_end, escapes=self._IDENTIFIER_ESCAPES | {identifier_end}
+        )
         self._add(TokenType.IDENTIFIER, text)
 
     def _scan_var(self) -> None:
         while True:
             char = self._peek.strip()
-            if char and (char in self.VAR_SINGLE_TOKENS or char not in self.SINGLE_TOKENS):
+            if char and (
+                char in self.VAR_SINGLE_TOKENS or char not in self.SINGLE_TOKENS
+            ):
                 self._advance(alnum=True)
             else:
                 break
 
-        self._add(TokenType.VAR if self.tokens and self.tokens[-1].token_type == TokenType.PARAMETER else self.KEYWORDS.get(self._text.upper(), TokenType.VAR))
+        self._add(
+            TokenType.VAR
+            if self.tokens and self.tokens[-1].token_type == TokenType.PARAMETER
+            else self.KEYWORDS.get(self._text.upper(), TokenType.VAR)
+        )
 
     def _extract_string(
         self,
@@ -1429,13 +1514,25 @@ class Tokenizer(metaclass=_Tokenizer):
         escapes = self._STRING_ESCAPES if escapes is None else escapes
 
         while True:
-            if not raw_string and self.dialect.UNESCAPED_SEQUENCES and self._peek and self._char in self.STRING_ESCAPES:
-                unescaped_sequence = self.dialect.UNESCAPED_SEQUENCES.get(self._char + self._peek)
+            if (
+                not raw_string
+                and self.dialect.UNESCAPED_SEQUENCES
+                and self._peek
+                and self._char in self.STRING_ESCAPES
+            ):
+                unescaped_sequence = self.dialect.UNESCAPED_SEQUENCES.get(
+                    self._char + self._peek
+                )
                 if unescaped_sequence:
                     self._advance(2)
                     text += unescaped_sequence
                     continue
-            if (self.STRING_ESCAPES_ALLOWED_IN_RAW_STRINGS or not raw_string) and self._char in escapes and (self._peek == delimiter or self._peek in escapes) and (self._char not in self._QUOTES or self._char == self._peek):
+            if (
+                (self.STRING_ESCAPES_ALLOWED_IN_RAW_STRINGS or not raw_string)
+                and self._char in escapes
+                and (self._peek == delimiter or self._peek in escapes)
+                and (self._char not in self._QUOTES or self._char == self._peek)
+            ):
                 if self._peek == delimiter:
                     text += self._peek
                 else:
@@ -1444,7 +1541,9 @@ class Tokenizer(metaclass=_Tokenizer):
                 if self._current + 1 < self.size:
                     self._advance(2)
                 else:
-                    raise TokenError(f"Missing {delimiter} from {self._line}:{self._current}")
+                    raise TokenError(
+                        f"Missing {delimiter} from {self._line}:{self._current}"
+                    )
             else:
                 if self._chars(delim_size) == delimiter:
                     if delim_size > 1:
@@ -1455,7 +1554,9 @@ class Tokenizer(metaclass=_Tokenizer):
                     if not raise_unmatched:
                         return text + self._char
 
-                    raise TokenError(f"Missing {delimiter} from {self._line}:{self._start}")
+                    raise TokenError(
+                        f"Missing {delimiter} from {self._line}:{self._start}"
+                    )
 
                 current = self._current - 1
                 self._advance(alnum=True)

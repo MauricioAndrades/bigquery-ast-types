@@ -20,13 +20,17 @@ class TestSnowflake(Validator):
 
         expr = parse_one("SELECT APPROX_TOP_K(C4, 3, 5) FROM t")
         expr.selects[0].assert_is(exp.AggFunc)
-        self.assertEqual(expr.sql(dialect="snowflake"), "SELECT APPROX_TOP_K(C4, 3, 5) FROM t")
+        self.assertEqual(
+            expr.sql(dialect="snowflake"), "SELECT APPROX_TOP_K(C4, 3, 5) FROM t"
+        )
 
         self.validate_identity("SELECT a, b, COUNT(*) FROM x GROUP BY ALL LIMIT 100")
         self.validate_identity("STRTOK_TO_ARRAY('a b c')")
         self.validate_identity("STRTOK_TO_ARRAY('a.b.c', '.')")
         self.validate_identity("GET(a, b)")
-        self.validate_identity("INSERT INTO test VALUES (x'48FAF43B0AFCEF9B63EE3A93EE2AC2')")
+        self.validate_identity(
+            "INSERT INTO test VALUES (x'48FAF43B0AFCEF9B63EE3A93EE2AC2')"
+        )
         self.validate_identity("SELECT STAR(tbl, exclude := [foo])")
         self.validate_identity("SELECT CAST([1, 2, 3] AS VECTOR(FLOAT, 3))")
         self.validate_identity("SELECT CONNECT_BY_ROOT test AS test_column_alias")
@@ -35,18 +39,28 @@ class TestSnowflake(Validator):
         self.validate_identity("ALTER TABLE table1 CLUSTER BY (name DESC)")
         self.validate_identity("SELECT rename, replace")
         self.validate_identity("SELECT TIMEADD(HOUR, 2, CAST('09:05:03' AS TIME))")
-        self.validate_identity("SELECT CAST(OBJECT_CONSTRUCT('a', 1) AS MAP(VARCHAR, INT))")
-        self.validate_identity("SELECT CAST(OBJECT_CONSTRUCT('a', 1) AS OBJECT(a CHAR NOT NULL))")
+        self.validate_identity(
+            "SELECT CAST(OBJECT_CONSTRUCT('a', 1) AS MAP(VARCHAR, INT))"
+        )
+        self.validate_identity(
+            "SELECT CAST(OBJECT_CONSTRUCT('a', 1) AS OBJECT(a CHAR NOT NULL))"
+        )
         self.validate_identity("SELECT CAST([1, 2, 3] AS ARRAY(INT))")
         self.validate_identity("SELECT CAST(obj AS OBJECT(x CHAR) RENAME FIELDS)")
-        self.validate_identity("SELECT CAST(obj AS OBJECT(x CHAR, y VARCHAR) ADD FIELDS)")
-        self.validate_identity("SELECT TO_TIMESTAMP(123.4)").selects[0].assert_is(exp.Anonymous)
+        self.validate_identity(
+            "SELECT CAST(obj AS OBJECT(x CHAR, y VARCHAR) ADD FIELDS)"
+        )
+        self.validate_identity("SELECT TO_TIMESTAMP(123.4)").selects[0].assert_is(
+            exp.Anonymous
+        )
         self.validate_identity("SELECT TO_TIMESTAMP(x) FROM t")
         self.validate_identity("SELECT TO_TIMESTAMP_NTZ(x) FROM t")
         self.validate_identity("SELECT TO_TIMESTAMP_LTZ(x) FROM t")
         self.validate_identity("SELECT TO_TIMESTAMP_TZ(x) FROM t")
         self.validate_identity("TO_DECIMAL(expr, fmt, precision, scale)")
-        self.validate_identity("ALTER TABLE authors ADD CONSTRAINT c1 UNIQUE (id, email)")
+        self.validate_identity(
+            "ALTER TABLE authors ADD CONSTRAINT c1 UNIQUE (id, email)"
+        )
         self.validate_identity("RM @parquet_stage", check_command_warning=True)
         self.validate_identity("REMOVE @parquet_stage", check_command_warning=True)
         self.validate_identity("SELECT TIMESTAMP_FROM_PARTS(d, t)")
@@ -60,8 +74,12 @@ class TestSnowflake(Validator):
         self.validate_identity("WEEKOFYEAR(tstamp)")
         self.validate_identity("SELECT QUARTER(CURRENT_TIMESTAMP())")
         self.validate_identity("SELECT SUM(amount) FROM mytable GROUP BY ALL")
-        self.validate_identity("WITH x AS (SELECT 1 AS foo) SELECT foo FROM IDENTIFIER('x')")
-        self.validate_identity("WITH x AS (SELECT 1 AS foo) SELECT IDENTIFIER('foo') FROM x")
+        self.validate_identity(
+            "WITH x AS (SELECT 1 AS foo) SELECT foo FROM IDENTIFIER('x')"
+        )
+        self.validate_identity(
+            "WITH x AS (SELECT 1 AS foo) SELECT IDENTIFIER('foo') FROM x"
+        )
         self.validate_identity("INITCAP('iqamqinterestedqinqthisqtopic', 'q')")
         self.validate_identity("OBJECT_CONSTRUCT(*)")
         self.validate_identity("SELECT CAST('2021-01-01' AS DATE) + INTERVAL '1 DAY'")
@@ -73,28 +91,54 @@ class TestSnowflake(Validator):
         self.validate_identity("$x")  # parameter
         self.validate_identity("a$b")  # valid snowflake identifier
         self.validate_identity("SELECT REGEXP_LIKE(a, b, c)")
-        self.validate_identity("CREATE TABLE foo (bar FLOAT AUTOINCREMENT START 0 INCREMENT 1)")
+        self.validate_identity(
+            "CREATE TABLE foo (bar FLOAT AUTOINCREMENT START 0 INCREMENT 1)"
+        )
         self.validate_identity("COMMENT IF EXISTS ON TABLE foo IS 'bar'")
-        self.validate_identity("SELECT CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', col)")
+        self.validate_identity(
+            "SELECT CONVERT_TIMEZONE('UTC', 'America/Los_Angeles', col)"
+        )
         self.validate_identity("ALTER TABLE a SWAP WITH b")
         self.validate_identity("SELECT MATCH_CONDITION")
         self.validate_identity("SELECT * REPLACE (CAST(col AS TEXT) AS scol) FROM t")
         self.validate_identity("1 /* /* */")
         self.validate_identity("TO_TIMESTAMP(col, fmt)")
         self.validate_identity("SELECT TO_CHAR(CAST('12:05:05' AS TIME))")
-        self.validate_identity("SELECT TRIM(COALESCE(TO_CHAR(CAST(c AS TIME)), '')) FROM t")
+        self.validate_identity(
+            "SELECT TRIM(COALESCE(TO_CHAR(CAST(c AS TIME)), '')) FROM t"
+        )
         self.validate_identity("SELECT GET_PATH(PARSE_JSON(foo), 'bar')")
         self.validate_identity("SELECT GET_PATH(foo, 'bar')")
-        self.validate_identity("SELECT * FROM table AT (TIMESTAMP => '2024-07-24') UNPIVOT(a FOR b IN (c)) AS pivot_table")
-        self.validate_identity("SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN ('2023_Q1', '2023_Q2', '2023_Q3', '2023_Q4', '2024_Q1') DEFAULT ON NULL (0)) ORDER BY empid")
-        self.validate_identity("SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN (SELECT DISTINCT quarter FROM ad_campaign_types_by_quarter WHERE television = TRUE ORDER BY quarter)) ORDER BY empid")
-        self.validate_identity("SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter)) ORDER BY empid")
-        self.validate_identity("SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN (ANY)) ORDER BY empid")
-        self.validate_identity("MERGE INTO my_db AS ids USING (SELECT new_id FROM my_model WHERE NOT col IS NULL) AS new_ids ON ids.type = new_ids.type AND ids.source = new_ids.source WHEN NOT MATCHED THEN INSERT VALUES (new_ids.new_id)")
-        self.validate_identity("INSERT OVERWRITE TABLE t SELECT 1", "INSERT OVERWRITE INTO t SELECT 1")
-        self.validate_identity('DESCRIBE TABLE "SNOWFLAKE_SAMPLE_DATA"."TPCDS_SF100TCL"."WEB_SITE" type=stage')
-        self.validate_identity("SELECT * FROM DATA AS DATA_L ASOF JOIN DATA AS DATA_R MATCH_CONDITION (DATA_L.VAL > DATA_R.VAL) ON DATA_L.ID = DATA_R.ID")
-        self.validate_identity("""SELECT TO_TIMESTAMP('2025-01-16T14:45:30.123+0500', 'yyyy-mm-DD"T"hh24:mi:ss.ff3TZHTZM')""")
+        self.validate_identity(
+            "SELECT * FROM table AT (TIMESTAMP => '2024-07-24') UNPIVOT(a FOR b IN (c)) AS pivot_table"
+        )
+        self.validate_identity(
+            "SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN ('2023_Q1', '2023_Q2', '2023_Q3', '2023_Q4', '2024_Q1') DEFAULT ON NULL (0)) ORDER BY empid"
+        )
+        self.validate_identity(
+            "SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN (SELECT DISTINCT quarter FROM ad_campaign_types_by_quarter WHERE television = TRUE ORDER BY quarter)) ORDER BY empid"
+        )
+        self.validate_identity(
+            "SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter)) ORDER BY empid"
+        )
+        self.validate_identity(
+            "SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN (ANY)) ORDER BY empid"
+        )
+        self.validate_identity(
+            "MERGE INTO my_db AS ids USING (SELECT new_id FROM my_model WHERE NOT col IS NULL) AS new_ids ON ids.type = new_ids.type AND ids.source = new_ids.source WHEN NOT MATCHED THEN INSERT VALUES (new_ids.new_id)"
+        )
+        self.validate_identity(
+            "INSERT OVERWRITE TABLE t SELECT 1", "INSERT OVERWRITE INTO t SELECT 1"
+        )
+        self.validate_identity(
+            'DESCRIBE TABLE "SNOWFLAKE_SAMPLE_DATA"."TPCDS_SF100TCL"."WEB_SITE" type=stage'
+        )
+        self.validate_identity(
+            "SELECT * FROM DATA AS DATA_L ASOF JOIN DATA AS DATA_R MATCH_CONDITION (DATA_L.VAL > DATA_R.VAL) ON DATA_L.ID = DATA_R.ID"
+        )
+        self.validate_identity(
+            """SELECT TO_TIMESTAMP('2025-01-16T14:45:30.123+0500', 'yyyy-mm-DD"T"hh24:mi:ss.ff3TZHTZM')"""
+        )
         self.validate_identity(
             "GET(value, 'foo')::VARCHAR",
             "CAST(GET(value, 'foo') AS VARCHAR)",
@@ -216,7 +260,9 @@ class TestSnowflake(Validator):
             "CREATE TABLE foo (ID INT COMMENT $$some comment$$)",
             "CREATE TABLE foo (ID INT COMMENT 'some comment')",
         )
-        self.validate_identity("SELECT state, city, SUM(retail_price * quantity) AS gross_revenue FROM sales GROUP BY ALL")
+        self.validate_identity(
+            "SELECT state, city, SUM(retail_price * quantity) AS gross_revenue FROM sales GROUP BY ALL"
+        )
         self.validate_identity(
             "SELECT * FROM foo window",
             "SELECT * FROM foo AS window",
@@ -1052,7 +1098,9 @@ class TestSnowflake(Validator):
             },
         )
 
-        self.validate_identity("SELECT UUID_STRING(), UUID_STRING('fe971b24-9572-4005-b22f-351e9c09274d', 'foo')")
+        self.validate_identity(
+            "SELECT UUID_STRING(), UUID_STRING('fe971b24-9572-4005-b22f-351e9c09274d', 'foo')"
+        )
 
         self.validate_all(
             "UUID_STRING('fe971b24-9572-4005-b22f-351e9c09274d', 'foo')",
@@ -1109,10 +1157,16 @@ class TestSnowflake(Validator):
         self.validate_identity("SELECT BITOR(a, b, 'LEFT')")
         self.validate_identity("SELECT BITXOR(a, b, 'LEFT')")
         self.validate_identity("SELECT BIT_XOR(a, b)", "SELECT BITXOR(a, b)")
-        self.validate_identity("SELECT BIT_XOR(a, b, 'LEFT')", "SELECT BITXOR(a, b, 'LEFT')")
+        self.validate_identity(
+            "SELECT BIT_XOR(a, b, 'LEFT')", "SELECT BITXOR(a, b, 'LEFT')"
+        )
         self.validate_identity("SELECT BITSHIFTLEFT(a, 1)")
-        self.validate_identity("SELECT BIT_SHIFTLEFT(a, 1)", "SELECT BITSHIFTLEFT(a, 1)")
-        self.validate_identity("SELECT BIT_SHIFTRIGHT(a, 1)", "SELECT BITSHIFTRIGHT(a, 1)")
+        self.validate_identity(
+            "SELECT BIT_SHIFTLEFT(a, 1)", "SELECT BITSHIFTLEFT(a, 1)"
+        )
+        self.validate_identity(
+            "SELECT BIT_SHIFTRIGHT(a, 1)", "SELECT BITSHIFTRIGHT(a, 1)"
+        )
 
         self.validate_identity("CREATE TABLE t (id INT PRIMARY KEY AUTOINCREMENT)")
 
@@ -1208,33 +1262,49 @@ class TestSnowflake(Validator):
                 "duckdb": "SELECT EXTRACT(ISODOW FROM foo)",
             },
         )
-        self.validate_identity("ALTER TABLE foo ADD col1 VARCHAR(512), col2 VARCHAR(512)")
-        self.validate_identity("ALTER TABLE foo ADD col1 VARCHAR NOT NULL TAG (key1='value_1'), col2 VARCHAR NOT NULL TAG (key2='value_2')")
+        self.validate_identity(
+            "ALTER TABLE foo ADD col1 VARCHAR(512), col2 VARCHAR(512)"
+        )
+        self.validate_identity(
+            "ALTER TABLE foo ADD col1 VARCHAR NOT NULL TAG (key1='value_1'), col2 VARCHAR NOT NULL TAG (key2='value_2')"
+        )
         self.validate_identity("ALTER TABLE foo ADD IF NOT EXISTS col1 INT, col2 INT")
-        self.validate_identity("ALTER TABLE foo ADD IF NOT EXISTS col1 INT, IF NOT EXISTS col2 INT")
+        self.validate_identity(
+            "ALTER TABLE foo ADD IF NOT EXISTS col1 INT, IF NOT EXISTS col2 INT"
+        )
         self.validate_identity("ALTER TABLE foo ADD col1 INT, IF NOT EXISTS col2 INT")
         self.validate_identity("ALTER TABLE IF EXISTS foo ADD IF NOT EXISTS col1 INT")
 
     def test_null_treatment(self):
         self.validate_all(
             r"SELECT FIRST_VALUE(TABLE1.COLUMN1) OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1",
-            write={"snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"},
+            write={
+                "snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"
+            },
         )
         self.validate_all(
             r"SELECT FIRST_VALUE(TABLE1.COLUMN1 RESPECT NULLS) OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1",
-            write={"snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) RESPECT NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"},
+            write={
+                "snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) RESPECT NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"
+            },
         )
         self.validate_all(
             r"SELECT FIRST_VALUE(TABLE1.COLUMN1) RESPECT NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1",
-            write={"snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) RESPECT NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"},
+            write={
+                "snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) RESPECT NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"
+            },
         )
         self.validate_all(
             r"SELECT FIRST_VALUE(TABLE1.COLUMN1 IGNORE NULLS) OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1",
-            write={"snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) IGNORE NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"},
+            write={
+                "snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) IGNORE NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"
+            },
         )
         self.validate_all(
             r"SELECT FIRST_VALUE(TABLE1.COLUMN1) IGNORE NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1",
-            write={"snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) IGNORE NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"},
+            write={
+                "snowflake": r"SELECT FIRST_VALUE(TABLE1.COLUMN1) IGNORE NULLS OVER (PARTITION BY RANDOM_COLUMN1, RANDOM_COLUMN2 ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS MY_ALIAS FROM TABLE1"
+            },
         )
         self.validate_all(
             "SELECT * FROM foo WHERE 'str' IN (SELECT value FROM TABLE(FLATTEN(INPUT => vals)) AS _u(seq, key, path, index, value, this))",
@@ -1250,7 +1320,9 @@ class TestSnowflake(Validator):
         # Ensure we don't treat staged file paths as identifiers (i.e. they're not normalized)
         staged_file = parse_one("SELECT * FROM @foo", read="snowflake")
         self.assertEqual(
-            normalize_identifiers(staged_file, dialect="snowflake").sql(dialect="snowflake"),
+            normalize_identifiers(staged_file, dialect="snowflake").sql(
+                dialect="snowflake"
+            ),
             staged_file.sql(dialect="snowflake"),
         )
 
@@ -1263,13 +1335,25 @@ class TestSnowflake(Validator):
         self.validate_identity("SELECT * FROM @mystage")
         self.validate_identity("SELECT * FROM '@mystage'")
         self.validate_identity("SELECT * FROM @namespace.mystage/path/to/file.json.gz")
-        self.validate_identity("SELECT * FROM @namespace.%table_name/path/to/file.json.gz")
-        self.validate_identity("SELECT * FROM '@external/location' (FILE_FORMAT => 'path.to.csv')")
-        self.validate_identity("PUT file:///dir/tmp.csv @%table", check_command_warning=True)
+        self.validate_identity(
+            "SELECT * FROM @namespace.%table_name/path/to/file.json.gz"
+        )
+        self.validate_identity(
+            "SELECT * FROM '@external/location' (FILE_FORMAT => 'path.to.csv')"
+        )
+        self.validate_identity(
+            "PUT file:///dir/tmp.csv @%table", check_command_warning=True
+        )
         self.validate_identity("SELECT * FROM (SELECT a FROM @foo)")
-        self.validate_identity("SELECT * FROM (SELECT * FROM '@external/location' (FILE_FORMAT => 'path.to.csv'))")
-        self.validate_identity("SELECT * FROM @foo/bar (FILE_FORMAT => ds_sandbox.test.my_csv_format, PATTERN => 'test') AS bla")
-        self.validate_identity("SELECT t.$1, t.$2 FROM @mystage1 (FILE_FORMAT => 'myformat', PATTERN => '.*data.*[.]csv.gz') AS t")
+        self.validate_identity(
+            "SELECT * FROM (SELECT * FROM '@external/location' (FILE_FORMAT => 'path.to.csv'))"
+        )
+        self.validate_identity(
+            "SELECT * FROM @foo/bar (FILE_FORMAT => ds_sandbox.test.my_csv_format, PATTERN => 'test') AS bla"
+        )
+        self.validate_identity(
+            "SELECT t.$1, t.$2 FROM @mystage1 (FILE_FORMAT => 'myformat', PATTERN => '.*data.*[.]csv.gz') AS t"
+        )
         self.validate_identity(
             "SELECT parse_json($1):a.b FROM @mystage2/data1.json.gz",
             "SELECT GET_PATH(PARSE_JSON($1), 'a.b') FROM @mystage2/data1.json.gz",
@@ -1290,10 +1374,18 @@ class TestSnowflake(Validator):
 
     def test_sample(self):
         self.validate_identity("SELECT * FROM testtable TABLESAMPLE BERNOULLI (20.3)")
-        self.validate_identity("SELECT * FROM testtable TABLESAMPLE SYSTEM (3) SEED (82)")
-        self.validate_identity("SELECT a FROM test PIVOT(SUM(x) FOR y IN ('z', 'q')) AS x TABLESAMPLE BERNOULLI (0.1)")
-        self.validate_identity("SELECT i, j FROM table1 AS t1 INNER JOIN table2 AS t2 TABLESAMPLE BERNOULLI (50) WHERE t2.j = t1.i")
-        self.validate_identity("SELECT * FROM (SELECT * FROM t1 JOIN t2 ON t1.a = t2.c) TABLESAMPLE BERNOULLI (1)")
+        self.validate_identity(
+            "SELECT * FROM testtable TABLESAMPLE SYSTEM (3) SEED (82)"
+        )
+        self.validate_identity(
+            "SELECT a FROM test PIVOT(SUM(x) FOR y IN ('z', 'q')) AS x TABLESAMPLE BERNOULLI (0.1)"
+        )
+        self.validate_identity(
+            "SELECT i, j FROM table1 AS t1 INNER JOIN table2 AS t2 TABLESAMPLE BERNOULLI (50) WHERE t2.j = t1.i"
+        )
+        self.validate_identity(
+            "SELECT * FROM (SELECT * FROM t1 JOIN t2 ON t1.a = t2.c) TABLESAMPLE BERNOULLI (1)"
+        )
         self.validate_identity(
             "SELECT * FROM testtable TABLESAMPLE (10 ROWS)",
             "SELECT * FROM testtable TABLESAMPLE BERNOULLI (10 ROWS)",
@@ -1451,7 +1543,9 @@ class TestSnowflake(Validator):
                 "snowflake": "DATEADD(DAY, 5, CAST('2008-12-25' AS DATE))",
             },
         )
-        self.validate_identity("DATEDIFF(DAY, CAST('2007-12-25' AS DATE), CAST('2008-12-25' AS DATE))")
+        self.validate_identity(
+            "DATEDIFF(DAY, CAST('2007-12-25' AS DATE), CAST('2008-12-25' AS DATE))"
+        )
         self.validate_identity(
             "TIMEDIFF(DAY, CAST('2007-12-25' AS DATE), CAST('2008-12-25' AS DATE))",
             "DATEDIFF(DAY, CAST('2007-12-25' AS DATE), CAST('2008-12-25' AS DATE))",
@@ -1574,17 +1668,31 @@ class TestSnowflake(Validator):
     def test_historical_data(self):
         self.validate_identity("SELECT * FROM my_table AT (STATEMENT => $query_id_var)")
         self.validate_identity("SELECT * FROM my_table AT (OFFSET => -60 * 5)")
-        self.validate_identity("SELECT * FROM my_table BEFORE (STATEMENT => $query_id_var)")
+        self.validate_identity(
+            "SELECT * FROM my_table BEFORE (STATEMENT => $query_id_var)"
+        )
         self.validate_identity("SELECT * FROM my_table BEFORE (OFFSET => -60 * 5)")
-        self.validate_identity("CREATE SCHEMA restored_schema CLONE my_schema AT (OFFSET => -3600)")
+        self.validate_identity(
+            "CREATE SCHEMA restored_schema CLONE my_schema AT (OFFSET => -3600)"
+        )
         self.validate_identity(
             "CREATE TABLE restored_table CLONE my_table AT (TIMESTAMP => CAST('Sat, 09 May 2015 01:01:00 +0300' AS TIMESTAMPTZ))",
         )
-        self.validate_identity("CREATE DATABASE restored_db CLONE my_db BEFORE (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')")
-        self.validate_identity("SELECT * FROM my_table AT (TIMESTAMP => TO_TIMESTAMP(1432669154242, 3))")
-        self.validate_identity("SELECT * FROM my_table AT (OFFSET => -60 * 5) AS T WHERE T.flag = 'valid'")
-        self.validate_identity("SELECT * FROM my_table AT (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')")
-        self.validate_identity("SELECT * FROM my_table BEFORE (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')")
+        self.validate_identity(
+            "CREATE DATABASE restored_db CLONE my_db BEFORE (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')"
+        )
+        self.validate_identity(
+            "SELECT * FROM my_table AT (TIMESTAMP => TO_TIMESTAMP(1432669154242, 3))"
+        )
+        self.validate_identity(
+            "SELECT * FROM my_table AT (OFFSET => -60 * 5) AS T WHERE T.flag = 'valid'"
+        )
+        self.validate_identity(
+            "SELECT * FROM my_table AT (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')"
+        )
+        self.validate_identity(
+            "SELECT * FROM my_table BEFORE (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')"
+        )
         self.validate_identity(
             "SELECT * FROM my_table AT (TIMESTAMP => 'Fri, 01 May 2015 16:20:00 -0700'::timestamp)",
             "SELECT * FROM my_table AT (TIMESTAMP => CAST('Fri, 01 May 2015 16:20:00 -0700' AS TIMESTAMP))",
@@ -1611,7 +1719,9 @@ class TestSnowflake(Validator):
         # Make sure that the historical data keywords can still be used as aliases
         for historical_data_prefix in ("AT", "BEFORE", "END", "CHANGES"):
             for schema_suffix in ("", "(col)"):
-                with self.subTest(f"Testing historical data prefix alias: {historical_data_prefix}{schema_suffix}"):
+                with self.subTest(
+                    f"Testing historical data prefix alias: {historical_data_prefix}{schema_suffix}"
+                ):
                     self.validate_identity(
                         f"SELECT * FROM foo {historical_data_prefix}{schema_suffix}",
                         f"SELECT * FROM foo AS {historical_data_prefix}{schema_suffix}",
@@ -1637,48 +1747,92 @@ class TestSnowflake(Validator):
                     "CREATE TABLE t (id INT TAG (key1='value_1', key2='value_2'))",
                 )
 
-        self.validate_identity("CREATE OR REPLACE TABLE foo COPY GRANTS USING TEMPLATE (SELECT 1)")
+        self.validate_identity(
+            "CREATE OR REPLACE TABLE foo COPY GRANTS USING TEMPLATE (SELECT 1)"
+        )
         self.validate_identity("USE SECONDARY ROLES ALL")
         self.validate_identity("USE SECONDARY ROLES NONE")
         self.validate_identity("USE SECONDARY ROLES a, b, c")
         self.validate_identity("CREATE SECURE VIEW table1 AS (SELECT a FROM table2)")
-        self.validate_identity("CREATE OR REPLACE VIEW foo (uid) COPY GRANTS AS (SELECT 1)")
+        self.validate_identity(
+            "CREATE OR REPLACE VIEW foo (uid) COPY GRANTS AS (SELECT 1)"
+        )
         self.validate_identity("CREATE TABLE geospatial_table (id INT, g GEOGRAPHY)")
-        self.validate_identity("CREATE MATERIALIZED VIEW a COMMENT='...' AS SELECT 1 FROM x")
+        self.validate_identity(
+            "CREATE MATERIALIZED VIEW a COMMENT='...' AS SELECT 1 FROM x"
+        )
         self.validate_identity("CREATE DATABASE mytestdb_clone CLONE mytestdb")
         self.validate_identity("CREATE SCHEMA mytestschema_clone CLONE testschema")
-        self.validate_identity("CREATE TABLE IDENTIFIER('foo') (COLUMN1 VARCHAR, COLUMN2 VARCHAR)")
-        self.validate_identity("CREATE TABLE IDENTIFIER($foo) (col1 VARCHAR, col2 VARCHAR)")
+        self.validate_identity(
+            "CREATE TABLE IDENTIFIER('foo') (COLUMN1 VARCHAR, COLUMN2 VARCHAR)"
+        )
+        self.validate_identity(
+            "CREATE TABLE IDENTIFIER($foo) (col1 VARCHAR, col2 VARCHAR)"
+        )
         self.validate_identity("CREATE TAG cost_center ALLOWED_VALUES 'a', 'b'")
         self.validate_identity("CREATE WAREHOUSE x").this.assert_is(exp.Identifier)
         self.validate_identity("CREATE STREAMLIT x").this.assert_is(exp.Identifier)
-        self.validate_identity("CREATE TEMPORARY STAGE stage1 FILE_FORMAT=(TYPE=PARQUET)").this.assert_is(exp.Table)
+        self.validate_identity(
+            "CREATE TEMPORARY STAGE stage1 FILE_FORMAT=(TYPE=PARQUET)"
+        ).this.assert_is(exp.Table)
         self.validate_identity(
             "CREATE STAGE stage1 FILE_FORMAT='format1'",
             "CREATE STAGE stage1 FILE_FORMAT=(FORMAT_NAME='format1')",
         )
-        self.validate_identity("CREATE STAGE stage1 FILE_FORMAT=(FORMAT_NAME=stage1.format1)")
-        self.validate_identity("CREATE STAGE stage1 FILE_FORMAT=(FORMAT_NAME='stage1.format1')")
+        self.validate_identity(
+            "CREATE STAGE stage1 FILE_FORMAT=(FORMAT_NAME=stage1.format1)"
+        )
+        self.validate_identity(
+            "CREATE STAGE stage1 FILE_FORMAT=(FORMAT_NAME='stage1.format1')"
+        )
         self.validate_identity(
             "CREATE STAGE stage1 FILE_FORMAT=schema1.format1",
             "CREATE STAGE stage1 FILE_FORMAT=(FORMAT_NAME=schema1.format1)",
         )
         with self.assertRaises(ParseError):
             self.parse_one("CREATE STAGE stage1 FILE_FORMAT=123", dialect="snowflake")
-        self.validate_identity("CREATE STAGE s1 URL='s3://bucket-123' FILE_FORMAT=(TYPE='JSON') CREDENTIALS=(aws_key_id='test' aws_secret_key='test')")
-        self.validate_identity("CREATE OR REPLACE TAG IF NOT EXISTS cost_center COMMENT='cost_center tag'").this.assert_is(exp.Identifier)
-        self.validate_identity("CREATE TEMPORARY FILE FORMAT fileformat1 TYPE=PARQUET COMPRESSION=auto").this.assert_is(exp.Table)
-        self.validate_identity("CREATE DYNAMIC TABLE product (pre_tax_profit, taxes, after_tax_profit) TARGET_LAG='20 minutes' WAREHOUSE=mywh AS SELECT revenue - cost, (revenue - cost) * tax_rate, (revenue - cost) * (1.0 - tax_rate) FROM staging_table")
-        self.validate_identity("ALTER TABLE db_name.schmaName.tblName ADD COLUMN_1 VARCHAR NOT NULL TAG (key1='value_1')")
-        self.validate_identity("DROP FUNCTION my_udf (OBJECT(city VARCHAR, zipcode DECIMAL(38, 0), val ARRAY(BOOLEAN)))")
-        self.validate_identity("CREATE TABLE orders_clone_restore CLONE orders AT (TIMESTAMP => TO_TIMESTAMP_TZ('04/05/2013 01:02:03', 'mm/dd/yyyy hh24:mi:ss'))")
-        self.validate_identity("CREATE TABLE orders_clone_restore CLONE orders BEFORE (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')")
-        self.validate_identity("CREATE SCHEMA mytestschema_clone_restore CLONE testschema BEFORE (TIMESTAMP => TO_TIMESTAMP(40 * 365 * 86400))")
-        self.validate_identity("CREATE OR REPLACE TABLE EXAMPLE_DB.DEMO.USERS (ID DECIMAL(38, 0) NOT NULL, PRIMARY KEY (ID), FOREIGN KEY (CITY_CODE) REFERENCES EXAMPLE_DB.DEMO.CITIES (CITY_CODE))")
-        self.validate_identity("CREATE ICEBERG TABLE my_iceberg_table (amount ARRAY(INT)) CATALOG='SNOWFLAKE' EXTERNAL_VOLUME='my_external_volume' BASE_LOCATION='my/relative/path/from/extvol'")
-        self.validate_identity("""CREATE OR REPLACE FUNCTION ibis_udfs.public.object_values("obj" OBJECT) RETURNS ARRAY LANGUAGE JAVASCRIPT RETURNS NULL ON NULL INPUT AS ' return Object.values(obj) '""")
-        self.validate_identity("""CREATE OR REPLACE FUNCTION ibis_udfs.public.object_values("obj" OBJECT) RETURNS ARRAY LANGUAGE JAVASCRIPT STRICT AS ' return Object.values(obj) '""")
-        self.validate_identity("CREATE OR REPLACE TABLE TEST (SOME_REF DECIMAL(38, 0) NOT NULL FOREIGN KEY REFERENCES SOME_OTHER_TABLE (ID))")
+        self.validate_identity(
+            "CREATE STAGE s1 URL='s3://bucket-123' FILE_FORMAT=(TYPE='JSON') CREDENTIALS=(aws_key_id='test' aws_secret_key='test')"
+        )
+        self.validate_identity(
+            "CREATE OR REPLACE TAG IF NOT EXISTS cost_center COMMENT='cost_center tag'"
+        ).this.assert_is(exp.Identifier)
+        self.validate_identity(
+            "CREATE TEMPORARY FILE FORMAT fileformat1 TYPE=PARQUET COMPRESSION=auto"
+        ).this.assert_is(exp.Table)
+        self.validate_identity(
+            "CREATE DYNAMIC TABLE product (pre_tax_profit, taxes, after_tax_profit) TARGET_LAG='20 minutes' WAREHOUSE=mywh AS SELECT revenue - cost, (revenue - cost) * tax_rate, (revenue - cost) * (1.0 - tax_rate) FROM staging_table"
+        )
+        self.validate_identity(
+            "ALTER TABLE db_name.schmaName.tblName ADD COLUMN_1 VARCHAR NOT NULL TAG (key1='value_1')"
+        )
+        self.validate_identity(
+            "DROP FUNCTION my_udf (OBJECT(city VARCHAR, zipcode DECIMAL(38, 0), val ARRAY(BOOLEAN)))"
+        )
+        self.validate_identity(
+            "CREATE TABLE orders_clone_restore CLONE orders AT (TIMESTAMP => TO_TIMESTAMP_TZ('04/05/2013 01:02:03', 'mm/dd/yyyy hh24:mi:ss'))"
+        )
+        self.validate_identity(
+            "CREATE TABLE orders_clone_restore CLONE orders BEFORE (STATEMENT => '8e5d0ca9-005e-44e6-b858-a8f5b37c5726')"
+        )
+        self.validate_identity(
+            "CREATE SCHEMA mytestschema_clone_restore CLONE testschema BEFORE (TIMESTAMP => TO_TIMESTAMP(40 * 365 * 86400))"
+        )
+        self.validate_identity(
+            "CREATE OR REPLACE TABLE EXAMPLE_DB.DEMO.USERS (ID DECIMAL(38, 0) NOT NULL, PRIMARY KEY (ID), FOREIGN KEY (CITY_CODE) REFERENCES EXAMPLE_DB.DEMO.CITIES (CITY_CODE))"
+        )
+        self.validate_identity(
+            "CREATE ICEBERG TABLE my_iceberg_table (amount ARRAY(INT)) CATALOG='SNOWFLAKE' EXTERNAL_VOLUME='my_external_volume' BASE_LOCATION='my/relative/path/from/extvol'"
+        )
+        self.validate_identity(
+            """CREATE OR REPLACE FUNCTION ibis_udfs.public.object_values("obj" OBJECT) RETURNS ARRAY LANGUAGE JAVASCRIPT RETURNS NULL ON NULL INPUT AS ' return Object.values(obj) '"""
+        )
+        self.validate_identity(
+            """CREATE OR REPLACE FUNCTION ibis_udfs.public.object_values("obj" OBJECT) RETURNS ARRAY LANGUAGE JAVASCRIPT STRICT AS ' return Object.values(obj) '"""
+        )
+        self.validate_identity(
+            "CREATE OR REPLACE TABLE TEST (SOME_REF DECIMAL(38, 0) NOT NULL FOREIGN KEY REFERENCES SOME_OTHER_TABLE (ID))"
+        )
         self.validate_identity(
             "CREATE OR REPLACE FUNCTION my_udf(location OBJECT(city VARCHAR, zipcode DECIMAL(38, 0), val ARRAY(BOOLEAN))) RETURNS VARCHAR AS $$ SELECT 'foo' $$",
             "CREATE OR REPLACE FUNCTION my_udf(location OBJECT(city VARCHAR, zipcode DECIMAL(38, 0), val ARRAY(BOOLEAN))) RETURNS VARCHAR AS ' SELECT \\'foo\\' '",
@@ -1780,7 +1934,9 @@ class TestSnowflake(Validator):
 
     def test_stored_procedures(self):
         self.validate_identity("CALL a.b.c(x, y)", check_command_warning=True)
-        self.validate_identity("CREATE PROCEDURE a.b.c(x INT, y VARIANT) RETURNS OBJECT EXECUTE AS CALLER AS 'BEGIN SELECT 1; END;'")
+        self.validate_identity(
+            "CREATE PROCEDURE a.b.c(x INT, y VARIANT) RETURNS OBJECT EXECUTE AS CALLER AS 'BEGIN SELECT 1; END;'"
+        )
 
     def test_table_function(self):
         self.validate_identity("SELECT * FROM TABLE('MYTABLE')")
@@ -1791,7 +1947,9 @@ class TestSnowflake(Validator):
         self.validate_identity("SELECT * FROM TABLE('t1') AS f")
         self.validate_identity("SELECT * FROM (TABLE('t1') CROSS JOIN TABLE('t2'))")
         self.validate_identity("SELECT * FROM TABLE('t1'), LATERAL (SELECT * FROM t2)")
-        self.validate_identity("SELECT * FROM TABLE('t1') UNION ALL SELECT * FROM TABLE('t2')")
+        self.validate_identity(
+            "SELECT * FROM TABLE('t1') UNION ALL SELECT * FROM TABLE('t2')"
+        )
         self.validate_identity("SELECT * FROM TABLE('t1') TABLESAMPLE BERNOULLI (20.3)")
         self.validate_identity("""SELECT * FROM TABLE('MYDB."MYSCHEMA"."MYTABLE"')""")
         self.validate_identity(
@@ -1801,7 +1959,9 @@ class TestSnowflake(Validator):
 
     def test_flatten(self):
         self.assertEqual(
-            exp.select(exp.Explode(this=exp.column("x")).as_("y", quoted=True)).sql("snowflake", pretty=True),
+            exp.select(exp.Explode(this=exp.column("x")).as_("y", quoted=True)).sql(
+                "snowflake", pretty=True
+            ),
             """SELECT
   IFF(_u.pos = _u_2.pos_2, _u_2."y", NULL) AS "y"
 FROM TABLE(FLATTEN(INPUT => ARRAY_GENERATE_RANGE(0, (
@@ -1916,42 +2076,58 @@ WHERE
         # All examples from https://docs.snowflake.com/en/sql-reference/functions/flatten.html#syntax
         self.validate_all(
             "SELECT * FROM TABLE(FLATTEN(input => parse_json('[1, ,77]'))) f",
-            write={"snowflake": "SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('[1, ,77]'))) AS f"},
+            write={
+                "snowflake": "SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('[1, ,77]'))) AS f"
+            },
         )
 
         self.validate_all(
             """SELECT * FROM TABLE(FLATTEN(input => parse_json('{"a":1, "b":[77,88]}'), outer => true)) f""",
-            write={"snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88]}'), outer => TRUE)) AS f"""},
+            write={
+                "snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88]}'), outer => TRUE)) AS f"""
+            },
         )
 
         self.validate_all(
             """SELECT * FROM TABLE(FLATTEN(input => parse_json('{"a":1, "b":[77,88]}'), path => 'b')) f""",
-            write={"snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88]}'), path => 'b')) AS f"""},
+            write={
+                "snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88]}'), path => 'b')) AS f"""
+            },
         )
 
         self.validate_all(
             """SELECT * FROM TABLE(FLATTEN(input => parse_json('[]'))) f""",
-            write={"snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('[]'))) AS f"""},
+            write={
+                "snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('[]'))) AS f"""
+            },
         )
 
         self.validate_all(
             """SELECT * FROM TABLE(FLATTEN(input => parse_json('[]'), outer => true)) f""",
-            write={"snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('[]'), outer => TRUE)) AS f"""},
+            write={
+                "snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('[]'), outer => TRUE)) AS f"""
+            },
         )
 
         self.validate_all(
             """SELECT * FROM TABLE(FLATTEN(input => parse_json('{"a":1, "b":[77,88], "c": {"d":"X"}}'))) f""",
-            write={"snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88], "c": {"d":"X"}}'))) AS f"""},
+            write={
+                "snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88], "c": {"d":"X"}}'))) AS f"""
+            },
         )
 
         self.validate_all(
             """SELECT * FROM TABLE(FLATTEN(input => parse_json('{"a":1, "b":[77,88], "c": {"d":"X"}}'), recursive => true)) f""",
-            write={"snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88], "c": {"d":"X"}}'), recursive => TRUE)) AS f"""},
+            write={
+                "snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88], "c": {"d":"X"}}'), recursive => TRUE)) AS f"""
+            },
         )
 
         self.validate_all(
             """SELECT * FROM TABLE(FLATTEN(input => parse_json('{"a":1, "b":[77,88], "c": {"d":"X"}}'), recursive => true, mode => 'object')) f""",
-            write={"snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88], "c": {"d":"X"}}'), recursive => TRUE, mode => 'object')) AS f"""},
+            write={
+                "snowflake": """SELECT * FROM TABLE(FLATTEN(input => PARSE_JSON('{"a":1, "b":[77,88], "c": {"d":"X"}}'), recursive => TRUE, mode => 'object')) AS f"""
+            },
         )
 
         self.validate_all(
@@ -2002,7 +2178,9 @@ FROM persons AS p, LATERAL FLATTEN(input => p.c, path => 'contact') AS _flattene
 
     def test_values(self):
         select = exp.select("*").from_("values (map(['a'], [1]))")
-        self.assertEqual(select.sql("snowflake"), "SELECT * FROM (SELECT OBJECT_CONSTRUCT('a', 1))")
+        self.assertEqual(
+            select.sql("snowflake"), "SELECT * FROM (SELECT OBJECT_CONSTRUCT('a', 1))"
+        )
 
         self.validate_all(
             'SELECT "c0", "c1" FROM (VALUES (1, 2), (3, 4)) AS "t0"("c0", "c1")',
@@ -2242,7 +2420,9 @@ FROM persons AS p, LATERAL FLATTEN(input => p.c, path => 'contact') AS _flattene
                     "AFTER MATCH SKIP TO FIRST x",
                     "AFTER MATCH SKIP TO LAST x",
                 ):
-                    with self.subTest(f"MATCH_RECOGNIZE with window frame {window_frame}, rows {row}, after {after}: "):
+                    with self.subTest(
+                        f"MATCH_RECOGNIZE with window frame {window_frame}, rows {row}, after {after}: "
+                    ):
                         self.validate_identity(
                             f"""SELECT
   *
@@ -2265,11 +2445,15 @@ MATCH_RECOGNIZE (
     def test_show_users(self):
         self.validate_identity("SHOW USERS")
         self.validate_identity("SHOW TERSE USERS")
-        self.validate_identity("SHOW USERS LIKE '_foo%' STARTS WITH 'bar' LIMIT 5 FROM 'baz'")
+        self.validate_identity(
+            "SHOW USERS LIKE '_foo%' STARTS WITH 'bar' LIMIT 5 FROM 'baz'"
+        )
 
     def test_show_databases(self):
         self.validate_identity("SHOW TERSE DATABASES")
-        self.validate_identity("SHOW TERSE DATABASES HISTORY LIKE 'foo' STARTS WITH 'bla' LIMIT 5 FROM 'bob' WITH PRIVILEGES USAGE, MODIFY")
+        self.validate_identity(
+            "SHOW TERSE DATABASES HISTORY LIKE 'foo' STARTS WITH 'bla' LIMIT 5 FROM 'bob' WITH PRIVILEGES USAGE, MODIFY"
+        )
 
         ast = parse_one("SHOW DATABASES IN ACCOUNT", read="snowflake")
         self.assertEqual(ast.this, "DATABASES")
@@ -2312,7 +2496,9 @@ MATCH_RECOGNIZE (
 
     def test_show_warehouses(self):
         self.validate_identity("SHOW WAREHOUSES")
-        self.validate_identity("SHOW WAREHOUSES LIKE 'foo' WITH PRIVILEGES USAGE, MODIFY")
+        self.validate_identity(
+            "SHOW WAREHOUSES LIKE 'foo' WITH PRIVILEGES USAGE, MODIFY"
+        )
 
         ast = parse_one("SHOW WAREHOUSES", read="snowflake")
         self.assertEqual(ast.this, "WAREHOUSES")
@@ -2390,7 +2576,9 @@ MATCH_RECOGNIZE (
         )
 
         ast = parse_one('SHOW PRIMARY KEYS IN "TEST"."PUBLIC"."foo"', read="snowflake")
-        self.assertEqual(ast.find(exp.Table).sql(dialect="snowflake"), '"TEST"."PUBLIC"."foo"')
+        self.assertEqual(
+            ast.find(exp.Table).sql(dialect="snowflake"), '"TEST"."PUBLIC"."foo"'
+        )
 
     def test_show_views(self):
         self.validate_identity("SHOW TERSE VIEWS")
@@ -2425,7 +2613,9 @@ MATCH_RECOGNIZE (
         )
 
         ast = parse_one('SHOW UNIQUE KEYS IN "TEST"."PUBLIC"."foo"', read="snowflake")
-        self.assertEqual(ast.find(exp.Table).sql(dialect="snowflake"), '"TEST"."PUBLIC"."foo"')
+        self.assertEqual(
+            ast.find(exp.Table).sql(dialect="snowflake"), '"TEST"."PUBLIC"."foo"'
+        )
 
     def test_show_imported_keys(self):
         self.validate_identity("SHOW IMPORTED KEYS")
@@ -2444,7 +2634,9 @@ MATCH_RECOGNIZE (
         )
 
         ast = parse_one('SHOW IMPORTED KEYS IN "TEST"."PUBLIC"."foo"', read="snowflake")
-        self.assertEqual(ast.find(exp.Table).sql(dialect="snowflake"), '"TEST"."PUBLIC"."foo"')
+        self.assertEqual(
+            ast.find(exp.Table).sql(dialect="snowflake"), '"TEST"."PUBLIC"."foo"'
+        )
 
     def test_show_sequences(self):
         self.validate_identity("SHOW TERSE SEQUENCES")
@@ -2482,7 +2674,9 @@ STORAGE_ALLOWED_LOCATIONS=('s3://mybucket1/path1/', 's3://mybucket2/path2/')""",
         self.validate_identity("SELECT TRY_CAST(x AS DOUBLE)")
         self.validate_identity("SELECT TRY_CAST(FOO() AS TEXT)")
 
-        self.validate_all("TRY_CAST('foo' AS TEXT)", read={"hive": "CAST('foo' AS STRING)"})
+        self.validate_all(
+            "TRY_CAST('foo' AS TEXT)", read={"hive": "CAST('foo' AS STRING)"}
+        )
         self.validate_all("CAST(5 + 5 AS TEXT)", read={"hive": "CAST(5 + 5 AS STRING)"})
         self.validate_all(
             "CAST(TRY_CAST('2020-01-01' AS DATE) AS TEXT)",
@@ -2504,20 +2698,37 @@ STORAGE_ALLOWED_LOCATIONS=('s3://mybucket1/path1/', 's3://mybucket2/path2/')""",
         expression = parse_one("SELECT CAST(t.x AS STRING) FROM t", read="hive")
 
         for value_type in ("string", "int"):
-            with self.subTest(f"Testing Hive -> Snowflake CAST/TRY_CAST conversion for {value_type}"):
+            with self.subTest(
+                f"Testing Hive -> Snowflake CAST/TRY_CAST conversion for {value_type}"
+            ):
                 func = "TRY_CAST" if value_type == "string" else "CAST"
 
                 expression = annotate_types(expression, schema={"t": {"x": value_type}})
-                self.assertEqual(expression.sql(dialect="snowflake"), f"SELECT {func}(t.x AS TEXT) FROM t")
+                self.assertEqual(
+                    expression.sql(dialect="snowflake"),
+                    f"SELECT {func}(t.x AS TEXT) FROM t",
+                )
 
     def test_copy(self):
         self.validate_identity("COPY INTO test (c1) FROM (SELECT $1.c1 FROM @mystage)")
-        self.validate_identity("""COPY INTO temp FROM @random_stage/path/ FILE_FORMAT = (TYPE=CSV FIELD_DELIMITER='|' NULL_IF=('str1', 'str2') FIELD_OPTIONALLY_ENCLOSED_BY='"' TIMESTAMP_FORMAT='TZHTZM YYYY-MM-DD HH24:MI:SS.FF9' DATE_FORMAT='TZHTZM YYYY-MM-DD HH24:MI:SS.FF9' BINARY_FORMAT=BASE64) VALIDATION_MODE = 'RETURN_3_ROWS'""")
-        self.validate_identity("""COPY INTO load1 FROM @%load1/data1/ CREDENTIALS = (AWS_KEY_ID='id' AWS_SECRET_KEY='key' AWS_TOKEN='token') FILES = ('test1.csv', 'test2.csv') FORCE = TRUE""")
-        self.validate_identity("""COPY INTO mytable FROM 'azure://myaccount.blob.core.windows.net/mycontainer/data/files' CREDENTIALS = (AZURE_SAS_TOKEN='token') ENCRYPTION = (TYPE='AZURE_CSE' MASTER_KEY='kPx...') FILE_FORMAT = (FORMAT_NAME=my_csv_format)""")
-        self.validate_identity("""COPY INTO mytable (col1, col2) FROM 's3://mybucket/data/files' STORAGE_INTEGRATION = "storage" ENCRYPTION = (TYPE='NONE' MASTER_KEY='key') FILES = ('file1', 'file2') PATTERN = 'pattern' FILE_FORMAT = (FORMAT_NAME=my_csv_format NULL_IF=('')) PARSE_HEADER = TRUE""")
-        self.validate_identity("""COPY INTO @my_stage/result/data FROM (SELECT * FROM orderstiny) FILE_FORMAT = (TYPE='csv')""")
-        self.validate_identity("""COPY INTO MY_DATABASE.MY_SCHEMA.MY_TABLE FROM @MY_DATABASE.MY_SCHEMA.MY_STAGE/my_path FILE_FORMAT = (FORMAT_NAME=MY_DATABASE.MY_SCHEMA.MY_FILE_FORMAT)""")
+        self.validate_identity(
+            """COPY INTO temp FROM @random_stage/path/ FILE_FORMAT = (TYPE=CSV FIELD_DELIMITER='|' NULL_IF=('str1', 'str2') FIELD_OPTIONALLY_ENCLOSED_BY='"' TIMESTAMP_FORMAT='TZHTZM YYYY-MM-DD HH24:MI:SS.FF9' DATE_FORMAT='TZHTZM YYYY-MM-DD HH24:MI:SS.FF9' BINARY_FORMAT=BASE64) VALIDATION_MODE = 'RETURN_3_ROWS'"""
+        )
+        self.validate_identity(
+            """COPY INTO load1 FROM @%load1/data1/ CREDENTIALS = (AWS_KEY_ID='id' AWS_SECRET_KEY='key' AWS_TOKEN='token') FILES = ('test1.csv', 'test2.csv') FORCE = TRUE"""
+        )
+        self.validate_identity(
+            """COPY INTO mytable FROM 'azure://myaccount.blob.core.windows.net/mycontainer/data/files' CREDENTIALS = (AZURE_SAS_TOKEN='token') ENCRYPTION = (TYPE='AZURE_CSE' MASTER_KEY='kPx...') FILE_FORMAT = (FORMAT_NAME=my_csv_format)"""
+        )
+        self.validate_identity(
+            """COPY INTO mytable (col1, col2) FROM 's3://mybucket/data/files' STORAGE_INTEGRATION = "storage" ENCRYPTION = (TYPE='NONE' MASTER_KEY='key') FILES = ('file1', 'file2') PATTERN = 'pattern' FILE_FORMAT = (FORMAT_NAME=my_csv_format NULL_IF=('')) PARSE_HEADER = TRUE"""
+        )
+        self.validate_identity(
+            """COPY INTO @my_stage/result/data FROM (SELECT * FROM orderstiny) FILE_FORMAT = (TYPE='csv')"""
+        )
+        self.validate_identity(
+            """COPY INTO MY_DATABASE.MY_SCHEMA.MY_TABLE FROM @MY_DATABASE.MY_SCHEMA.MY_STAGE/my_path FILE_FORMAT = (FORMAT_NAME=MY_DATABASE.MY_SCHEMA.MY_FILE_FORMAT)"""
+        )
         self.validate_all(
             """COPY INTO 's3://example/data.csv'
     FROM EXTRA.EXAMPLE.TABLE
@@ -2575,14 +2786,20 @@ SINGLE = TRUE""",
         )
 
     def test_put_to_stage(self):
-        self.validate_identity('PUT \'file:///dir/tmp.csv\' @"my_DB"."schEMA1"."MYstage"')
+        self.validate_identity(
+            'PUT \'file:///dir/tmp.csv\' @"my_DB"."schEMA1"."MYstage"'
+        )
 
         # PUT with file path and stage ref containing spaces (wrapped in single quotes)
         ast = parse_one("PUT 'file://my file.txt' '@s1/my folder'", read="snowflake")
         self.assertIsInstance(ast, exp.Put)
-        self.assertEqual(ast.this, exp.Literal(this="file://my file.txt", is_string=True))
+        self.assertEqual(
+            ast.this, exp.Literal(this="file://my file.txt", is_string=True)
+        )
         self.assertEqual(ast.args["target"], exp.Var(this="'@s1/my folder'"))
-        self.assertEqual(ast.sql("snowflake"), "PUT 'file://my file.txt' '@s1/my folder'")
+        self.assertEqual(
+            ast.sql("snowflake"), "PUT 'file://my file.txt' '@s1/my folder'"
+        )
 
         # expression with additional properties
         ast = parse_one(
@@ -2590,10 +2807,14 @@ SINGLE = TRUE""",
             read="snowflake",
         )
         self.assertIsInstance(ast, exp.Put)
-        self.assertEqual(ast.this, exp.Literal(this="file:///tmp/my.txt", is_string=True))
+        self.assertEqual(
+            ast.this, exp.Literal(this="file:///tmp/my.txt", is_string=True)
+        )
         self.assertEqual(ast.args["target"], exp.Var(this="@stage1/folder"))
         properties = ast.args.get("properties")
-        props_dict = {prop.this.this: prop.args["value"].this for prop in properties.expressions}
+        props_dict = {
+            prop.this.this: prop.args["value"].this for prop in properties.expressions
+        }
         self.assertEqual(
             props_dict,
             {
@@ -2608,34 +2829,50 @@ SINGLE = TRUE""",
         self.validate_identity("PUT 'file:///dir/tmp.csv' @s1/test")
 
         # the unquoted URI variant is not fully supported yet
-        self.validate_identity("PUT file:///dir/tmp.csv @%table", check_command_warning=True)
+        self.validate_identity(
+            "PUT file:///dir/tmp.csv @%table", check_command_warning=True
+        )
         self.validate_identity(
             "PUT file:///dir/tmp.csv @s1/test PARALLEL=1 AUTO_COMPRESS=FALSE source_compression=gzip OVERWRITE=TRUE",
             check_command_warning=True,
         )
 
     def test_get_from_stage(self):
-        self.validate_identity('GET @"my_DB"."schEMA1"."MYstage" \'file:///dir/tmp.csv\'')
+        self.validate_identity(
+            'GET @"my_DB"."schEMA1"."MYstage" \'file:///dir/tmp.csv\''
+        )
         self.validate_identity("GET @s1/test 'file:///dir/tmp.csv'").assert_is(exp.Get)
 
         # GET with file path and stage ref containing spaces (wrapped in single quotes)
         ast = parse_one("GET '@s1/my folder' 'file://my file.txt'", read="snowflake")
         self.assertIsInstance(ast, exp.Get)
         self.assertEqual(ast.args["target"], exp.Var(this="'@s1/my folder'"))
-        self.assertEqual(ast.this, exp.Literal(this="file://my file.txt", is_string=True))
-        self.assertEqual(ast.sql("snowflake"), "GET '@s1/my folder' 'file://my file.txt'")
+        self.assertEqual(
+            ast.this, exp.Literal(this="file://my file.txt", is_string=True)
+        )
+        self.assertEqual(
+            ast.sql("snowflake"), "GET '@s1/my folder' 'file://my file.txt'"
+        )
 
         # expression with additional properties
-        ast = parse_one("GET @stage1/folder 'file:///tmp/my.txt' PARALLEL = 1", read="snowflake")
+        ast = parse_one(
+            "GET @stage1/folder 'file:///tmp/my.txt' PARALLEL = 1", read="snowflake"
+        )
         self.assertIsInstance(ast, exp.Get)
         self.assertEqual(ast.args["target"], exp.Var(this="@stage1/folder"))
-        self.assertEqual(ast.this, exp.Literal(this="file:///tmp/my.txt", is_string=True))
+        self.assertEqual(
+            ast.this, exp.Literal(this="file:///tmp/my.txt", is_string=True)
+        )
         properties = ast.args.get("properties")
-        props_dict = {prop.this.this: prop.args["value"].this for prop in properties.expressions}
+        props_dict = {
+            prop.this.this: prop.args["value"].this for prop in properties.expressions
+        }
         self.assertEqual(props_dict, {"PARALLEL": "1"})
 
         # the unquoted URI variant is not fully supported yet
-        self.validate_identity("GET @%table file:///dir/tmp.csv", check_command_warning=True)
+        self.validate_identity(
+            "GET @%table file:///dir/tmp.csv", check_command_warning=True
+        )
         self.validate_identity(
             "GET @s1/test file:///dir/tmp.csv PARALLEL=1",
             check_command_warning=True,
@@ -2647,7 +2884,9 @@ SINGLE = TRUE""",
 
         self.validate_identity("SELECT $1:a.b", "SELECT GET_PATH($1, 'a.b')")
         self.validate_identity("SELECT t.$23:a.b", "SELECT GET_PATH(t.$23, 'a.b')")
-        self.validate_identity("SELECT t.$17:a[0].b[0].c", "SELECT GET_PATH(t.$17, 'a[0].b[0].c')")
+        self.validate_identity(
+            "SELECT t.$17:a[0].b[0].c", "SELECT GET_PATH(t.$17, 'a[0].b[0].c')"
+        )
 
         self.validate_all(
             """
@@ -2665,18 +2904,28 @@ SINGLE = TRUE""",
         self.validate_identity("ALTER TABLE foo SET COMMENT='bar'")
         self.validate_identity("ALTER TABLE foo SET CHANGE_TRACKING=FALSE")
         self.validate_identity("ALTER TABLE table1 SET TAG foo.bar = 'baz'")
-        self.validate_identity("ALTER TABLE IF EXISTS foo SET TAG a = 'a', b = 'b', c = 'c'")
+        self.validate_identity(
+            "ALTER TABLE IF EXISTS foo SET TAG a = 'a', b = 'b', c = 'c'"
+        )
         self.validate_identity(
             """ALTER TABLE tbl SET STAGE_FILE_FORMAT = (TYPE=CSV FIELD_DELIMITER='|' NULL_IF=('') FIELD_OPTIONALLY_ENCLOSED_BY='"' TIMESTAMP_FORMAT='TZHTZM YYYY-MM-DD HH24:MI:SS.FF9' DATE_FORMAT='TZHTZM YYYY-MM-DD HH24:MI:SS.FF9' BINARY_FORMAT=BASE64)""",
         )
-        self.validate_identity("""ALTER TABLE tbl SET STAGE_COPY_OPTIONS = (ON_ERROR=SKIP_FILE SIZE_LIMIT=5 PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_SENSITIVE)""")
+        self.validate_identity(
+            """ALTER TABLE tbl SET STAGE_COPY_OPTIONS = (ON_ERROR=SKIP_FILE SIZE_LIMIT=5 PURGE=TRUE MATCH_BY_COLUMN_NAME=CASE_SENSITIVE)"""
+        )
 
         self.validate_identity("ALTER TABLE foo UNSET TAG a, b, c")
-        self.validate_identity("ALTER TABLE foo UNSET DATA_RETENTION_TIME_IN_DAYS, CHANGE_TRACKING")
+        self.validate_identity(
+            "ALTER TABLE foo UNSET DATA_RETENTION_TIME_IN_DAYS, CHANGE_TRACKING"
+        )
 
     def test_from_changes(self):
-        self.validate_identity("""SELECT C1 FROM t1 CHANGES (INFORMATION => APPEND_ONLY) AT (STREAM => 's1') END (TIMESTAMP => $ts2)""")
-        self.validate_identity("""SELECT C1 FROM t1 CHANGES (INFORMATION => APPEND_ONLY) BEFORE (STATEMENT => 'STMT_ID') END (TIMESTAMP => $ts2)""")
+        self.validate_identity(
+            """SELECT C1 FROM t1 CHANGES (INFORMATION => APPEND_ONLY) AT (STREAM => 's1') END (TIMESTAMP => $ts2)"""
+        )
+        self.validate_identity(
+            """SELECT C1 FROM t1 CHANGES (INFORMATION => APPEND_ONLY) BEFORE (STATEMENT => 'STMT_ID') END (TIMESTAMP => $ts2)"""
+        )
         self.validate_identity(
             """SELECT 1 FROM some_table CHANGES (INFORMATION => APPEND_ONLY) AT (TIMESTAMP => TO_TIMESTAMP_TZ('2024-07-01 00:00:00+00:00')) END (TIMESTAMP => TO_TIMESTAMP_TZ('2024-07-01 14:28:59.999999+00:00'))""",
             """SELECT 1 FROM some_table CHANGES (INFORMATION => APPEND_ONLY) AT (TIMESTAMP => CAST('2024-07-01 00:00:00+00:00' AS TIMESTAMPTZ)) END (TIMESTAMP => CAST('2024-07-01 14:28:59.999999+00:00' AS TIMESTAMPTZ))""",
@@ -2695,7 +2944,9 @@ SINGLE = TRUE""",
             with self.subTest(f"Testing Snowflake's GRANT command statement: {sql}"):
                 self.validate_identity(sql, check_command_warning=True)
 
-        self.validate_identity("GRANT ALL PRIVILEGES ON FUNCTION mydb.myschema.ADD5(number) TO ROLE analyst")
+        self.validate_identity(
+            "GRANT ALL PRIVILEGES ON FUNCTION mydb.myschema.ADD5(number) TO ROLE analyst"
+        )
 
     def test_window_function_arg(self):
         query = "SELECT * FROM TABLE(db.schema.FUNC(a) OVER ())"
@@ -2734,8 +2985,12 @@ SINGLE = TRUE""",
 
     def test_rely_options(self):
         for option in ("NORELY", "RELY"):
-            self.validate_identity(f"CREATE TABLE t (col1 INT PRIMARY KEY {option}, col2 INT UNIQUE {option}, col3 INT NOT NULL FOREIGN KEY REFERENCES other_t (id) {option})")
-            self.validate_identity(f"CREATE TABLE t (col1 INT, col2 INT, col3 INT, PRIMARY KEY (col1) {option}, UNIQUE (col1, col2) {option}, FOREIGN KEY (col3) REFERENCES other_t (id) {option})")
+            self.validate_identity(
+                f"CREATE TABLE t (col1 INT PRIMARY KEY {option}, col2 INT UNIQUE {option}, col3 INT NOT NULL FOREIGN KEY REFERENCES other_t (id) {option})"
+            )
+            self.validate_identity(
+                f"CREATE TABLE t (col1 INT, col2 INT, col3 INT, PRIMARY KEY (col1) {option}, UNIQUE (col1, col2) {option}, FOREIGN KEY (col3) REFERENCES other_t (id) {option})"
+            )
 
     def test_parameter(self):
         expr = self.validate_identity("SELECT :1")
@@ -2753,17 +3008,27 @@ SINGLE = TRUE""",
 
     def test_create_view_copy_grants(self):
         # for normal views, 'COPY GRANTS' goes *after* the column list. ref: https://docs.snowflake.com/en/sql-reference/sql/create-view#syntax
-        self.validate_identity("CREATE OR REPLACE VIEW FOO (A, B) COPY GRANTS AS SELECT A, B FROM TBL")
+        self.validate_identity(
+            "CREATE OR REPLACE VIEW FOO (A, B) COPY GRANTS AS SELECT A, B FROM TBL"
+        )
 
         # for materialized views, 'COPY GRANTS' must go *before* the column list or an error will be thrown. ref: https://docs.snowflake.com/en/sql-reference/sql/create-materialized-view#syntax
-        self.validate_identity("CREATE OR REPLACE MATERIALIZED VIEW FOO COPY GRANTS (A, B) AS SELECT A, B FROM TBL")
+        self.validate_identity(
+            "CREATE OR REPLACE MATERIALIZED VIEW FOO COPY GRANTS (A, B) AS SELECT A, B FROM TBL"
+        )
 
         # check that only 'COPY GRANTS' goes before the column list and other properties still go after
-        self.validate_identity("CREATE OR REPLACE MATERIALIZED VIEW FOO COPY GRANTS (A, B) COMMENT='foo' TAG (a='b') AS SELECT A, B FROM TBL")
+        self.validate_identity(
+            "CREATE OR REPLACE MATERIALIZED VIEW FOO COPY GRANTS (A, B) COMMENT='foo' TAG (a='b') AS SELECT A, B FROM TBL"
+        )
 
         # no COPY GRANTS
-        self.validate_identity("CREATE OR REPLACE VIEW FOO (A, B) AS SELECT A, B FROM TBL")
-        self.validate_identity("CREATE OR REPLACE MATERIALIZED VIEW FOO (A, B) AS SELECT A, B FROM TBL")
+        self.validate_identity(
+            "CREATE OR REPLACE VIEW FOO (A, B) AS SELECT A, B FROM TBL"
+        )
+        self.validate_identity(
+            "CREATE OR REPLACE MATERIALIZED VIEW FOO (A, B) AS SELECT A, B FROM TBL"
+        )
 
     def test_semantic_view(self):
         for dimensions, metrics, where in [
@@ -2773,12 +3038,16 @@ SINGLE = TRUE""",
             ("a.b, a.c", "a.b, a.c", None),
             ("a.b", "a.b, a.c", "a.c > 5"),
         ]:
-            with self.subTest(f"Testing Snowflake's SEMANTIC_VIEW command statement: {dimensions}, {metrics}, {where}"):
+            with self.subTest(
+                f"Testing Snowflake's SEMANTIC_VIEW command statement: {dimensions}, {metrics}, {where}"
+            ):
                 dimensions_str = f" DIMENSIONS {dimensions}" if dimensions else ""
                 metrics_str = f" METRICS {metrics}" if metrics else ""
                 where_str = f" WHERE {where}" if where else ""
 
-                self.validate_identity(f"SELECT * FROM SEMANTIC_VIEW(tbl{metrics_str}{dimensions_str}{where_str}) ORDER BY foo")
+                self.validate_identity(
+                    f"SELECT * FROM SEMANTIC_VIEW(tbl{metrics_str}{dimensions_str}{where_str}) ORDER BY foo"
+                )
                 self.validate_identity(
                     f"SELECT * FROM SEMANTIC_VIEW(tbl{dimensions_str}{metrics_str}{where_str})",
                     f"SELECT * FROM SEMANTIC_VIEW(tbl{metrics_str}{dimensions_str}{where_str})",

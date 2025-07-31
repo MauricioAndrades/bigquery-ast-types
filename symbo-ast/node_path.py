@@ -10,8 +10,15 @@ Date: 2025-07-31
 
 from typing import Any, List, Optional, Dict, Union, Callable, Iterator
 from dataclasses import dataclass, field
-from .types import ASTNode
-from .scope import Scope
+
+try:
+    # Try relative imports first (when used as module)
+    from .ast_types import ASTNode
+    from .scope import Scope
+except ImportError:
+    # Fall back to absolute imports (when run directly)
+    from ast_types import ASTNode
+    from scope import Scope
 
 
 @dataclass
@@ -19,16 +26,17 @@ class NodePath:
     """
     Enhanced wrapper for AST nodes with ancestry and context tracking.
     """
+
     node: ASTNode
-    parent: Optional['NodePath'] = None
+    parent: Optional["NodePath"] = None
     field: Optional[str] = None  # Field name in parent
     index: Optional[int] = None  # Index if in a list
     scope: Optional[Scope] = None
 
     # Cache for performance
-    _children: Optional[List['NodePath']] = field(default=None, init=False, repr=False)
+    _children: Optional[List["NodePath"]] = field(default=None, init=False, repr=False)
     _depth: Optional[int] = field(default=None, init=False, repr=False)
-    _root: Optional['NodePath'] = field(default=None, init=False, repr=False)
+    _root: Optional["NodePath"] = field(default=None, init=False, repr=False)
 
     def __post_init__(self):
         """Initialize scope if not provided."""
@@ -45,14 +53,14 @@ class NodePath:
         return self._depth
 
     @property
-    def root(self) -> 'NodePath':
+    def root(self) -> "NodePath":
         """Get root of tree (cached)."""
         if self._root is None:
             self._root = self if self.parent is None else self.parent.root
         return self._root
 
     @property
-    def ancestors(self) -> List['NodePath']:
+    def ancestors(self) -> List["NodePath"]:
         """Get all ancestors from parent to root."""
         result = []
         current = self.parent
@@ -73,9 +81,9 @@ class NodePath:
                 else:
                     parts.append(current.field)
             current = current.parent
-        return '.'.join(reversed(parts)) if parts else '<root>'
+        return ".".join(reversed(parts)) if parts else "<root>"
 
-    def get_children(self) -> List['NodePath']:
+    def get_children(self) -> List["NodePath"]:
         """Get all child NodePath objects (cached)."""
         if self._children is not None:
             return self._children
@@ -83,9 +91,9 @@ class NodePath:
         children = []
 
         # Use dataclass fields to discover children
-        if hasattr(self.node, '__dataclass_fields__'):
+        if hasattr(self.node, "__dataclass_fields__"):
             for field_name, field_info in self.node.__dataclass_fields__.items():
-                if field_name.startswith('_'):
+                if field_name.startswith("_"):
                     continue
 
                 value = getattr(self.node, field_name)
@@ -101,7 +109,7 @@ class NodePath:
                                 parent=self,
                                 field=field_name,
                                 index=idx,
-                                scope=self._get_child_scope(field_name, item)
+                                scope=self._get_child_scope(field_name, item),
                             )
                             children.append(child_path)
                 # Handle single nodes
@@ -110,7 +118,7 @@ class NodePath:
                         value,
                         parent=self,
                         field=field_name,
-                        scope=self._get_child_scope(field_name, value)
+                        scope=self._get_child_scope(field_name, value),
                     )
                     children.append(child_path)
 
@@ -127,17 +135,19 @@ class NodePath:
     def _creates_new_scope(self, field_name: str, child_node: ASTNode) -> bool:
         """Check if this field/node creates a new scope."""
         # CTEs create new scope
-        if field_name == 'ctes' or child_node.node_type == 'CTE':
+        if field_name == "ctes" or child_node.node_type == "CTE":
             return True
         # Subqueries create new scope
-        if child_node.node_type in ('SelectStatement', 'SubqueryExpression'):
+        if child_node.node_type in ("SelectStatement", "SubqueryExpression"):
             return True
         # Functions with FROM clause create new scope
-        if child_node.node_type == 'TableFunction':
+        if child_node.node_type == "TableFunction":
             return True
         return False
 
-    def find_ancestor(self, predicate: Callable[['NodePath'], bool]) -> Optional['NodePath']:
+    def find_ancestor(
+        self, predicate: Callable[["NodePath"], bool]
+    ) -> Optional["NodePath"]:
         """Find first ancestor matching predicate."""
         current = self.parent
         while current:
@@ -146,7 +156,9 @@ class NodePath:
             current = current.parent
         return None
 
-    def find_descendants(self, predicate: Callable[['NodePath'], bool]) -> List['NodePath']:
+    def find_descendants(
+        self, predicate: Callable[["NodePath"], bool]
+    ) -> List["NodePath"]:
         """Find all descendants matching predicate."""
         results = []
 
@@ -196,13 +208,17 @@ class NodePath:
         # Update indices of siblings
         if self.parent._children:
             for child in self.parent._children:
-                if child.field == self.field and child.index is not None and child.index > self.index:
+                if (
+                    child.field == self.field
+                    and child.index is not None
+                    and child.index > self.index
+                ):
                     child.index -= 1
 
         # Clear parent's cache
         self.parent._children = None
 
-    def insert_before(self, new_node: ASTNode) -> 'NodePath':
+    def insert_before(self, new_node: ASTNode) -> "NodePath":
         """Insert a node before this one in parent list."""
         if self.parent is None or self.index is None:
             raise ValueError("Can only insert before nodes in lists")
@@ -214,7 +230,11 @@ class NodePath:
         self.index += 1
         if self.parent._children:
             for child in self.parent._children:
-                if child.field == self.field and child.index is not None and child.index >= self.index:
+                if (
+                    child.field == self.field
+                    and child.index is not None
+                    and child.index >= self.index
+                ):
                     child.index += 1
 
         # Clear parent's cache
@@ -223,7 +243,7 @@ class NodePath:
         # Return path for new node
         return NodePath(new_node, self.parent, self.field, self.index - 1, self.scope)
 
-    def insert_after(self, new_node: ASTNode) -> 'NodePath':
+    def insert_after(self, new_node: ASTNode) -> "NodePath":
         """Insert a node after this one in parent list."""
         if self.parent is None or self.index is None:
             raise ValueError("Can only insert after nodes in lists")
@@ -234,7 +254,11 @@ class NodePath:
         # Update indices of siblings
         if self.parent._children:
             for child in self.parent._children:
-                if child.field == self.field and child.index is not None and child.index > self.index:
+                if (
+                    child.field == self.field
+                    and child.index is not None
+                    and child.index > self.index
+                ):
                     child.index += 1
 
         # Clear parent's cache
@@ -243,13 +267,14 @@ class NodePath:
         # Return path for new node
         return NodePath(new_node, self.parent, self.field, self.index + 1, self.scope)
 
-    def siblings(self) -> List['NodePath']:
+    def siblings(self) -> List["NodePath"]:
         """Get sibling nodes (same parent and field)."""
         if not self.parent:
             return []
 
         return [
-            child for child in self.parent.get_children()
+            child
+            for child in self.parent.get_children()
             if child.field == self.field and child != self
         ]
 
@@ -264,7 +289,7 @@ class NodePath:
             return self.index == len(parent_list) - 1
         return True
 
-    def walk(self) -> Iterator['NodePath']:
+    def walk(self) -> Iterator["NodePath"]:
         """Walk tree in pre-order traversal."""
         yield self
         for child in self.get_children():
@@ -292,11 +317,11 @@ def get_node_at_path(root: NodePath, path: str) -> Optional[NodePath]:
     """Get node at string path like 'from_clause.tables.0.table'."""
     current = root
 
-    for part in path.split('.'):
-        if '[' in part and ']' in part:
+    for part in path.split("."):
+        if "[" in part and "]" in part:
             # Handle array index
-            field_name = part[:part.index('[')]
-            index = int(part[part.index('[')+1:part.index(']')])
+            field_name = part[: part.index("[")]
+            index = int(part[part.index("[") + 1 : part.index("]")])
 
             found = False
             for child in current.get_children():
