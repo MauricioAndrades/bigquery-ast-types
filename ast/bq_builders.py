@@ -331,6 +331,68 @@ class Builders:
         """Create a FALSE literal."""
         return Literal(False, 'boolean')
     
+    @staticmethod
+    def date(value: str) -> Literal:
+        """Create a DATE literal."""
+        # Validate date format YYYY-MM-DD without regex
+        if not isinstance(value, str) or len(value) != 10:
+            raise ValidationError(f"Invalid date format: {value}, expected YYYY-MM-DD")
+        
+        parts = value.split('-')
+        if len(parts) != 3:
+            raise ValidationError(f"Invalid date format: {value}, expected YYYY-MM-DD")
+        
+        year, month, day = parts
+        if not (len(year) == 4 and year.isdigit() and 
+                len(month) == 2 and month.isdigit() and 
+                len(day) == 2 and day.isdigit()):
+            raise ValidationError(f"Invalid date format: {value}, expected YYYY-MM-DD")
+        
+        # Basic range validation
+        y, m, d = int(year), int(month), int(day)
+        if not (1 <= m <= 12 and 1 <= d <= 31):
+            raise ValidationError(f"Invalid date values: {value}")
+        
+        return Literal(value, 'date')
+    
+    @staticmethod
+    def timestamp(value: str) -> Literal:
+        """Create a TIMESTAMP literal."""
+        # Validate timestamp format without regex
+        if not isinstance(value, str) or len(value) < 19:
+            raise ValidationError(f"Invalid timestamp format: {value}")
+        
+        # Check date part (YYYY-MM-DD)
+        date_part = value[:10]
+        if len(date_part) != 10 or date_part[4] != '-' or date_part[7] != '-':
+            raise ValidationError(f"Invalid timestamp format: {value}")
+        
+        # Check separator (T or space)
+        if len(value) > 10 and value[10] not in ['T', ' ']:
+            raise ValidationError(f"Invalid timestamp format: {value}")
+        
+        # Check time part (HH:MM:SS)
+        time_part = value[11:19]
+        if len(time_part) != 8 or time_part[2] != ':' or time_part[5] != ':':
+            raise ValidationError(f"Invalid timestamp format: {value}")
+        
+        # Validate digits
+        try:
+            year = int(value[0:4])
+            month = int(value[5:7])
+            day = int(value[8:10])
+            hour = int(value[11:13])
+            minute = int(value[14:16])
+            second = int(value[17:19])
+            
+            if not (1 <= month <= 12 and 1 <= day <= 31 and 
+                    0 <= hour <= 23 and 0 <= minute <= 59 and 0 <= second <= 59):
+                raise ValidationError(f"Invalid timestamp values: {value}")
+        except ValueError:
+            raise ValidationError(f"Invalid timestamp format: {value}")
+        
+        return Literal(value, 'timestamp')
+    
     # Binary Operations
     @staticmethod
     def eq(left: Expression, right: Expression) -> BinaryOp:
@@ -444,8 +506,8 @@ class Builders:
         return FunctionCall('CURRENT_TIMESTAMP', [])
     
     @staticmethod
-    def timestamp(expr: Expression, timezone: Optional[Expression] = None) -> FunctionCall:
-        """TIMESTAMP function."""
+    def timestamp_func(expr: Expression, timezone: Optional[Expression] = None) -> FunctionCall:
+        """TIMESTAMP function (converts expression to timestamp)."""
         args = [expr]
         if timezone:
             args.append(timezone)
