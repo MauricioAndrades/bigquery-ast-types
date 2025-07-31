@@ -10,9 +10,9 @@ Date: 2025-07-31
 import sys
 sys.path.append('..')
 
-from ast.bq_builders import b
+from ast.builders import b
 from ast.serializer import to_sql, pretty_print, compact_print, SerializerOptions
-from ast.bq_ast_types import (
+from ast.ast_types import (
     SelectStatement, SelectItem, FromClause, TableReference,
     TableName, Identifier, WithClause, CTE, JoinExpression, JoinType,
     OrderByItem, OrderDirection
@@ -22,7 +22,7 @@ from ast.bq_ast_types import (
 def test_simple_select():
     """Test serializing a simple SELECT statement."""
     print("=== Simple SELECT ===")
-    
+
     # Build AST using builders
     query = SelectStatement(
         select_list=[
@@ -47,14 +47,14 @@ def test_simple_select():
             b.eq(b.col('status'), b.lit('COMPLETED'))
         )
     )
-    
+
     # Test different formatting options
     print("\nExpanded format:")
     print(pretty_print(query))
-    
+
     print("\nCompact format:")
     print(compact_print(query))
-    
+
     # Custom options
     print("\nCustom format (lowercase keywords, no quotes):")
     custom_options = SerializerOptions(
@@ -68,13 +68,13 @@ def test_simple_select():
 def test_complex_merge():
     """Test serializing a complex MERGE statement."""
     print("\n\n=== Complex MERGE ===")
-    
+
     # Build a MERGE with CTEs
-    from ast.bq_ast_types import (
-        MergeStatement, MergeWhenClause, MergeInsert, MergeUpdate, 
+    from ast.ast_types import (
+        MergeStatement, MergeWhenClause, MergeInsert, MergeUpdate,
         MergeDelete, SetClause, SubqueryTable
     )
-    
+
     # CTE for source data
     source_cte = CTE(
         name=Identifier('source_data'),
@@ -91,7 +91,7 @@ def test_complex_merge():
             where=b.gte(b.col('order_ts'), b.timestamp('2024-01-01 00:00:00'))
         )
     )
-    
+
     # Build MERGE statement
     merge = MergeStatement(
         target_table=TableName(
@@ -130,13 +130,13 @@ def test_complex_merge():
             )
         ]
     )
-    
+
     # Create full query with CTE
     full_query = SelectStatement(
         with_clause=WithClause([source_cte]),
         select_list=[SelectItem(b.lit(1))]  # Dummy select for the merge
     )
-    
+
     print("\nFormatted MERGE:")
     print(pretty_print(merge))
 
@@ -144,9 +144,9 @@ def test_complex_merge():
 def test_window_functions():
     """Test serializing window functions."""
     print("\n\n=== Window Functions ===")
-    
-    from ast.bq_ast_types import WindowFunction, WindowSpecification
-    
+
+    from ast.ast_types import WindowFunction, WindowSpecification
+
     # Build query with window functions
     query = SelectStatement(
         select_list=[
@@ -182,7 +182,7 @@ def test_window_functions():
             TableReference(TableName(table=Identifier('orders')))
         ])
     )
-    
+
     print("\nWindow function query:")
     print(pretty_print(query))
 
@@ -190,7 +190,7 @@ def test_window_functions():
 def test_case_expressions():
     """Test serializing CASE expressions."""
     print("\n\n=== CASE Expressions ===")
-    
+
     # Build complex CASE expression
     case_expr = b.case(
         b.when(b.gt(b.col('order_total'), b.lit(1000)), b.lit('HIGH')),
@@ -198,7 +198,7 @@ def test_case_expressions():
         b.when(b.gt(b.col('order_total'), b.lit(0)), b.lit('LOW')),
         else_=b.lit('ZERO')
     )
-    
+
     query = SelectStatement(
         select_list=[
             SelectItem(b.col('order_id')),
@@ -208,7 +208,7 @@ def test_case_expressions():
             TableReference(TableName(table=Identifier('orders')))
         ])
     )
-    
+
     print("\nCASE expression query:")
     print(pretty_print(query))
 
@@ -218,5 +218,5 @@ if __name__ == "__main__":
     test_complex_merge()
     test_window_functions()
     test_case_expressions()
-    
+
     print("\n\n🐕 Woof! SQL serialization complete!")

@@ -8,14 +8,14 @@ This file tracks all planned improvements and enhancements for the BigQuery AST 
 - [ ] Add `from __future__ import annotations` to all modules for cleaner type hints
 - [ ] Use stricter type annotations (e.g., `List[Expression]` instead of `list`)
 - [ ] Fix circular type references with proper forward declarations
-- **Files**: `bq_builders.py`, `bq_ast_types.py`, `bq_parser.py`
+- **Files**: `builders.py`, `ast_types.py`, `parser.py`
 - **Related Issue**: #2
 
 ### 2. Validation and Error Handling
 - [ ] Add validation to builder methods (e.g., valid join types, non-empty SELECT)
 - [ ] Implement proper error messages with context
 - [ ] Add runtime type checking for builder inputs
-- **Files**: `bq_builders.py`
+- **Files**: `builders.py`
 - **Related Issue**: #3
 
 ### 3. Testing

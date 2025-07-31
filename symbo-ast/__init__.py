@@ -1,11 +1,10 @@
 # Main implementations
-from .bq_parser import parse, BQParser, BQTransformer
-from .bq_builders import b, Builders, ValidationError
-from .bq_ast_types import *
+from .parser import parse, BQParser, BQTransformer
+from .builders import b, Builders, ValidationError
+from .ast_types import *
 from .serializer import SQLSerializer, to_sql, pretty_print, compact_print
 
 # Additional utilities
-from .node_path import NodePath
 from .enhanced_node_path import EnhancedNodePath
 from .visitor import BaseVisitor, visit
 from .scope import Scope
@@ -21,7 +20,7 @@ __all__ = [
     'SQLSerializer', 'to_sql', 'pretty_print', 'compact_print',
     # Utilities
     'NodePath', 'EnhancedNodePath', 'BaseVisitor', 'visit', 'Scope', 'Collection',
-    # All AST types from bq_ast_types
+    # All AST types from ast_types
     'ASTNode', 'Expression', 'Statement', 'Identifier', 'Literal',
     # ... (would list all exported types)
 ]

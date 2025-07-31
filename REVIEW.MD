@@ -1,4 +1,4 @@
-Here is an initial review of Little Bow Wow's code in `ast/bq_builders.py`, based on the content provided:
+Here is an initial review of Little Bow Wow's code in `ast/builders.py`, based on the content provided:
 
 ---
 
@@ -54,7 +54,7 @@ Here is an initial review of Little Bow Wow's code in `ast/bq_builders.py`, base
 
 ## **Summary**
 
-**Little Bow Wow's code is well-structured, Pythonic, and offers a flexible foundation for a BigQuery SQL AST builder.**  
+**Little Bow Wow's code is well-structured, Pythonic, and offers a flexible foundation for a BigQuery SQL AST builder.**
 With some polish (type strictness, validation, richer stringification, and more docs/tests), it will be suitable for both programmatic query building and advanced AST manipulation.
 
 If you want detailed line-by-line code review, recommendations for specific refactors, or help with test cases or a SQL serializer, let me know!

@@ -11,20 +11,20 @@ Date: 2025-07-31
 from typing import List, Dict, Optional
 import pendulum
 
-from ..ast.bq_builders import b, Select, CTE, WithClause, Merge, Expression
-from ..ast.bq_parser import BQTransformer, parse
+from ..ast.builders import b, Select, CTE, WithClause, Merge, Expression
+from ..ast.parser import BQTransformer, parse
 from ..ast.visitor import BaseVisitor
 
 
 class OrderMergeBuilder:
     """Build order merge queries using AST builders."""
-    
+
     def __init__(self, project: str, retailer_id: int):
         self.project = project
         self.retailer_id = retailer_id
         self.column_types = {
             'visitor_id': 'string_id',
-            'order_id': 'string_id', 
+            'order_id': 'string_id',
             'product_id': 'string_id',
             'session_id': 'string_id',
             'quantity': 'integer',
@@ -33,32 +33,32 @@ class OrderMergeBuilder:
             'is_restaurant': 'boolean',
             'is_recurring': 'boolean'
         }
-    
+
     def build_merge(self, source_query: Select, datetime_threshold: pendulum.DateTime) -> Merge:
         """Build complete MERGE statement with 3 CTEs."""
-        
+
         # CTE 1: raw_orders - Original query as-is
         raw_orders = CTE('raw_orders', source_query)
-        
+
         # CTE 2: cleaned_orders - With standardization
         cleaned_orders = CTE('cleaned_orders', self._build_cleaned_query())
-        
-        # CTE 3: deduped_orders - With deduplication  
+
+        # CTE 3: deduped_orders - With deduplication
         deduped_orders = CTE('deduped_orders', self._build_deduped_query())
-        
+
         # Build MERGE
         return self._build_merge_statement([raw_orders, cleaned_orders, deduped_orders], datetime_threshold)
-    
+
     def _build_cleaned_query(self) -> Select:
         """Build cleaned_orders query with standardization."""
-        
+
         columns = [
             # Add retailer_id
             b.select_col(b.lit(self.retailer_id), 'retailer_id'),
-            
+
             # Add symbiosys_ts
             b.select_col(b.current_timestamp(), 'symbiosys_ts'),
-            
+
             # Standardize string IDs with NULLIF(TRIM(...), '')
             b.select_col(
                 b.nullif(b.trim(b.col('visitor_id')), b.lit('')),
@@ -76,13 +76,13 @@ class OrderMergeBuilder:
                 b.nullif(b.trim(b.col('session_id')), b.lit('')),
                 'session_id'
             ),
-            
+
             # Cast integers
             b.select_col(
                 b.safe_cast(b.col('quantity'), 'INT64'),
                 'quantity'
             ),
-            
+
             # Standardize numerics with COALESCE
             b.select_col(
                 b.coalesce(b.safe_cast(b.col('regular_unit_price'), 'NUMERIC'), b.lit(0)),
@@ -92,7 +92,7 @@ class OrderMergeBuilder:
                 b.coalesce(b.safe_cast(b.col('discount_unit_price'), 'NUMERIC'), b.lit(0)),
                 'discount_unit_price'
             ),
-            
+
             # Standardize booleans
             b.select_col(
                 b.coalesce(b.col('is_restaurant'), b.false()),
@@ -102,7 +102,7 @@ class OrderMergeBuilder:
                 b.coalesce(b.col('is_recurring'), b.false()),
                 'is_recurring'
             ),
-            
+
             # Pass through other columns
             b.select_col(b.col('order_ts'), 'order_ts'),
             b.select_col(b.col('crm_id'), 'crm_id'),
@@ -117,16 +117,16 @@ class OrderMergeBuilder:
             b.select_col(b.col('user_tracking_allowed'), 'user_tracking_allowed'),
             b.select_col(b.col('seller_id'), 'seller_id')
         ]
-        
+
         return Select(
             columns=columns,
             from_clause=[b.table('raw_orders')],
             where=None
         )
-    
+
     def _build_deduped_query(self) -> Select:
         """Build deduplication query."""
-        
+
         # Inner query with ROW_NUMBER
         window = b.row_number()
         window.partition_by = [
@@ -141,7 +141,7 @@ class OrderMergeBuilder:
             OrderByClause(b.col('order_ts'), 'DESC'),
             OrderByClause(b.col('symbiosys_ts'), 'DESC')
         ]
-        
+
         inner_query = Select(
             columns=[
                 b.select_col(b.star()),
@@ -165,17 +165,17 @@ class OrderMergeBuilder:
                 b.is_not_null(b.col('order_ts'))
             )
         )
-        
+
         # Outer query filtering rank = 1
         return Select(
             columns=[b.select_col(b.star(['rank']))],
             from_clause=[b.table('subquery')],  # Will be replaced with subquery
             where=b.eq(b.col('rank'), b.lit(1))
         )
-    
+
     def _build_merge_statement(self, ctes: List[CTE], datetime_threshold: pendulum.DateTime) -> Merge:
         """Build final MERGE statement."""
-        
+
         # Build merge conditions for all columns
         merge_columns = [
             'retailer_id', 'order_ts', 'session_id', 'visitor_id', 'crm_id',
@@ -183,11 +183,11 @@ class OrderMergeBuilder:
             'zip_code', 'hashed_email', 'regular_unit_price', 'discount_unit_price',
             'merchant_id', 'child_product_id', 'country', 'is_restaurant', 'is_recurring'
         ]
-        
+
         merge_conditions = []
         for col in merge_columns:
             merge_conditions.append(b.null_safe_eq(b.col(col, 'S'), b.col(col, 'T')))
-        
+
         # Add timestamp condition
         merge_conditions.append(
             b.gte(
@@ -195,9 +195,9 @@ class OrderMergeBuilder:
                 b.timestamp(b.lit(datetime_threshold.format('YYYY-MM-DD HH:mm:ss+00:00')))
             )
         )
-        
+
         merge_condition = b.and_(*merge_conditions)
-        
+
         # Build MERGE
         return Merge(
             target_table=f'`{self.project}.event_analytics.order`',
@@ -226,10 +226,10 @@ class OrderMergeBuilder:
 
 class ChewyOrderMergeBuilder(OrderMergeBuilder):
     """Specialized builder for Chewy's complex merge pattern."""
-    
+
     def build_chewy_merge(self, datetime_threshold: pendulum.DateTime) -> str:
         """Build Chewy's specific merge with FULL OUTER JOIN and complex CASE statements."""
-        
+
         # Build complex source query
         columns = [
             b.select_col(b.lit(8), 'retailer_id'),
@@ -237,7 +237,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 b.timestamp(b.col('order_time_placed'), b.lit('UTC')),
                 'order_ts'
             ),
-            
+
             # Complex CASE for session_id
             b.select_col(
                 b.case(
@@ -252,7 +252,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 ),
                 'session_id'
             ),
-            
+
             # Complex CASE for visitor_id
             b.select_col(
                 b.case(
@@ -267,7 +267,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 ),
                 'visitor_id'
             ),
-            
+
             # CASE for crm_id
             b.select_col(
                 b.case(
@@ -279,13 +279,13 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 ),
                 'crm_id'
             ),
-            
+
             # Other columns...
             b.select_col(b.cast(b.null(), 'INTEGER'), 'platform'),
             b.select_col(b.col('order_id'), 'order_id'),
             b.select_col(b.cast(b.null(), 'STRING'), 'user_ip'),
             b.select_col(b.cast(b.null(), 'STRING'), 'zip_code'),
-            
+
             # Complex CASE for hashed_email
             b.select_col(
                 b.case(
@@ -301,7 +301,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 ),
                 'hashed_email'
             ),
-            
+
             # STRUCT array for hashed_pii
             b.select_col(
                 b.array(
@@ -312,7 +312,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 ),
                 'hashed_pii'
             ),
-            
+
             # More columns...
             b.select_col(b.col('product_sku'), 'product_id'),
             b.select_col(b.col('quantity'), 'quantity'),
@@ -321,10 +321,10 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 'regular_unit_price'
             ),
             b.select_col(
-                b.cast(b.coalesce(b.col('purchase_price'), b.lit(0.0)), 'NUMERIC'), 
+                b.cast(b.coalesce(b.col('purchase_price'), b.lit(0.0)), 'NUMERIC'),
                 'discount_unit_price'
             ),
-            
+
             # CASE for is_recurring
             b.select_col(
                 b.case(
@@ -333,7 +333,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
                 ),
                 'is_recurring'
             ),
-            
+
             # Remaining columns
             b.select_col(b.false(), 'is_restaurant'),
             b.select_col(b.cast(b.null(), 'INTEGER'), 'merchant_id'),
@@ -343,7 +343,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
             b.select_col(b.cast(b.null(), 'STRING'), 'seller_id'),
             b.select_col(b.current_timestamp(), 'symbiosys_ts')
         ]
-        
+
         # This would need the FULL OUTER JOIN subquery built...
         # For now, return a placeholder
         return "-- Complex Chewy merge would be generated here"
@@ -351,13 +351,13 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
 
 def demonstrate_order_merge():
     """Demonstrate using the AST builder for order merge."""
-    
+
     print("Order Merge using BigQuery AST Builder")
     print("=" * 70)
-    
+
     # Create builder
     builder = OrderMergeBuilder('my-project', retailer_id=123)
-    
+
     # Parse a source query
     source_sql = """
     SELECT
@@ -370,26 +370,26 @@ def demonstrate_order_merge():
     FROM `project.dataset.orders`
     WHERE status = 'COMPLETED'
     """
-    
+
     source_query = parse(source_sql)
     datetime_threshold = pendulum.now()
-    
+
     # Build MERGE
     merge = builder.build_merge(source_query, datetime_threshold)
-    
+
     print("\nGenerated AST structure:")
     print(f"- Target: {merge.target_table}")
     print(f"- Source: {type(merge.source).__name__}")
     print(f"- Conditions: {len(merge.on_condition.right.conditions)} null-safe equality checks")
     print(f"- Actions: {len(merge.when_not_matched)} INSERT, {len(merge.when_not_matched_by_source)} DELETE")
-    
+
     # Demo Chewy builder
     print("\n" + "=" * 70)
     print("Chewy Complex Merge:")
     chewy_builder = ChewyOrderMergeBuilder('symbiosys-prod', retailer_id=8)
     chewy_sql = chewy_builder.build_chewy_merge(datetime_threshold)
     print(chewy_sql)
-    
+
     print("\n🐕 Woof! AST-based order merge transformation complete!")
 
 

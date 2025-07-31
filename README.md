@@ -52,7 +52,7 @@ query = j.parse("SELECT a, b, c FROM table1")
 columns = query.find(exp.Column).toList()
 
 # Replace column 'b' with 'new_b'
-query.find(exp.Column, 
+query.find(exp.Column,
     predicate=lambda n: n.name == "b"
 ).replaceWith(exp.Column(this="new_b"))
 
@@ -147,9 +147,9 @@ bqast/
 ├── jsql.py          # jQuery-like wrapper around sqlglot
 ├── alib.py          # Reusable query patterns
 ├── ast/
-│   ├── bq_ast_types.py   # AST node definitions
-│   ├── bq_builders.py    # Fluent builder API
-│   ├── bq_parser.py      # SQL parser
+│   ├── ast_types.py   # AST node definitions
+│   ├── builders.py    # Fluent builder API
+│   ├── parser.py      # SQL parser
 │   └── serializer.py     # AST to SQL
 └── examples/
     ├── order_merge_demo.py
