@@ -9,7 +9,7 @@ Date: 2025-07-31
 """
 
 from typing import Any, List, Optional, Dict, Union, Callable, Iterator
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as field_name
 
 from .types import ASTNode
 from .scope import Scope
@@ -23,14 +23,14 @@ class NodePath:
 
     node: ASTNode
     parent: Optional["NodePath"] = None
-    field_name: Optional[str] = None  # Field name in parent
+    field: Optional[str] = None  # Field name in parent
     index: Optional[int] = None  # Index if in a list
     scope: Optional[Scope] = None
 
     # Cache for performance
-    _children: Optional[List["NodePath"]] = field(default=None, init=False, repr=False)
-    _depth: Optional[int] = field(default=None, init=False, repr=False)
-    _root: Optional["NodePath"] = field(default=None, init=False, repr=False)
+    _children: Optional[List["NodePath"]] = field_name(default=None, init=False, repr=False)
+    _depth: Optional[int] = field_name(default=None, init=False, repr=False)
+    _root: Optional["NodePath"] = field_name(default=None, init=False, repr=False)
 
     def __post_init__(self):
         """Initialize scope if not provided."""
@@ -84,42 +84,40 @@ class NodePath:
 
         children = []
 
-        # Use dataclass fields to discover children
-        if hasattr(self.node, "__dataclass_fields__"):
-            for field_name, field_info in self.node.__dataclass_fields__.items():
-                if field_name.startswith("_"):
-                    continue
+        # Use vars() to discover children for both dataclasses and regular classes
+        for field_name, value in vars(self.node).items():
+            if field_name.startswith("_"):
+                continue
 
-                value = getattr(self.node, field_name)
-                if value is None:
-                    continue
+            if value is None:
+                continue
 
-                # Handle lists
-                if isinstance(value, list):
-                    for idx, item in enumerate(value):
-                        if isinstance(item, ASTNode):
-                            child_path = NodePath(
-                                item,
-                                parent=self,
-                                field=field_name,
-                                index=idx,
-                                scope=self._get_child_scope(field_name, item),
-                            )
-                            children.append(child_path)
-                # Handle single nodes
-                elif isinstance(value, ASTNode):
-                    child_path = NodePath(
-                        value,
-                        parent=self,
-                        field=field_name,
-                        scope=self._get_child_scope(field_name, value),
-                    )
-                    children.append(child_path)
+            # Handle lists
+            if isinstance(value, list):
+                for idx, item in enumerate(value):
+                    if isinstance(item, ASTNode):
+                        child_path = NodePath(
+                            item,
+                            parent=self,
+                            field=field_name,
+                            index=idx,
+                            scope=self._get_child_scope(field_name, item),
+                        )
+                        children.append(child_path)
+            # Handle single nodes
+            elif isinstance(value, ASTNode):
+                child_path = NodePath(
+                    value,
+                    parent=self,
+                    field=field_name,
+                    scope=self._get_child_scope(field_name, value),
+                )
+                children.append(child_path)
 
         self._children = children
         return children
 
-    def _get_child_scope(self, field_name: str, child_node: ASTNode) -> Scope:
+    def _get_child_scope(self, field_name: str, child_node: ASTNode) -> Optional[Scope]:
         """Determine scope for child node."""
         # Create new scope for certain constructs
         if self._creates_new_scope(field_name, child_node):
@@ -176,10 +174,14 @@ class NodePath:
 
         if self.index is not None:
             # In a list
-            getattr(parent_node, self.field_name_name)[self.index] = new_node
+            if self.field is None:
+                raise ValueError("Field name cannot be None when replacing a node in a list")
+            getattr(parent_node, self.field)[self.index] = new_node
         else:
             # Single field
-            setattr(parent_node, self.field_name_name, new_node)
+            if self.field is None:
+                raise ValueError("Field name cannot be None when replacing a single field")
+            setattr(parent_node, self.field, new_node)
 
         # Update our node reference
         self.node = new_node
@@ -197,13 +199,15 @@ class NodePath:
             raise ValueError("Can only remove nodes from lists")
 
         parent_node = self.parent.node
-        getattr(parent_node, self.field_name).pop(self.index)
+        if self.field is None:
+            raise ValueError("Field name cannot be None when removing a node from a list")
+        getattr(parent_node, self.field).pop(self.index)
 
         # Update indices of siblings
         if self.parent._children:
             for child in self.parent._children:
                 if (
-                    child.field == self.field_name
+                    child.field == self.field
                     and child.index is not None
                     and child.index > self.index
                 ):
@@ -218,14 +222,16 @@ class NodePath:
             raise ValueError("Can only insert before nodes in lists")
 
         parent_node = self.parent.node
-        getattr(parent_node, self.field_name).insert(self.index, new_node)
+        if self.field is None:
+            raise ValueError("Field name cannot be None when inserting before a node in a list")
+        getattr(parent_node, self.field).insert(self.index, new_node)
 
         # Update indices
         self.index += 1
         if self.parent._children:
             for child in self.parent._children:
                 if (
-                    child.field == self.field_name
+                    child.field == self.field
                     and child.index is not None
                     and child.index >= self.index
                 ):
@@ -235,7 +241,7 @@ class NodePath:
         self.parent._children = None
 
         # Return path for new node
-        return NodePath(new_node, self.parent, self.field_name, self.index - 1, self.scope)
+        return NodePath(new_node, self.parent, self.field, self.index - 1, self.scope)
 
     def insert_after(self, new_node: ASTNode) -> "NodePath":
         """Insert a node after this one in parent list."""
@@ -243,13 +249,13 @@ class NodePath:
             raise ValueError("Can only insert after nodes in lists")
 
         parent_node = self.parent.node
-        getattr(parent_node, self.field_name).insert(self.index + 1, new_node)
+        getattr(parent_node, self.field).insert(self.index + 1, new_node)
 
         # Update indices of siblings
         if self.parent._children:
             for child in self.parent._children:
                 if (
-                    child.field == self.field_name
+                    child.field == self.field
                     and child.index is not None
                     and child.index > self.index
                 ):
@@ -259,7 +265,7 @@ class NodePath:
         self.parent._children = None
 
         # Return path for new node
-        return NodePath(new_node, self.parent, self.field_name, self.index + 1, self.scope)
+        return NodePath(new_node, self.parent, self.field, self.index + 1, self.scope)
 
     def siblings(self) -> List["NodePath"]:
         """Get sibling nodes (same parent and field)."""
@@ -269,7 +275,7 @@ class NodePath:
         return [
             child
             for child in self.parent.get_children()
-            if child.field == self.field_name and child != self
+            if child.field == self.field and child != self
         ]
 
     def is_first_child(self) -> bool:
@@ -279,7 +285,9 @@ class NodePath:
     def is_last_child(self) -> bool:
         """Check if this is the last child in a list."""
         if self.parent and self.index is not None:
-            parent_list = getattr(self.parent.node, self.field_name)
+            if self.field is None:
+                raise ValueError("Field name cannot be None when checking last child in a list")
+            parent_list = getattr(self.parent.node, self.field)
             return self.index == len(parent_list) - 1
         return True
 

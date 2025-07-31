@@ -14,8 +14,6 @@ if t.TYPE_CHECKING:
 
 try:
     from sqlglotrs import (  # type: ignore
-        Tokenizer as RsTokenizer,
-        TokenizerDialectSettings as RsTokenizerDialectSettings,
         TokenizerSettings as RsTokenizerSettings,
         TokenTypeSettings as RsTokenTypeSettings,
     )
@@ -541,8 +539,8 @@ class _Tokenizer(type):
             ),
             "{#": "#}",  # Ensure Jinja comments are tokenized correctly in all dialects
         }
-        if klass.HINT_START in klass.KEYWORDS:
-            klass._COMMENTS[klass.HINT_START] = "*/"
+        if attrs.get("HINT_START") in klass.KEYWORDS:
+            klass.COMMENTS.append((attrs.get("HINT_START"), "*/"))
 
         klass._KEYWORD_TRIE = new_trie(
             key.upper()

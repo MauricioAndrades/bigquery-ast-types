@@ -7,11 +7,6 @@ Provides jQuery-like Iterator pattern for traversing and transforming SQL.
 Author: Little Bow Wow 🐕
 Date: 2025-07-31
 """
-
-import sys
-import os
-
-
 from typing import (
     Any,
     Callable,
@@ -23,9 +18,6 @@ from typing import (
     Generic,
 )
 from dataclasses import dataclass
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "sqlglot"))
-
 import sqlglot
 from sqlglot import exp
 
@@ -46,19 +38,19 @@ class Iterator(Generic[T]):
         self.node_type = node_type
         self.predicate = predicate
 
-    def __iter__(self) -> PyIterator["JSQLNode"]:
+    def __iter__(self) -> PyIterator["SQLNode"]:
         # Use sqlglot's walk() for traversal as recommended
         for n in self.node.walk():
             if (self.node_type is None or isinstance(n, self.node_type)) and (
-                self.predicate is None or self.predicate(JSQLNode(n))
+                self.predicate is None or self.predicate(SQLNode(n))
             ):
-                yield JSQLNode(n)
+                yield SQLNode(n)
 
-    def map(self, fn: Callable[["JSQLNode"], Any]) -> List[Any]:
+    def map(self, fn: Callable[["SQLNode"], Any]) -> List[Any]:
         """Map function over matching nodes."""
         return [fn(n) for n in self]
 
-    def filter(self, fn: Callable[["JSQLNode"], bool]) -> "Iterator":
+    def filter(self, fn: Callable[["SQLNode"], bool]) -> "Iterator":
         """Filter nodes by additional predicate."""
         combined_predicate = lambda n: (
             self.predicate(n) if self.predicate else True
@@ -66,7 +58,7 @@ class Iterator(Generic[T]):
         return Iterator(self.node, self.node_type, combined_predicate)
 
     def replaceWith(
-        self, fn: Union[Callable[["JSQLNode"], exp.Expression], exp.Expression]
+        self, fn: Union[Callable[["SQLNode"], exp.Expression], exp.Expression]
     ) -> "Iterator":
         """Replace all matching nodes."""
         # Collect nodes first to avoid mutation during iteration
@@ -78,19 +70,19 @@ class Iterator(Generic[T]):
                 n.replaceWith(fn)
         return self
 
-    def forEach(self, fn: Callable[["JSQLNode", int], None]) -> "Iterator":
+    def forEach(self, fn: Callable[["SQLNode", int], None]) -> "Iterator":
         """Execute function for each node."""
         for i, n in enumerate(self):
             fn(n, i)
         return self
 
-    def first(self) -> Optional["JSQLNode"]:
+    def first(self) -> Optional["SQLNode"]:
         """Get first matching node."""
         for n in self:
             return n
         return None
 
-    def toList(self) -> List["JSQLNode"]:
+    def toList(self) -> List["SQLNode"]:
         """Convert to list."""
         return list(self)
 
@@ -99,7 +91,7 @@ class Iterator(Generic[T]):
         return len(self.toList())
 
 
-class JSQLNode:
+class SQLNode:
     """Wrapper for sqlglot Expression nodes."""
 
     def __init__(self, node: exp.Expression):
@@ -111,24 +103,24 @@ class JSQLNode:
         """Find descendant nodes of given type."""
         return Iterator(self.node, node_type, predicate)
 
-    def findAll(self, node_type: type[T]) -> List["JSQLNode"]:
+    def findAll(self, node_type: type[T]) -> List["SQLNode"]:
         """Find all descendant nodes of given type using sqlglot's find_all."""
         # Use sqlglot's native find_all for efficiency
-        return [JSQLNode(n) for n in self.node.find_all(node_type)]
+        return [SQLNode(n) for n in self.node.find_all(node_type)]
 
-    def parent(self) -> Optional["JSQLNode"]:
+    def parent(self) -> Optional["SQLNode"]:
         """Get parent node."""
-        return JSQLNode(self.node.parent) if self.node.parent else None
+        return SQLNode(self.node.parent) if self.node.parent else None
 
-    def replaceWith(self, new_node: Union["JSQLNode", exp.Expression]) -> "JSQLNode":
+    def replaceWith(self, new_node: Union["SQLNode", exp.Expression]) -> "SQLNode":
         """Replace this node in the tree."""
-        new_exp = new_node.node if isinstance(new_node, JSQLNode) else new_node
+        new_exp = new_node.node if isinstance(new_node, SQLNode) else new_node
 
         if self.node.parent:
             # sqlglot's replace method
             self.node.replace(new_exp)
 
-        return JSQLNode(new_exp)
+        return SQLNode(new_exp)
 
     def remove(self) -> None:
         """Remove this node from tree."""
@@ -139,10 +131,10 @@ class JSQLNode:
         """Convert to SQL string."""
         return self.node.sql(dialect=dialect, pretty=pretty)
 
-    def transform(self, fn: Callable[[exp.Expression], exp.Expression]) -> "JSQLNode":
+    def transform(self, fn: Callable[[exp.Expression], exp.Expression]) -> "SQLNode":
         """Transform this node using sqlglot's transform method."""
         # Use sqlglot's native transform for deep transformations
-        return JSQLNode(self.node.transform(fn).copy())
+        return SQLNode(self.node.transform(fn).copy())
 
     def __repr__(self) -> str:
         return f"<JSQLNode {type(self.node).__name__}: {str(self.node)[:50]}...>"
@@ -156,73 +148,73 @@ class j:
     """Builder functions for SQL AST nodes."""
 
     @staticmethod
-    def parse(sql: str, dialect: str = "bigquery") -> JSQLNode:
+    def parse(sql: str, dialect: str = "bigquery") -> SQLNode:
         """Parse SQL string into AST."""
-        return JSQLNode(sqlglot.parse_one(sql, read=dialect))
+        return SQLNode(sqlglot.parse_one(sql, read=dialect))
 
     @staticmethod
-    def parseMany(sql: str, dialect: str = "bigquery") -> List[JSQLNode]:
+    def parseMany(sql: str, dialect: str = "bigquery") -> List[SQLNode]:
         """Parse multiple SQL statements."""
-        return [JSQLNode(stmt) for stmt in sqlglot.parse(sql, read=dialect)]
+        return [SQLNode(stmt) for stmt in sqlglot.parse(sql, read=dialect)]
 
     @staticmethod
     def Iterator(
-        node: Union[JSQLNode, exp.Expression],
+        node: Union[SQLNode, exp.Expression],
         node_type: Optional[type] = None,
         predicate: Optional[Callable] = None,
     ) -> Iterator:
         """Create iterator for node."""
-        exp_node = node.node if isinstance(node, JSQLNode) else node
+        exp_node = node.node if isinstance(node, SQLNode) else node
         return Iterator(exp_node, node_type, predicate)
 
     # Builders for common nodes
     @staticmethod
-    def Select(*expressions: Union[str, exp.Expression], **kwargs) -> JSQLNode:
+    def Select(*expressions: Union[str, exp.Expression], **kwargs) -> SQLNode:
         """Build SELECT statement."""
         exprs = []
         for e in expressions:
             if isinstance(e, str):
                 exprs.append(exp.column(e))
-            elif isinstance(e, JSQLNode):
+            elif isinstance(e, SQLNode):
                 exprs.append(e.node)
             else:
                 exprs.append(e)
 
-        return JSQLNode(exp.Select(expressions=exprs, **kwargs))
+        return SQLNode(exp.Select(expressions=exprs, **kwargs))
 
     @staticmethod
-    def Column(name: str, table: Optional[str] = None) -> JSQLNode:
+    def Column(name: str, table: Optional[str] = None) -> SQLNode:
         """Build column reference."""
         if table:
-            return JSQLNode(exp.Column(this=name, table=table))
-        return JSQLNode(exp.Column(this=name))
+            return SQLNode(exp.Column(this=name, table=table))
+        return SQLNode(exp.Column(this=name))
 
     @staticmethod
     def Table(
         name: str, db: Optional[str] = None, catalog: Optional[str] = None
-    ) -> JSQLNode:
+    ) -> SQLNode:
         """Build table reference."""
-        return JSQLNode(exp.Table(this=name, db=db, catalog=catalog))
+        return SQLNode(exp.Table(this=name, db=db, catalog=catalog))
 
     @staticmethod
-    def Literal(value: Any) -> JSQLNode:
+    def Literal(value: Any) -> SQLNode:
         """Build literal value."""
-        return JSQLNode(exp.Literal.string(str(value)))
+        return SQLNode(exp.Literal.string(str(value)))
 
     @staticmethod
-    def Null() -> JSQLNode:
+    def Null() -> SQLNode:
         """Build NULL literal."""
-        return JSQLNode(exp.Null())
+        return SQLNode(exp.Null())
 
     @staticmethod
-    def Case(*whens, default: Optional[exp.Expression] = None) -> JSQLNode:
+    def Case(*whens, default: Optional[exp.Expression] = None) -> SQLNode:
         """Build CASE expression."""
         case_exp = exp.Case(ifs=[], default=default)
         for when in whens:
             if isinstance(when, tuple) and len(when) == 2:
                 condition, result = when
                 case_exp.args["ifs"].append(exp.If(this=condition, true=result))
-        return JSQLNode(case_exp)
+        return SQLNode(case_exp)
 
     @staticmethod
     def When(condition: exp.Expression, result: exp.Expression) -> tuple:
@@ -230,70 +222,70 @@ class j:
         return (condition, result)
 
     @staticmethod
-    def And(*conditions: exp.Expression) -> JSQLNode:
+    def And(*conditions: exp.Expression) -> SQLNode:
         """Build AND expression."""
         result = conditions[0]
         for cond in conditions[1:]:
             result = exp.And(this=result, expression=cond)
-        return JSQLNode(result)
+        return SQLNode(result)
 
     @staticmethod
-    def Or(*conditions: exp.Expression) -> JSQLNode:
+    def Or(*conditions: exp.Expression) -> SQLNode:
         """Build OR expression."""
         result = conditions[0]
         for cond in conditions[1:]:
             result = exp.Or(this=result, expression=cond)
-        return JSQLNode(result)
+        return SQLNode(result)
 
     @staticmethod
-    def Eq(left: exp.Expression, right: exp.Expression) -> JSQLNode:
+    def Eq(left: exp.Expression, right: exp.Expression) -> SQLNode:
         """Build equality comparison."""
-        return JSQLNode(exp.EQ(this=left, expression=right))
+        return SQLNode(exp.EQ(this=left, expression=right))
 
     @staticmethod
-    def Func(name: str, *args: exp.Expression) -> JSQLNode:
+    def Func(name: str, *args: exp.Expression) -> SQLNode:
         """Build function call."""
-        return JSQLNode(exp.func(name, *args))
+        return SQLNode(exp.func(name, *args))
 
     @staticmethod
-    def Cast(expr: exp.Expression, to: str, safe: bool = False) -> JSQLNode:
+    def Cast(expr: exp.Expression, to: str, safe: bool = False) -> SQLNode:
         """Build CAST expression."""
         if safe:
-            return JSQLNode(exp.Cast(this=expr, to=exp.DataType.build(to), safe=True))
-        return JSQLNode(exp.Cast(this=expr, to=exp.DataType.build(to)))
+            return SQLNode(exp.Cast(this=expr, to=exp.DataType.build(to), safe=True))
+        return SQLNode(exp.Cast(this=expr, to=exp.DataType.build(to)))
 
     @staticmethod
-    def Alias(expr: Union[str, exp.Expression], alias: str) -> JSQLNode:
+    def Alias(expr: Union[str, exp.Expression], alias: str) -> SQLNode:
         """Build aliased expression."""
         if isinstance(expr, str):
             expr = sqlglot.parse_one(expr, read="bigquery")
-        elif isinstance(expr, JSQLNode):
+        elif isinstance(expr, SQLNode):
             expr = expr.node
-        return JSQLNode(exp.alias_(expr, alias))
+        return SQLNode(exp.alias_(expr, alias))
 
     @staticmethod
-    def CTE(name: str, query: Union[str, exp.Expression]) -> JSQLNode:
+    def CTE(name: str, query: Union[str, exp.Expression]) -> SQLNode:
         """Build CTE."""
         if isinstance(query, str):
             query = sqlglot.parse_one(query, read="bigquery")
-        elif isinstance(query, JSQLNode):
+        elif isinstance(query, SQLNode):
             query = query.node
 
         # Create a table alias for the CTE
         cte = exp.CTE(this=query, alias=exp.TableAlias(this=exp.Identifier(this=name)))
-        return JSQLNode(cte)
+        return SQLNode(cte)
 
     @staticmethod
     def Window(
         func: exp.Expression,
         partition_by: Optional[List[exp.Expression]] = None,
         order_by: Optional[List[exp.Expression]] = None,
-    ) -> JSQLNode:
+    ) -> SQLNode:
         """Build window function."""
         window_spec = exp.WindowSpec(
             partition_by=partition_by or [], order_by=order_by or []
         )
-        return JSQLNode(exp.Window(this=func, window=window_spec))
+        return SQLNode(exp.Window(this=func, window=window_spec))
 
     # Convenience method for building expressions
     def __new__(cls, expr: Union[str, exp.Expression], alias: Optional[str] = None):
@@ -302,9 +294,9 @@ class j:
             expr = sqlglot.parse_one(expr, read="bigquery")
 
         if alias is not None:
-            return JSQLNode(exp.alias_(expr, alias))
+            return SQLNode(exp.alias_(expr, alias))
 
-        return JSQLNode(expr)
+        return SQLNode(expr)
 
 
 @dataclass

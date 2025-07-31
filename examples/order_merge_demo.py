@@ -14,7 +14,7 @@ import sys
 sys.path.append("..")
 
 from alib import OrderMergeBuilder
-from jsql import j
+from lib.bsql import j
 
 
 def demo_simple_to_complex():
@@ -24,7 +24,7 @@ def demo_simple_to_complex():
 
     # Developer writes this simple query
     simple_sql = """
-    SELECT 
+    SELECT
         order_id,
         product_id,
         visitor_id,
@@ -85,7 +85,7 @@ def demo_ast_manipulation():
     # Parse a query
     query = j.parse(
         """
-    SELECT 
+    SELECT
         order_id,
         product_id,
         quantity * price AS total
