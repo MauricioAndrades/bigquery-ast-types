@@ -10,7 +10,7 @@ Date: 2025-07-31
 
 from typing import Any, List, Optional, Set
 from dataclasses import dataclass
-from ast_types import (
+from .types import (
     ASTNode,
     ASTVisitor,
     Identifier,

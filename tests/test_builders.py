@@ -9,11 +9,12 @@ Date: 2025-07-31
 """
 
 import sys
+import os
 
-sys.path.append("..")
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
-from ast.builders import b, ValidationError, Identifier, Literal, BinaryOp
+from bigquery_ast_types import b, ValidationError, Identifier, Literal, BinaryOp
 
 
 class TestIdentifierBuilder:

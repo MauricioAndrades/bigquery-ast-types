@@ -11,7 +11,7 @@ Date: 2025-07-31
 # TODO: Add `from __future__ import annotations` for cleaner type hints (see issue #2)
 from typing import Any, List, Optional, Union, Dict
 from dataclasses import dataclass, field
-from ast_types import *
+from .types import *
 
 
 class ValidationError(Exception):

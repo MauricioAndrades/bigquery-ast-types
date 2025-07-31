@@ -11,14 +11,8 @@ Date: 2025-07-31
 from typing import Any, List, Optional, Dict, Union, Callable, Iterator
 from dataclasses import dataclass, field
 
-try:
-    # Try relative imports first (when used as module)
-    from ast_types import ASTNode
-    from .scope import Scope
-except ImportError:
-    # Fall back to absolute imports (when run directly)
-    from ast_types import ASTNode
-    from scope import Scope
+from .types import ASTNode
+from .scope import Scope
 
 
 @dataclass

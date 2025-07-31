@@ -13,9 +13,13 @@ import os
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
-from builders import b
-from serializer import to_sql, pretty_print, compact_print, SerializerOptions
-from ast_types import (
+import bigquery_ast_types as ast
+from bigquery_ast_types import (
+    b,
+    to_sql,
+    pretty_print,
+    compact_print,
+    SerializerOptions,
     Select,
     SelectColumn,
     TableRef,

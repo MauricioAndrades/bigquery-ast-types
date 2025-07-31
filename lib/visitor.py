@@ -1,9 +1,4 @@
-try:
-    # Try relative imports first (when used as module)
-    from node_path import NodePath
-except ImportError:
-    # Fall back to absolute imports (when run directly)
-    from node_path import NodePath
+from .node_path import NodePath
 
 
 class BaseVisitor:
