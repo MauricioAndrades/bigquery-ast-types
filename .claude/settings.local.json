@@ -5,7 +5,9 @@
       "Bash(mv:*)",
       "Bash(rm:*)",
       "Bash(tree:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(find:*)",
+      "Bash(python3:*)"
     ],
     "deny": []
   }
