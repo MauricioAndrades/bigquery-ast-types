@@ -74,6 +74,8 @@ class BQParser:
     
     def _parse_column_value(self, value: str) -> Expression:
         """Parse a column value expression."""
+        # TODO: Replace heuristic parsing with proper lexer/parser (see issue #7)
+        # TODO: Handle all BigQuery expression types (ARRAY, STRUCT, etc.)
         # Simple heuristic parsing
         value = value.strip()
         

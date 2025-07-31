@@ -8,6 +8,7 @@ Author: Little Bow Wow 🐕
 Date: 2025-07-31
 """
 
+# TODO: Add `from __future__ import annotations` for cleaner type hints (see issue #2)
 from typing import Any, List, Optional, Union, Dict
 from dataclasses import dataclass, field
 
@@ -302,6 +303,8 @@ class Builders:
     @staticmethod
     def lit(value: Any) -> Literal:
         """Create a literal value."""
+        # TODO: Add validation for BigQuery-specific literal constraints (max string length, numeric precision)
+        # TODO: Support additional literal types like BYTES, DATE, TIMESTAMP (see issue #3)
         if value is None:
             return Literal(None, 'null')
         elif isinstance(value, bool):

@@ -8,6 +8,8 @@ Author: Little Bow Wow 🐕
 Date: 2025-07-31
 """
 
+# TODO: Add `from __future__ import annotations` to avoid string literal type hints (see issue #2)
+# TODO: Add comprehensive docstrings for all node types with usage examples (see issue #4)
 from typing import Any, List, Optional, Union, Dict, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
