@@ -1,66 +1,174 @@
-# ZetaSQL AST Traversal & Manipulation Library (Python)
+# BQAST - BigQuery AST Transformation Library 🐕
 
-This project provides an ast-types/jscodeshift-style abstraction for traversing, analyzing, and editing BigQuery SQL ASTs using ZetaSQL's Python bindings.
+A jQuery-like AST transformation library for BigQuery SQL, enabling developers to write simple queries that get automatically transformed into complex, standardized patterns.
 
-## Project Structure
+## Overview
 
-```
-zsql_ast_transformer/
-│
-├── zsql_ast_transformer/
-│   ├── __init__.py
-│   ├── parser.py
-│   ├── node_path.py
-│   ├── visitor.py
-│   ├── scope.py
-│   ├── builders.py
-│   └── types.py
-│
-├── tests/
-│   ├── __init__.py
-│   ├── test_parser.py
-│   ├── test_traversal.py
-│   ├── test_editing.py
-│   ├── test_scope.py
-│   └── test_builders.py
-│
-├── examples/
-│   └── find_tables.py
-│
-├── pyproject.toml
-├── requirements.txt
-└── README.md
+BQAST provides:
+- **jsql**: jQuery-like wrapper around sqlglot for ergonomic AST traversal
+- **alib**: Reusable query patterns (order merges, deduplication, standardization)
+- **Pure AST transformations**: No regex, no string manipulation
+
+## Installation
+
+```bash
+cd apps/composer
+source venv/bin/activate
+pip install sqlglot
 ```
 
-## Instructions
+## Quick Start
 
-1. **Install ZetaSQL Python Bindings**  
-   See: [ZetaSQL Python Bindings](https://github.com/google/zetasql/tree/master/python)
-   ```
-   pip install zetasql-python
-   ```
+### Transform Simple Query to Order Merge
 
-2. **Clone & Install**
-   ```
-   git clone <this-repo-url>
-   cd zsql_ast_transformer
-   pip install -r requirements.txt
-   ```
+```python
+from bqast.alib import OrderMergeBuilder
 
-3. **Run Tests**
-   ```
-   pytest tests/
-   ```
+# Developer writes simple query
+simple_sql = """
+SELECT order_id, product_id, visitor_id, quantity
+FROM `my-project.raw_data.orders`
+WHERE order_date >= '2024-01-01'
+"""
 
-4. **Example Usage**
-   See `examples/find_tables.py` for a sample visitor.
+# Transform to standardized 3-CTE merge
+builder = OrderMergeBuilder("my-project", "event_analytics")
+merge_sql = builder.build_3cte_merge(
+    source_sql=simple_sql,
+    retailer_id=12345,
+    datetime_threshold="2024-01-01 00:00:00"
+)
+```
 
-## Extending
+### Direct AST Manipulation
 
-- Add more builder functions in `builders.py` for new AST node types.
-- Enhance `scope.py` as needed for more advanced name resolution.
-- Expand the visitor API with more node type handlers.
+```python
+from bqast.jsql import j
+
+# Parse SQL
+query = j.parse("SELECT a, b, c FROM table1")
+
+# Find all columns
+columns = query.find(exp.Column).toList()
+
+# Replace column 'b' with 'new_b'
+query.find(exp.Column,
+    predicate=lambda n: n.name == "b"
+).replaceWith(exp.Column(this="new_b"))
+
+# Get transformed SQL
+print(query.sql(pretty=True))
+```
+
+## Core Components
+
+### jsql - jQuery-like AST Interface
+
+```python
+# Parsing
+query = j.parse("SELECT * FROM orders")
+
+# Finding nodes
+query.find(exp.Column)                    # Find all columns
+query.find(exp.Table)                     # Find all tables
+query.find(exp.Select)                    # Find SELECT statements
+
+# Filtering
+query.find(exp.Column).filter(
+    lambda n: n.name.startswith('order_')
+)
+
+# Transforming
+query.find(exp.Column).replaceWith(
+    lambda n: standardize_string_id(n.node)
+)
+
+# Iterating
+query.find(exp.Column).forEach(
+    lambda node, index: print(f"{index}: {node.name}")
+)
+```
+
+### alib - Reusable Patterns
+
+#### Order Merge Builder
+```python
+from bqast.alib import OrderMergeBuilder
+
+builder = OrderMergeBuilder("project", "dataset")
+merge_sql = builder.build_3cte_merge(source_sql, retailer_id, threshold)
+```
+
+#### Deduplication Patterns
+```python
+from bqast.alib import DedupPatterns
+
+# Simple dedup
+sql = DedupPatterns.simple_dedup(
+    partition_by=['order_id', 'product_id'],
+    order_by=[('timestamp', 'DESC')]
+)
+
+# Comprehensive dedup (partition by ALL columns)
+sql = DedupPatterns.comprehensive_dedup(all_columns)
+```
+
+#### Standardization Patterns
+```python
+from bqast.alib import StandardizationPatterns
+
+columns = {
+    'visitor_id': 'string_id',    # NULLIF(TRIM(col), '')
+    'quantity': 'integer',        # SAFE_CAST(col AS INT64)
+    'price': 'numeric',          # COALESCE(SAFE_CAST(col AS NUMERIC), 0)
+    'is_active': 'boolean'       # COALESCE(col, FALSE)
+}
+
+standardized = StandardizationPatterns.standardize_columns(columns)
+```
+
+## Examples
+
+See the `examples/` directory for:
+- `order_merge_demo.py` - Complete order merge transformations
+- `test_jsql.py` - jsql API examples
+- `test_serializer.py` - AST to SQL serialization
+
+## Testing
+
+```bash
+python test_runner.py
+```
+
+## Architecture
+
+```
+bqast/
+├── jsql.py          # jQuery-like wrapper around sqlglot
+├── alib.py          # Reusable query patterns
+├── ast/
+│   ├── ast_types.py   # AST node definitions
+│   ├── builders.py    # Fluent builder API
+│   ├── parser.py      # SQL parser
+│   └── serializer.py     # AST to SQL
+└── examples/
+    ├── order_merge_demo.py
+    ├── test_jsql.py
+    └── test_serializer.py
+```
+
+## Design Principles
+
+1. **Pure AST Transformations**: No regex, no string manipulation
+2. **Ergonomic API**: jQuery-like interface for intuitive AST traversal
+3. **Composable Patterns**: Mix and match transformation patterns
+4. **Type Safety**: Leverages sqlglot's type system
+5. **BigQuery Native**: Handles all BigQuery-specific syntax
+
+## Contract
+
+Developers write simple, readable SQL → We transform using AST → Output optimized, standardized code
 
 ---
 
-**PRs and issues are welcome!**
+Built with ❤️ by Little Bow Wow 🐕
