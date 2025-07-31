@@ -61,12 +61,8 @@ class SQLGlotParser:
         if select.args.get("from"):
             from_expr = select.args["from"].this
             if isinstance(from_expr, exp.Table):
-                table_name = from_expr.name
-                alias = from_expr.alias if hasattr(from_expr, 'alias') else None
-                result.from_clause = TableRef(
-                    table=TableName(table=Identifier(name=table_name)),
-                    alias=alias
-                )
+                table_ref = self._transform_table_reference(from_expr)
+                result.from_clause = table_ref
         
         # Add WHERE clause if present
         if select.args.get("where"):
@@ -92,8 +88,8 @@ class SQLGlotParser:
     def _transform_expression(self, expr: exp.Expression) -> Expression:
         """Transform SQLGlot expression to our Expression."""
         if isinstance(expr, exp.Column):
-            table = expr.table if hasattr(expr, 'table') else None
-            return Identifier(name=expr.name, table=table)
+            # Handle identifier types
+            return self._transform_identifier(expr)
         elif isinstance(expr, exp.Literal):
             return self._transform_literal(expr)
         elif isinstance(expr, exp.Binary):
@@ -105,20 +101,200 @@ class SQLGlotParser:
         elif isinstance(expr, exp.Func):
             args = [self._transform_expression(arg) for arg in expr.args.values() if arg]
             return FunctionCall(function_name=expr.name, arguments=args)
+        elif isinstance(expr, exp.Dot):
+            # Handle path expressions like table.column or field access
+            return self._transform_path_expression(expr)
+        elif isinstance(expr, exp.Placeholder):
+            # Handle query parameters
+            return self._transform_parameter(expr)
         else:
             # Default: return column placeholder
-            return b.col(str(expr))
+            return Identifier(name=str(expr))
+    
+    def _transform_identifier(self, expr: exp.Column) -> Expression:
+        """Transform column/identifier with proper BigQuery identifier type detection."""
+        name = expr.name
+        table = expr.table if hasattr(expr, 'table') else None
+        
+        # Detect identifier type based on format
+        if name.startswith('`') and name.endswith('`'):
+            # Quoted identifier
+            return QuotedIdentifier(name=name[1:-1])  # Remove backticks
+        elif name.replace('_', '').replace('-', '').isalnum() and (name[0].isalpha() or name[0] == '_'):
+            # Unquoted identifier (starts with letter or underscore)
+            if '-' in name:
+                # Supports dashes (BigQuery table names)
+                return ColumnName(name=name, supports_dashes=True)
+            else:
+                return UnquotedIdentifier(name=name)
+        else:
+            # Enhanced general identifier for complex cases
+            parts = name.split('.')
+            separators = ['.'] * (len(parts) - 1)
+            return EnhancedGeneralIdentifier(name=name, parts=parts, separators=separators)
+    
+    def _transform_path_expression(self, expr: exp.Dot) -> PathExpression:
+        """Transform dot notation into path expressions."""
+        parts = []
+        current = expr
+        
+        # Traverse the dot chain to build path parts
+        while hasattr(current, 'this') and hasattr(current, 'expression'):
+            # Add the right-most part
+            right_name = current.expression.name if hasattr(current.expression, 'name') else str(current.expression)
+            parts.insert(0, PathPart(value=right_name, separator='.'))
+            
+            # Move to the left part
+            current = current.this
+            if not isinstance(current, exp.Dot):
+                # Add the leftmost part
+                left_name = current.name if hasattr(current, 'name') else str(current)
+                parts.insert(0, PathPart(value=left_name))
+                break
+        
+        return PathExpression(parts=parts)
+    
+    def _transform_parameter(self, expr: exp.Placeholder) -> Expression:
+        """Transform query parameters."""
+        if hasattr(expr, 'name') and expr.name:
+            # Named parameter (@param)
+            return NamedParameter(name=expr.name)
+        else:
+            # Positional parameter (?)
+            return PositionalParameter(position=0)  # Position would need to be tracked
     
     def _transform_literal(self, lit: exp.Literal) -> Literal:
-        """Transform SQLGlot literal to our Literal."""
+        """Transform SQLGlot literal to our Literal with BigQuery-specific handling."""
+        literal_str = str(lit)
+        
+        # Handle string and bytes literals with prefixes and quotes
         if lit.is_string:
-            return StringLiteral(value=lit.this)
+            value = lit.this
+            quote_style = '"'  # Default
+            is_raw = False
+            is_bytes = False
+            
+            # Detect quote style and prefixes from original literal
+            if literal_str.startswith(('r"', 'R"', "r'", "R'")):
+                is_raw = True
+                quote_style = literal_str[2]
+            elif literal_str.startswith(('b"', 'B"', "b'", "B'")):
+                is_bytes = True
+                quote_style = literal_str[2]
+            elif literal_str.startswith(('br"', 'BR"', 'rb"', 'RB"', "br'", "BR'", "rb'", "RB'")):
+                is_raw = True
+                is_bytes = True
+                quote_style = literal_str[-1]
+            elif literal_str.startswith(('"""', "'''")):
+                quote_style = literal_str[:3]
+            elif literal_str.startswith(('"', "'")):
+                quote_style = literal_str[0]
+            
+            if is_bytes:
+                return BytesLiteral(
+                    value=value.encode() if isinstance(value, str) else value,
+                    quote_style=quote_style,
+                    is_raw=is_raw
+                )
+            else:
+                return StringLiteral(
+                    value=value,
+                    quote_style=quote_style,
+                    is_raw=is_raw,
+                    is_bytes=False
+                )
+        
+        # Handle numeric literals
         elif lit.is_int:
-            return IntegerLiteral(value=int(lit.this))
+            value = int(lit.this)
+            is_hex = literal_str.lower().startswith('0x')
+            return IntegerLiteral(value=value, is_hexadecimal=is_hex)
+        
         elif lit.is_number:
-            return FloatLiteral(value=float(lit.this))
+            # Check for NUMERIC/BIGNUMERIC literals
+            if literal_str.upper().startswith('NUMERIC'):
+                return NumericLiteral(value=lit.this)
+            elif literal_str.upper().startswith('BIGNUMERIC'):
+                return BigNumericLiteral(value=lit.this)
+            else:
+                return FloatLiteral(value=float(lit.this))
+        
+        # Handle special literals
+        elif literal_str.upper() in ('TRUE', 'FALSE'):
+            return BooleanLiteral(value=literal_str.upper() == 'TRUE')
+        
+        elif literal_str.upper() == 'NULL':
+            return NullLiteral()
+        
+        # Handle date/time literals
+        elif literal_str.upper().startswith('DATE'):
+            # Extract the date string from DATE 'YYYY-MM-DD'
+            date_value = lit.this if hasattr(lit, 'this') else literal_str
+            return DateLiteral(value=date_value)
+        
+        elif literal_str.upper().startswith('TIME'):
+            time_value = lit.this if hasattr(lit, 'this') else literal_str
+            return TimeLiteral(value=time_value)
+        
+        elif literal_str.upper().startswith('DATETIME'):
+            datetime_value = lit.this if hasattr(lit, 'this') else literal_str
+            return DatetimeLiteral(value=datetime_value)
+        
+        elif literal_str.upper().startswith('TIMESTAMP'):
+            timestamp_value = lit.this if hasattr(lit, 'this') else literal_str
+            return TimestampLiteral(value=timestamp_value)
+        
+        elif literal_str.upper().startswith('INTERVAL'):
+            interval_value = lit.this if hasattr(lit, 'this') else literal_str
+            return IntervalLiteral(value=interval_value)
+        
+        elif literal_str.upper().startswith('JSON'):
+            json_value = lit.this if hasattr(lit, 'this') else literal_str
+            return JSONLiteral(value=json_value)
+        
+        # Handle array literals
+        elif isinstance(lit, exp.Array):
+            elements = [self._transform_expression(elem) for elem in lit.expressions]
+            return ArrayLiteral(elements=elements)
+        
         else:
-            return b.lit(lit.this)
+            # Default fallback
+            return StringLiteral(value=str(lit.this) if hasattr(lit, 'this') else str(lit))
+    
+    def _transform_table_reference(self, table_expr: exp.Table) -> TableRef:
+        """Transform table reference with BigQuery project.dataset.table support."""
+        table_name_str = table_expr.name
+        alias = table_expr.alias if hasattr(table_expr, 'alias') else None
+        
+        # Parse BigQuery table name format: [project].[dataset].table
+        parts = table_name_str.split('.')
+        supports_dashes = '-' in table_name_str
+        
+        if len(parts) == 3:
+            # project.dataset.table
+            project, dataset, table = parts
+            table_name = TableName(
+                project=project,
+                dataset=dataset, 
+                table=table,
+                supports_dashes=supports_dashes
+            )
+        elif len(parts) == 2:
+            # dataset.table
+            dataset, table = parts
+            table_name = TableName(
+                dataset=dataset,
+                table=table,
+                supports_dashes=supports_dashes
+            )
+        else:
+            # Just table name
+            table_name = TableName(
+                table=table_name_str,
+                supports_dashes=supports_dashes
+            )
+        
+        return TableRef(table=table_name, alias=alias)
 
 
 # Convenience function

@@ -12,14 +12,14 @@ from typing import List, Callable, Optional, Any, Union, TypeVar, Generic
 
 try:
     # Try relative imports first (when used as module)
-    from node_path import NodePath
-    from visitor import BaseVisitor, visit
-    from builders import ASTNode
+    from .node_path import NodePath
+    from .visitor import BaseVisitor, visit
+    from .types import ASTNode
 except ImportError:
     # Fall back to absolute imports (when run directly)
     from node_path import NodePath
     from visitor import BaseVisitor, visit
-    from builders import ASTNode
+    from types import ASTNode
 
 T = TypeVar("T", bound=ASTNode)
 

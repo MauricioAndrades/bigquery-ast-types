@@ -89,15 +89,92 @@ class Statement(ASTNode):
     pass
 
 
-# Basic Expression Types
+# Identifier Types - Enhanced for BigQuery lexical specification
 @dataclass
 class Identifier(Expression):
-    """Column or table identifier."""
+    """Base class for all identifiers."""
     name: str
-    table: Optional[str] = None
-
+    
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_identifier(self)
+
+
+@dataclass  
+class UnquotedIdentifier(Identifier):
+    """Unquoted identifier - must begin with letter or underscore."""
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_unquoted_identifier(self)
+
+
+@dataclass
+class QuotedIdentifier(Identifier):
+    """Quoted identifier - enclosed by backticks, can contain any characters."""
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_quoted_identifier(self)
+
+
+@dataclass
+class EnhancedGeneralIdentifier(Identifier):
+    """Enhanced general identifier supporting complex path expressions."""
+    parts: List[Union[str, int]]
+    separators: List[str] = field(default_factory=list)  # ., /, :, -
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_enhanced_general_identifier(self)
+
+
+# Path Expression Types
+@dataclass
+class PathExpression(Expression):
+    """Path expression for navigating object graphs."""
+    parts: List['PathPart']
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_path_expression(self)
+
+
+@dataclass
+class PathPart(Expression):
+    """Part of a path expression."""
+    value: Union[str, int, Identifier]
+    separator: Optional[str] = None  # ., /, :, -
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_path_part(self)
+
+
+# Table and Column Name Types
+@dataclass
+class TableName(Expression):
+    """Table name with optional project and dataset qualification."""
+    table: str
+    dataset: Optional[str] = None
+    project: Optional[str] = None
+    supports_dashes: bool = False  # For dash rules in BigQuery
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_table_name(self)
+
+
+@dataclass
+class ColumnName(Expression):
+    """Column name with dash support."""
+    name: str
+    supports_dashes: bool = False
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_column_name(self)
+
+
+@dataclass
+class FieldName(Expression):
+    """Field name for struct and JSON objects."""
+    name: str
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_field_name(self)
 
     def __str__(self):
         if self.table:
@@ -116,17 +193,32 @@ class Literal(Expression):
 
 @dataclass
 class StringLiteral(Literal):
-    """String literal."""
+    """String literal with BigQuery formatting options."""
     value: str
-
+    quote_style: str = '"'  # ", ', """, '''
+    is_raw: bool = False  # r"..." or R"..."
+    is_bytes: bool = False  # b"..." or B"..."
+    
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_string_literal(self)
+
+
+@dataclass  
+class BytesLiteral(Literal):
+    """Bytes literal with formatting options."""
+    value: bytes
+    quote_style: str = '"'  # ", ', """, '''
+    is_raw: bool = False  # br"..." or RB"..."
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_bytes_literal(self)
 
 
 @dataclass
 class IntegerLiteral(Literal):
     """Integer literal."""
     value: int
+    is_hexadecimal: bool = False  # 0x prefix
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_integer_literal(self)
@@ -139,6 +231,24 @@ class FloatLiteral(Literal):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_float_literal(self)
+
+
+@dataclass
+class NumericLiteral(Literal):
+    """NUMERIC literal - exact decimal."""
+    value: str  # Keep as string for precision
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_numeric_literal(self)
+
+
+@dataclass
+class BigNumericLiteral(Literal):
+    """BIGNUMERIC literal - high precision decimal."""
+    value: str  # Keep as string for precision
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_bignumeric_literal(self)
 
 
 @dataclass
@@ -157,6 +267,128 @@ class NullLiteral(Literal):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_null_literal(self)
+
+
+# BigQuery Date/Time Literals
+@dataclass
+class DateLiteral(Literal):
+    """DATE literal."""
+    value: str  # DATE 'YYYY-MM-DD'
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_date_literal(self)
+
+
+@dataclass
+class TimeLiteral(Literal):
+    """TIME literal.""" 
+    value: str  # TIME 'HH:MM:SS[.SSSSSS]'
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_time_literal(self)
+
+
+@dataclass
+class DatetimeLiteral(Literal):
+    """DATETIME literal."""
+    value: str  # DATETIME 'YYYY-MM-DD HH:MM:SS[.SSSSSS]'
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_datetime_literal(self)
+
+
+@dataclass
+class TimestampLiteral(Literal):
+    """TIMESTAMP literal."""
+    value: str  # TIMESTAMP 'YYYY-MM-DD HH:MM:SS[.SSSSSS][time_zone]'
+    timezone: Optional[str] = None
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_timestamp_literal(self)
+
+
+@dataclass
+class IntervalLiteral(Literal):
+    """INTERVAL literal."""
+    value: str  # INTERVAL '1-2 3 4:5:6.789' YEAR TO SECOND 
+    from_part: Optional[str] = None
+    to_part: Optional[str] = None
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_interval_literal(self)
+
+
+@dataclass
+class ArrayLiteral(Literal):
+    """Array literal."""
+    elements: List[Expression]
+    element_type: Optional[str] = None  # ARRAY<type>
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_array_literal(self)
+
+
+@dataclass
+class StructLiteral(Literal):
+    """Struct literal."""
+    fields: List[Tuple[Optional[str], Expression]]  # [(field_name, value), ...]
+    struct_type: Optional[str] = None
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_struct_literal(self)
+
+
+@dataclass
+class RangeLiteral(Literal):
+    """RANGE literal."""
+    range_type: str  # DATE, DATETIME, TIMESTAMP
+    lower_bound: Optional[Expression] = None
+    upper_bound: Optional[Expression] = None
+    lower_unbounded: bool = False
+    upper_unbounded: bool = False
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_range_literal(self)
+
+
+@dataclass
+class JSONLiteral(Literal):
+    """JSON literal."""
+    value: str  # JSON formatted string
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_json_literal(self)
+
+
+# Query Parameter Types
+@dataclass 
+class NamedParameter(Expression):
+    """Named query parameter (@param)."""
+    name: str
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_named_parameter(self)
+
+
+@dataclass
+class PositionalParameter(Expression):
+    """Positional query parameter (?)."""
+    position: int
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_positional_parameter(self)
+
+
+# Comment Types
+@dataclass
+class Comment(ASTNode):
+    """Comment node to preserve comments in AST."""
+    text: str
+    style: str  # '#', '--', '/* */'
+    is_multiline: bool = False
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_comment(self)
 
 
 @dataclass
@@ -192,17 +424,6 @@ class FunctionCall(Expression):
 
 
 # Table References
-@dataclass
-class TableName(ASTNode):
-    """Table name (possibly qualified)."""
-    table: Identifier
-    project: Optional[Identifier] = None
-    dataset: Optional[Identifier] = None
-    
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_table_name(self)
-
-
 @dataclass
 class TableRef(ASTNode):
     """Table reference in FROM clause."""
@@ -541,4 +762,106 @@ class ASTVisitor(ABC):
 
     @abstractmethod
     def visit_window_function(self, node: WindowFunction) -> Any:
+        pass
+    
+    # Enhanced identifier visitors
+    @abstractmethod
+    def visit_unquoted_identifier(self, node: UnquotedIdentifier) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_quoted_identifier(self, node: QuotedIdentifier) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_enhanced_general_identifier(self, node: EnhancedGeneralIdentifier) -> Any:
+        pass
+    
+    # Path expression visitors
+    @abstractmethod
+    def visit_path_expression(self, node: PathExpression) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_path_part(self, node: PathPart) -> Any:
+        pass
+    
+    # Table and column name visitors
+    @abstractmethod
+    def visit_table_name(self, node: TableName) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_column_name(self, node: ColumnName) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_field_name(self, node: FieldName) -> Any:
+        pass
+    
+    # Enhanced literal visitors
+    @abstractmethod
+    def visit_bytes_literal(self, node: BytesLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_numeric_literal(self, node: NumericLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_bignumeric_literal(self, node: BigNumericLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_date_literal(self, node: DateLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_time_literal(self, node: TimeLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_datetime_literal(self, node: DatetimeLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_timestamp_literal(self, node: TimestampLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_interval_literal(self, node: IntervalLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_array_literal(self, node: ArrayLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_struct_literal(self, node: StructLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_range_literal(self, node: RangeLiteral) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_json_literal(self, node: JSONLiteral) -> Any:
+        pass
+    
+    # Parameter visitors
+    @abstractmethod
+    def visit_named_parameter(self, node: NamedParameter) -> Any:
+        pass
+    
+    @abstractmethod
+    def visit_positional_parameter(self, node: PositionalParameter) -> Any:
+        pass
+    
+    # Comment visitor
+    @abstractmethod
+    def visit_comment(self, node: Comment) -> Any:
+        pass
+    
+    def generic_visit(self, node: ASTNode) -> Any:
+        """Default visitor method for unhandled node types."""
         pass
