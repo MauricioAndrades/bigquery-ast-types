@@ -66,7 +66,9 @@ def parse(path: str, dialect: DialectType = None) -> exp.JSONPath:
         pass
 
     @t.overload
-    def _match(token_type: TokenType, raise_unmatched: Lit[False] = False) -> t.Optional[Token]:
+    def _match(
+        token_type: TokenType, raise_unmatched: Lit[False] = False
+    ) -> t.Optional[Token]:
         pass
 
     def _match(token_type, raise_unmatched=False):
@@ -219,8 +221,7 @@ JSON_PATH_PART_TRANSFORMS: t.Dict[t.Type[exp.Expression], t.Callable[..., str]] 
         if p is not None
     ),
     exp.JSONPathSubscript: lambda self, e: self._jsonpathsubscript_sql(e),
-    exp.JSONPathUnion: lambda self,
-    e: f"[{','.join(self.json_path_part(p) for p in e.expressions)}]",
+    exp.JSONPathUnion: lambda self, e: f"[{','.join(self.json_path_part(p) for p in e.expressions)}]",
     exp.JSONPathWildcard: lambda *_: "*",
 }
 

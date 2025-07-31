@@ -2,6 +2,7 @@ class Scope:
     """
     Tracks name resolution context for SQL nodes (e.g., table aliases, CTEs).
     """
+
     def __init__(self, parent=None):
         self.parent = parent
         self.bindings = {}

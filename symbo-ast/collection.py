@@ -9,11 +9,19 @@ Date: 2025-07-31
 """
 
 from typing import List, Callable, Optional, Any, Union, TypeVar, Generic
-from .node_path import NodePath
-from .visitor import BaseVisitor, visit
-from .builders import ASTNode
 
-T = TypeVar('T', bound=ASTNode)
+try:
+    # Try relative imports first (when used as module)
+    from .node_path import NodePath
+    from .visitor import BaseVisitor, visit
+    from .builders import ASTNode
+except ImportError:
+    # Fall back to absolute imports (when run directly)
+    from node_path import NodePath
+    from visitor import BaseVisitor, visit
+    from builders import ASTNode
+
+T = TypeVar("T", bound=ASTNode)
 
 
 class Collection(Generic[T]):
@@ -60,7 +68,9 @@ class Collection(Generic[T]):
 
     # Finding and Filtering
 
-    def find(self, node_type: Union[str, type], predicate: Optional[Callable] = None) -> 'Collection':
+    def find(
+        self, node_type: Union[str, type], predicate: Optional[Callable] = None
+    ) -> "Collection":
         """
         Find all descendant nodes of the given type.
 
@@ -68,6 +78,7 @@ class Collection(Generic[T]):
             node_type: Either a string type name or a class
             predicate: Optional filter function
         """
+
         class FindVisitor(BaseVisitor):
             def __init__(self):
                 self.found = []
@@ -93,18 +104,20 @@ class Collection(Generic[T]):
 
         return Collection(visitor.found)
 
-    def filter(self, predicate: Callable[[NodePath], bool]) -> 'Collection':
+    def filter(self, predicate: Callable[[NodePath], bool]) -> "Collection":
         """Filter paths by predicate."""
         return Collection([p for p in self.paths if predicate(p)])
 
-    def filterType(self, node_type: Union[str, type]) -> 'Collection':
+    def filterType(self, node_type: Union[str, type]) -> "Collection":
         """Filter by node type."""
         if isinstance(node_type, str):
             return self.filter(lambda p: type(p.node).__name__ == node_type)
         else:
             return self.filter(lambda p: isinstance(p.node, node_type))
 
-    def closest(self, node_type: Union[str, type], predicate: Optional[Callable] = None) -> 'Collection':
+    def closest(
+        self, node_type: Union[str, type], predicate: Optional[Callable] = None
+    ) -> "Collection":
         """Find closest ancestor of given type."""
         results = []
 
@@ -127,7 +140,7 @@ class Collection(Generic[T]):
 
         return Collection(results)
 
-    def parent(self) -> 'Collection':
+    def parent(self) -> "Collection":
         """Get parent nodes."""
         parents = []
         seen = set()
@@ -139,7 +152,7 @@ class Collection(Generic[T]):
 
         return Collection(parents)
 
-    def children(self) -> 'Collection':
+    def children(self) -> "Collection":
         """Get all child nodes."""
         children = []
         for path in self.paths:
@@ -148,7 +161,7 @@ class Collection(Generic[T]):
 
     # Traversal
 
-    def forEach(self, callback: Callable[[NodePath, int], Any]) -> 'Collection':
+    def forEach(self, callback: Callable[[NodePath, int], Any]) -> "Collection":
         """Execute callback for each path."""
         for i, path in enumerate(self.paths):
             callback(path, i)
@@ -168,7 +181,9 @@ class Collection(Generic[T]):
 
     # Manipulation
 
-    def replaceWith(self, replacement: Union[ASTNode, Callable[[NodePath, int], ASTNode]]) -> 'Collection':
+    def replaceWith(
+        self, replacement: Union[ASTNode, Callable[[NodePath, int], ASTNode]]
+    ) -> "Collection":
         """Replace all nodes."""
         for i, path in enumerate(self.paths):
             if callable(replacement):
@@ -178,22 +193,84 @@ class Collection(Generic[T]):
             path.replace(new_node)
         return self
 
-    def remove(self) -> 'Collection':
+    def remove(self) -> "Collection":
         """Remove all nodes."""
         # Remove in reverse order to avoid index issues
         for path in reversed(self.paths):
             path.remove()
         return Collection([])
 
-    def insertBefore(self, node: ASTNode) -> 'Collection':
-        """Insert node before each path."""
-        # This would need implementation based on parent list manipulation
-        raise NotImplementedError("insertBefore not yet implemented")
+    def insertBefore(self, node: Union[ASTNode, Callable[[NodePath, int], ASTNode]]) -> "Collection":
+        """
+        Insert node before each path in the collection.
+        
+        Args:
+            node: Either an ASTNode to insert, or a function that returns 
+                  an ASTNode based on the current path and index.
+                  
+        Returns:
+            Collection of newly inserted NodePaths.
+            
+        Raises:
+            ValueError: If any node cannot be inserted (e.g., root nodes or non-list nodes).
+        """
+        new_paths = []
+        
+        # Process in reverse order to avoid index shifting issues
+        for i, path in enumerate(reversed(self.paths)):
+            if callable(node):
+                # Generate node based on current path
+                new_node = node(path, len(self.paths) - 1 - i)
+            else:
+                # Use the same node (Note: this could be problematic if the same
+                # node instance is inserted multiple times, consider cloning)
+                new_node = node
+                
+            try:
+                new_path = path.insert_before(new_node)
+                new_paths.append(new_path)
+            except ValueError as e:
+                # Could either skip or raise, depending on desired behavior
+                raise ValueError(f"Cannot insert before {path}: {e}")
+                
+        # Return in original order
+        return Collection(list(reversed(new_paths)))
 
-    def insertAfter(self, node: ASTNode) -> 'Collection':
-        """Insert node after each path."""
-        # This would need implementation based on parent list manipulation
-        raise NotImplementedError("insertAfter not yet implemented")
+    def insertAfter(self, node: Union[ASTNode, Callable[[NodePath, int], ASTNode]]) -> "Collection":
+        """
+        Insert node after each path in the collection.
+        
+        Args:
+            node: Either an ASTNode to insert, or a function that returns 
+                  an ASTNode based on the current path and index.
+                  
+        Returns:
+            Collection of newly inserted NodePaths.
+            
+        Raises:
+            ValueError: If any node cannot be inserted (e.g., root nodes or non-list nodes).
+        """
+        new_paths = []
+        
+        # Process in reverse order to avoid index shifting issues
+        for i, path in enumerate(reversed(self.paths)):
+            if callable(node):
+                # Generate node based on current path
+                new_node = node(path, len(self.paths) - 1 - i)
+            else:
+                # Use the same node (Note: this could be problematic if the same
+                # node instance is inserted multiple times, consider cloning)
+                new_node = node
+                
+            try:
+                new_path = path.insert_after(new_node)
+                new_paths.append(new_path)
+            except ValueError as e:
+                # Could either skip or raise, depending on desired behavior
+                raise ValueError(f"Cannot insert after {path}: {e}")
+                
+        # Return in original order
+        return Collection(list(reversed(new_paths)))
 
     # Inspection
 
@@ -218,25 +295,25 @@ class Collection(Generic[T]):
 
     # Chaining helpers
 
-    def first(self) -> 'Collection':
+    def first(self) -> "Collection":
         """Get first item as collection."""
         if self.paths:
             return Collection([self.paths[0]])
         return Collection([])
 
-    def last(self) -> 'Collection':
+    def last(self) -> "Collection":
         """Get last item as collection."""
         if self.paths:
             return Collection([self.paths[-1]])
         return Collection([])
 
-    def slice(self, start: int, end: Optional[int] = None) -> 'Collection':
+    def slice(self, start: int, end: Optional[int] = None) -> "Collection":
         """Slice the collection."""
         if end is None:
             return Collection(self.paths[start:])
         return Collection(self.paths[start:end])
 
-    def eq(self, index: int) -> 'Collection':
+    def eq(self, index: int) -> "Collection":
         """Get item at index as collection."""
         if 0 <= index < len(self.paths):
             return Collection([self.paths[index]])
@@ -248,7 +325,7 @@ class Collection(Generic[T]):
         """Convert to list of paths."""
         return list(self.paths)
 
-    def unique(self) -> 'Collection':
+    def unique(self) -> "Collection":
         """Remove duplicate paths."""
         seen = set()
         unique_paths = []
@@ -261,17 +338,17 @@ class Collection(Generic[T]):
 
         return Collection(unique_paths)
 
-    def reverse(self) -> 'Collection':
+    def reverse(self) -> "Collection":
         """Reverse the collection."""
         return Collection(list(reversed(self.paths)))
 
-    def sortBy(self, key_func: Callable[[NodePath], Any]) -> 'Collection':
+    def sortBy(self, key_func: Callable[[NodePath], Any]) -> "Collection":
         """Sort collection by key function."""
         return Collection(sorted(self.paths, key=key_func))
 
     # Path utilities
 
-    def getPath(self, field_path: str) -> 'Collection':
+    def getPath(self, field_path: str) -> "Collection":
         """
         Get nodes at a specific field path.
         E.g., 'body.statements.0' to get first statement in body
@@ -280,7 +357,7 @@ class Collection(Generic[T]):
 
         for path in self.paths:
             current = path
-            for part in field_path.split('.'):
+            for part in field_path.split("."):
                 if part.isdigit():
                     # Array index
                     children = current.get_children()
@@ -338,6 +415,11 @@ def astCollection(root: Union[ASTNode, NodePath, List[NodePath]]) -> Collection:
 
 
 # Aliases for common operations
-def $(root: Union[ASTNode, NodePath]) -> Collection:
-    """jQuery-style alias for astCollection."""
-    return astCollection(root)
+def root(root_node: Union[ASTNode, NodePath, List[NodePath]]) -> Collection:
+    """jQuery-style alias for astCollection with the provided root node.
+    Args:
+        root_node: The ASTNode, NodePath, or list of NodePaths to wrap in a Collection.
+    Returns:
+        Collection instance wrapping the root node(s).
+    """
+    return astCollection(root_node)

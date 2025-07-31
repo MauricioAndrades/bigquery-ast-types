@@ -124,34 +124,38 @@ class Drill(Dialect):
             exp.DateAdd: date_add_sql("ADD"),
             exp.DateStrToDate: datestrtodate_sql,
             exp.DateSub: date_add_sql("SUB"),
-            exp.DateToDi: lambda self,
-            e: f"CAST(TO_DATE({self.sql(e, 'this')}, {Drill.DATEINT_FORMAT}) AS INT)",
-            exp.DiToDate: lambda self,
-            e: f"TO_DATE(CAST({self.sql(e, 'this')} AS VARCHAR), {Drill.DATEINT_FORMAT})",
-            exp.If: lambda self,
-            e: f"`IF`({self.format_args(e.this, e.args.get('true'), e.args.get('false'))})",
+            exp.DateToDi: lambda self, e: f"CAST(TO_DATE({self.sql(e, 'this')}, {Drill.DATEINT_FORMAT}) AS INT)",
+            exp.DiToDate: lambda self, e: f"TO_DATE(CAST({self.sql(e, 'this')} AS VARCHAR), {Drill.DATEINT_FORMAT})",
+            exp.If: lambda self, e: f"`IF`({self.format_args(e.this, e.args.get('true'), e.args.get('false'))})",
             exp.ILike: lambda self, e: self.binary(e, "`ILIKE`"),
-            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(
-                rename_func("LEVENSHTEIN_DISTANCE")
-            ),
+            exp.Levenshtein: unsupported_args(
+                "ins_cost", "del_cost", "sub_cost", "max_dist"
+            )(rename_func("LEVENSHTEIN_DISTANCE")),
             exp.PartitionedByProperty: lambda self, e: f"PARTITION BY {self.sql(e, 'this')}",
             exp.RegexpLike: rename_func("REGEXP_MATCHES"),
             exp.StrToDate: _str_to_date,
             exp.Pow: rename_func("POW"),
             exp.Select: transforms.preprocess(
-                [transforms.eliminate_distinct_on, transforms.eliminate_semi_and_anti_joins]
+                [
+                    transforms.eliminate_distinct_on,
+                    transforms.eliminate_semi_and_anti_joins,
+                ]
             ),
             exp.StrPosition: strposition_sql,
-            exp.StrToTime: lambda self, e: self.func("TO_TIMESTAMP", e.this, self.format_time(e)),
-            exp.TimeStrToDate: lambda self, e: self.sql(exp.cast(e.this, exp.DataType.Type.DATE)),
+            exp.StrToTime: lambda self, e: self.func(
+                "TO_TIMESTAMP", e.this, self.format_time(e)
+            ),
+            exp.TimeStrToDate: lambda self, e: self.sql(
+                exp.cast(e.this, exp.DataType.Type.DATE)
+            ),
             exp.TimeStrToTime: timestrtotime_sql,
             exp.TimeStrToUnix: rename_func("UNIX_TIMESTAMP"),
-            exp.TimeToStr: lambda self, e: self.func("TO_CHAR", e.this, self.format_time(e)),
+            exp.TimeToStr: lambda self, e: self.func(
+                "TO_CHAR", e.this, self.format_time(e)
+            ),
             exp.TimeToUnix: rename_func("UNIX_TIMESTAMP"),
             exp.ToChar: lambda self, e: self.function_fallback_sql(e),
             exp.TryCast: no_trycast_sql,
-            exp.TsOrDsAdd: lambda self,
-            e: f"DATE_ADD(CAST({self.sql(e, 'this')} AS DATE), {self.sql(exp.Interval(this=e.expression, unit=exp.var('DAY')))})",
-            exp.TsOrDiToDi: lambda self,
-            e: f"CAST(SUBSTR(REPLACE(CAST({self.sql(e, 'this')} AS VARCHAR), '-', ''), 1, 8) AS INT)",
+            exp.TsOrDsAdd: lambda self, e: f"DATE_ADD(CAST({self.sql(e, 'this')} AS DATE), {self.sql(exp.Interval(this=e.expression, unit=exp.var('DAY')))})",
+            exp.TsOrDiToDi: lambda self, e: f"CAST(SUBSTR(REPLACE(CAST({self.sql(e, 'this')} AS VARCHAR), '-', ''), 1, 8) AS INT)",
         }

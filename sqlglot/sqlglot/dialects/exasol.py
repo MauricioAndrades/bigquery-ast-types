@@ -40,7 +40,10 @@ def _build_trunc(args: t.List[exp.Expression], dialect: DialectType) -> exp.Expr
 
         first = annotate_types(first, dialect=dialect)
 
-    if first.is_type(exp.DataType.Type.DATE, exp.DataType.Type.TIMESTAMP) and second.is_string:
+    if (
+        first.is_type(exp.DataType.Type.DATE, exp.DataType.Type.TIMESTAMP)
+        and second.is_string
+    ):
         return exp.DateTrunc(this=first, unit=second)
 
     return exp.Anonymous(this="TRUNC", expressions=args)
@@ -208,9 +211,9 @@ class Exasol(Dialect):
             exp.DateTrunc: lambda self, e: self.func("TRUNC", e.this, unit_to_str(e)),
             exp.DatetimeTrunc: timestamptrunc_sql(),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/edit_distance.htm#EDIT_DISTANCE
-            exp.Levenshtein: unsupported_args("ins_cost", "del_cost", "sub_cost", "max_dist")(
-                rename_func("EDIT_DISTANCE")
-            ),
+            exp.Levenshtein: unsupported_args(
+                "ins_cost", "del_cost", "sub_cost", "max_dist"
+            )(rename_func("EDIT_DISTANCE")),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/mod.htm
             exp.Mod: rename_func("MOD"),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/regexp_substr.htm
@@ -218,7 +221,9 @@ class Exasol(Dialect):
                 rename_func("REGEXP_SUBSTR")
             ),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/regexp_replace.htm
-            exp.RegexpReplace: unsupported_args("modifiers")(rename_func("REGEXP_REPLACE")),
+            exp.RegexpReplace: unsupported_args("modifiers")(
+                rename_func("REGEXP_REPLACE")
+            ),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/var_pop.htm
             exp.VariancePop: rename_func("VAR_POP"),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/approximate_count_distinct.htm
@@ -226,13 +231,21 @@ class Exasol(Dialect):
                 rename_func("APPROXIMATE_COUNT_DISTINCT")
             ),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/to_char%20(datetime).htm
-            exp.ToChar: lambda self, e: self.func("TO_CHAR", e.this, self.format_time(e)),
+            exp.ToChar: lambda self, e: self.func(
+                "TO_CHAR", e.this, self.format_time(e)
+            ),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/to_date.htm
-            exp.TsOrDsToDate: lambda self, e: self.func("TO_DATE", e.this, self.format_time(e)),
-            exp.TimeToStr: lambda self, e: self.func("TO_CHAR", e.this, self.format_time(e)),
+            exp.TsOrDsToDate: lambda self, e: self.func(
+                "TO_DATE", e.this, self.format_time(e)
+            ),
+            exp.TimeToStr: lambda self, e: self.func(
+                "TO_CHAR", e.this, self.format_time(e)
+            ),
             exp.TimeStrToTime: timestrtotime_sql,
             exp.TimestampTrunc: timestamptrunc_sql(),
-            exp.StrToTime: lambda self, e: self.func("TO_DATE", e.this, self.format_time(e)),
+            exp.StrToTime: lambda self, e: self.func(
+                "TO_DATE", e.this, self.format_time(e)
+            ),
             exp.CurrentUser: lambda *_: "CURRENT_USER",
             exp.AtTimeZone: lambda self, e: self.func(
                 "CONVERT_TZ",
@@ -243,7 +256,11 @@ class Exasol(Dialect):
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/instr.htm
             exp.StrPosition: lambda self, e: (
                 strposition_sql(
-                    self, e, func_name="INSTR", supports_position=True, supports_occurrence=True
+                    self,
+                    e,
+                    func_name="INSTR",
+                    supports_position=True,
+                    supports_occurrence=True,
                 )
             ),
             # https://docs.exasol.com/db/latest/sql_references/functions/alphabeticallistfunctions/hash_sha%5B1%5D.htm#HASH_SHA%5B1%5D
