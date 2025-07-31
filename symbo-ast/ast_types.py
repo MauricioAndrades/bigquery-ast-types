@@ -7,9 +7,6 @@ Covers all language constructs from the BigQueryLexicalIdentifiers.md.
 Author: Little Bow Wow 🐕
 Date: 2025-07-31
 """
-
-# TODO: Add `from __future__ import annotations` to avoid string literal type hints (see issue #2)
-# TODO: Add comprehensive docstrings for all node types with usage examples (see issue #4)
 from typing import Any, List, Optional, Union, Dict, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -932,3 +929,222 @@ class ASTVisitor(ABC):
     def generic_visit(self, node: ASTNode) -> Any:
         """Default visit method."""
         pass
+
+# --- Identifier Nodes ---
+
+@dataclass
+class UnquotedIdentifier(ASTNode):
+    """Unquoted identifier (starts with letter/underscore, letters/numbers/underscores)."""
+    name: str
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_unquoted_identifier(self)
+
+@dataclass
+class QuotedIdentifier(ASTNode):
+    """Quoted identifier (enclosed by backticks, may contain any chars)."""
+    name: str  # Unescaped value
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_quoted_identifier(self)
+
+@dataclass
+class Identifier(ASTNode):
+    """General identifier: either quoted or unquoted, with quoting info."""
+    name: str
+    quoted: bool = False
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_identifier(self)
+
+# --- Path and Table/Field/Column Names ---
+
+@dataclass
+class PathPart(ASTNode):
+    """Path part: identifier or number, with separator."""
+    value: Union[Identifier, int]
+    separator: Optional[str] = None  # '/', ':', '-', or '.'
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_path_part(self)
+
+@dataclass
+class PathExpression(ASTNode):
+    """Path expression: sequence of path parts."""
+    parts: List[PathPart]
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_path_expression(self)
+
+@dataclass
+class TableName(ASTNode):
+    """Table name: project, dataset, table (each can be quoted/unquoted, with dash support for project/table)."""
+    project: Optional[Identifier] = None
+    dataset: Optional[Identifier] = None
+    table: Identifier = None  # Required
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_table_name(self)
+
+@dataclass
+class ColumnName(ASTNode):
+    """Column name (quoted or unquoted, may support dash in some contexts)."""
+    identifier: Identifier
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_column_name(self)
+
+@dataclass
+class FieldName(ASTNode):
+    """Field name inside struct/JSON (inherits column rules)."""
+    identifier: Identifier
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_field_name(self)
+
+# --- Literals ---
+
+@dataclass
+class StringLiteral(Literal):
+    value: str
+    quote_type: str  # single, double, triple_single, triple_double
+    raw: bool = False  # r"..." or not
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_string_literal(self)
+
+@dataclass
+class BytesLiteral(Literal):
+    value: bytes
+    quote_type: str
+    raw: bool = False  # br"..." or rb"..."
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_bytes_literal(self)
+
+@dataclass
+class IntegerLiteral(Literal):
+    value: int
+    hex: bool = False  # 0x... or plain decimal
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_integer_literal(self)
+
+@dataclass
+class FloatLiteral(Literal):
+    value: float
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_float_literal(self)
+
+@dataclass
+class NumericLiteral(Literal):
+    value: str  # Keep as string for precision
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_numeric_literal(self)
+
+@dataclass
+class BigNumericLiteral(Literal):
+    value: str
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_bignumeric_literal(self)
+
+@dataclass
+class DateLiteral(Literal):
+    value: str  # Canonical date format
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_date_literal(self)
+
+@dataclass
+class TimeLiteral(Literal):
+    value: str  # Canonical time format
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_time_literal(self)
+
+@dataclass
+class DatetimeLiteral(Literal):
+    value: str  # Canonical datetime format
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_datetime_literal(self)
+
+@dataclass
+class TimestampLiteral(Literal):
+    value: str  # Canonical timestamp format
+    timezone: Optional[str] = None  # May include zone info
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_timestamp_literal(self)
+
+@dataclass
+class ArrayLiteral(Literal):
+    elements: List['Expression']
+    element_type: Optional['TypeExpression'] = None
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_array_literal(self)
+
+@dataclass
+class StructLiteral(Literal):
+    fields: List[Tuple[Optional[str], 'Expression']]
+    type: Optional['StructType'] = None
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_struct_literal(self)
+
+@dataclass
+class RangeLiteral(Literal):
+    element_type: DataType
+    lower_bound: Optional['Expression']
+    upper_bound: Optional['Expression']
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_range_literal(self)
+
+@dataclass
+class IntervalLiteral(Literal):
+    value: Union[int, str]  # int for simple, str for range (e.g. '10:20:30.52')
+    unit: IntervalUnit
+    end_unit: Optional[IntervalUnit] = None  # For range intervals
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_interval_literal(self)
+
+@dataclass
+class JSONLiteral(Literal):
+    value: str
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_json_literal(self)
+
+# --- Query Parameters ---
+
+@dataclass
+class NamedParameter(Expression):
+    """@parameter_name (quoted or unquoted, can be reserved word)."""
+    name: Identifier
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_named_parameter(self)
+
+@dataclass
+class PositionalParameter(Expression):
+    """? parameter."""
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_positional_parameter(self)
+
+# --- Comments ---
+
+@dataclass
+class Comment(ASTNode):
+    """SQL comment: single-line (#, --) or multi-line (/* ... */)."""
+    value: str
+    multiline: bool = False
+    style: str = "#"  # "#", "--", or "/*"
+
+    def accept(self, visitor: 'ASTVisitor') -> Any:
+        return visitor.visit_comment(self)
