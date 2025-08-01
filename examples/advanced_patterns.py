@@ -19,9 +19,9 @@ sys.path.append("..")
 
 import sqlglot
 from sqlglot import exp
-from jsql import (
+from lib.bsql import (
     j,
-    JSQLNode,
+    SQLNode,
     Pattern,
     PatternMatcher,
     deep_copy_transform,
@@ -36,7 +36,7 @@ def demo_native_sqlglot_features():
     print()
 
     sql = """
-    SELECT 
+    SELECT
         o.order_id,
         o.customer_id,
         p.product_name,
@@ -70,9 +70,9 @@ def demo_deep_transform():
     print()
 
     sql = """
-    SELECT 
+    SELECT
         customer_id,
-        CASE 
+        CASE
             WHEN total > 1000 THEN 'HIGH'
             WHEN total > 500 THEN 'MEDIUM'
             ELSE 'LOW'
@@ -110,7 +110,7 @@ def demo_pattern_matching():
     print()
 
     sql = """
-    SELECT 
+    SELECT
         customer_id,
         CASE WHEN email IS NULL THEN 'unknown' ELSE email END AS email,
         CASE WHEN phone IS NULL THEN '' ELSE phone END AS phone,
@@ -164,21 +164,21 @@ def demo_multi_statement():
     script = """
     -- Create temp table
     CREATE TEMP TABLE order_summary AS
-    SELECT 
+    SELECT
         customer_id,
         COUNT(*) as order_count,
         SUM(total) as total_spent
     FROM orders
     GROUP BY customer_id;
-    
+
     -- Update customer stats
     UPDATE customers c
-    SET 
+    SET
         total_orders = os.order_count,
         total_spent = os.total_spent
     FROM order_summary os
     WHERE c.id = os.customer_id;
-    
+
     -- Select results
     SELECT * FROM customers WHERE total_orders > 10;
     """
@@ -209,7 +209,7 @@ def demo_cte_injection():
     print()
 
     original = """
-    SELECT 
+    SELECT
         customer_id,
         SUM(total) as total_spent
     FROM orders
@@ -225,8 +225,8 @@ def demo_cte_injection():
     # Create a CTE to inject
     filter_cte = sqlglot.parse_one(
         """
-    SELECT DISTINCT customer_id 
-    FROM customers 
+    SELECT DISTINCT customer_id
+    FROM customers
     WHERE status = 'PREMIUM'
     """
     )
@@ -261,21 +261,21 @@ def demo_round_trip_fidelity():
 
     original = """
     -- Important: Premium customer analysis
-    SELECT 
-        c.customer_id,    -- Customer identifier  
+    SELECT
+        c.customer_id,    -- Customer identifier
         c.name,
         COUNT(DISTINCT o.order_id) AS order_count,  -- Total orders
-        
+
         /* Calculate total spent */
         SUM(o.total) AS total_spent
-        
+
     FROM customers c
     LEFT JOIN orders o ON c.id = o.customer_id
-    
-    WHERE 
+
+    WHERE
         c.status = 'ACTIVE'  -- Only active customers
         AND o.order_date >= '2024-01-01'
-    
+
     GROUP BY 1, 2  -- Group by customer
     HAVING order_count > 0
     ORDER BY total_spent DESC

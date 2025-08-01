@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "sqlglot"))
 
 import sqlglot
 from sqlglot import exp
-from jsql import j, null_safe_eq, standardize_string_id
+from lib.bsql import j, null_safe_eq, standardize_string_id
 from alib import OrderMergeBuilder, DedupPatterns
 
 
@@ -81,7 +81,7 @@ def test_order_merge_builder():
     builder = OrderMergeBuilder("test-project", "test_dataset")
 
     source_sql = """
-    SELECT 
+    SELECT
         order_id,
         product_id,
         visitor_id,
