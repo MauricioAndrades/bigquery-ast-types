@@ -8,7 +8,6 @@ Core library modules for AST manipulation.
 from .types import *
 from .node_path import NodePath, create_path, get_node_at_path
 from .visitor import BaseVisitor, visit
-from .builders import b, Builders, ValidationError
 from .scope import Scope
 from .serializer import (
     SQLSerializer,
@@ -17,4 +16,14 @@ from .serializer import (
     pretty_print,
     compact_print
 )
-from .collection import Collection
+
+# Import these separately to avoid circular imports
+try:
+    from .builders import b, Builders, ValidationError
+except ImportError:
+    pass
+
+try:
+    from .collection import Collection
+except ImportError:
+    pass

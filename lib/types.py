@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from abc import ABC, abstractmethod
 
-
 # Base Classes
 class ASTNode(ABC):
     """Base class for all AST nodes."""
@@ -121,7 +120,7 @@ class ASTVisitor(ABC):
         pass
 
     @abstractmethod
-    def visit_cte(self, node: CTE) -> Any:
+    def visit_cte(self, node: "CTE") -> Any:
         pass
 
     @abstractmethod
@@ -156,12 +155,111 @@ class ASTVisitor(ABC):
     def visit_window_function(self, node: "WindowFunction") -> Any:
         pass
 
-class ArithmeticOp(Enum):
-    ADD = "+"
-    SUB = "-"
-    MUL = "*"
-    DIV = "/"
-    MOD = "%"
+    # Enhanced identifier visitors
+    @abstractmethod
+    def visit_unquoted_identifier(self, node: "UnquotedIdentifier") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_quoted_identifier(self, node: "QuotedIdentifier") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_enhanced_general_identifier(self, node: "EnhancedGeneralIdentifier") -> Any:
+        pass
+
+    # Path expression visitors
+    @abstractmethod
+    def visit_path_expression(self, node: "PathExpression") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_path_part(self, node: "PathPart") -> Any:
+        pass
+
+    # Table and column name visitors
+    @abstractmethod
+    def visit_column_name(self, node: "ColumnName") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_field_name(self, node: "FieldName") -> Any:
+        pass
+
+    # Enhanced literal visitors
+    @abstractmethod
+    def visit_bytes_literal(self, node: "BytesLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_numeric_literal(self, node: "NumericLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_bignumeric_literal(self, node: "BigNumericLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_date_literal(self, node: "DateLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_time_literal(self, node: "TimeLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_datetime_literal(self, node: "DatetimeLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_timestamp_literal(self, node: "TimestampLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_interval_literal(self, node: "IntervalLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_array_literal(self, node: "ArrayLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_struct_literal(self, node: "StructLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_range_literal(self, node: "RangeLiteral") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_json_literal(self, node: "JSONLiteral") -> Any:
+        pass
+
+    # Parameter visitors
+    @abstractmethod
+    def visit_named_parameter(self, node: "NamedParameter") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_positional_parameter(self, node: "PositionalParameter") -> Any:
+        pass
+
+    # Comment visitor
+    @abstractmethod
+    def visit_comment(self, node: "Comment") -> Any:
+        pass
+
+    def generic_visit(self, node: ASTNode) -> Any:
+        """Default visitor method for unhandled node types."""
+        pass
+
+# Enums for various options
+class JoinType(Enum):
+    INNER = "INNER"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    FULL = "FULL"
+    CROSS = "CROSS"
 
 class ComparisonOp(Enum):
     EQ = "="
@@ -173,17 +271,17 @@ class ComparisonOp(Enum):
     LIKE = "LIKE"
     IN = "IN"
 
-class JoinType(Enum):
-    INNER = "INNER"
-    LEFT = "LEFT"
-    RIGHT = "RIGHT"
-    FULL = "FULL"
-    CROSS = "CROSS"
-
 class LogicalOp(Enum):
     AND = "AND"
     OR = "OR"
     NOT = "NOT"
+
+class ArithmeticOp(Enum):
+    ADD = "+"
+    SUB = "-"
+    MUL = "*"
+    DIV = "/"
+    MOD = "%"
 
 class OrderDirection(Enum):
     ASC = "ASC"
@@ -197,185 +295,16 @@ class SourceLocation:
     offset: int
     length: int
 
-@dataclass
-class CTE(ASTNode):
-    """Common Table Expression."""
-    name: str
-    query: Select
-    columns: Optional[List[str]] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_cte(self)
-
+# Expression Base Classes
 class Expression(ASTNode):
     """Base class for all expressions."""
     pass
-
-@dataclass
-class GroupByClause(ASTNode):
-    """GROUP BY clause."""
-    expressions: List[Expression]
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_group_by_clause(self)
-
-@dataclass
-class HavingClause(ASTNode):
-    """HAVING clause."""
-    condition: Expression
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_having_clause(self)
-
-@dataclass
-class Join(ASTNode):
-    """JOIN clause."""
-    join_type: JoinType
-    table: TableRef
-    condition: Optional[Expression] = None
-    using: Optional[List[str]] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_join(self)
-
-@dataclass
-class LimitClause(ASTNode):
-    """LIMIT clause."""
-    limit: Expression
-    offset: Optional[Expression] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_limit_clause(self)
-
-@dataclass
-class MergeAction(ASTNode):
-    """MERGE WHEN clause."""
-    condition: Optional[Expression] = None
-    action: Union[MergeInsert, MergeUpdate, MergeDelete] = None
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_merge_action(self)
-
-@dataclass
-class MergeDelete(ASTNode):
-    """MERGE DELETE action."""
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_merge_delete(self)
-
-@dataclass
-class MergeInsert(ASTNode):
-    """MERGE INSERT action."""
-    columns: Optional[List[str]] = None
-    values: Optional[List[Expression]] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_merge_insert(self)
-
-@dataclass
-class MergeUpdate(ASTNode):
-    """MERGE UPDATE action."""
-    assignments: Dict[str, Expression]
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_merge_update(self)
-
-@dataclass
-class OrderByItem(ASTNode):
-    """Single ORDER BY item."""
-    expression: Expression
-    direction: Optional[OrderDirection] = None
-    nulls_first: Optional[bool] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_order_by_item(self)
-
-@dataclass
-class OrderByClause(ASTNode):
-    """ORDER BY clause."""
-    items: List[OrderByItem]
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_order_by_clause(self)
-
-@dataclass
-class SelectColumn(ASTNode):
-    """Column in SELECT list."""
-    expression: Expression
-    alias: Optional[str] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_select_column(self)
 
 class Statement(ASTNode):
     """Base class for all statements."""
     pass
 
-@dataclass
-class TableName(ASTNode):
-    """Table name (possibly qualified)."""
-    table: 'Identifier'
-    project: Optional['Identifier'] = None
-    dataset: Optional['Identifier'] = None
-
-    def accept(self, visitor: 'ASTVisitor') -> Any:
-        return visitor.visit_table_name(self)
-
-@dataclass
-class TableRef(ASTNode):
-    """Table reference in FROM clause."""
-    table: Union[TableName, 'Subquery']
-    alias: Optional[str] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_table_ref(self)
-
-@dataclass
-class WhereClause(ASTNode):
-    """WHERE clause."""
-    condition: Expression
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_where_clause(self)
-
-@dataclass
-class WindowSpecification(ASTNode):
-    """Window specification for window functions."""
-    partition_by: Optional[List[Expression]] = None
-    order_by: Optional[OrderByClause] = None
-    frame_clause: Optional[str] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_window_specification(self)
-
-@dataclass
-class WithClause(ASTNode):
-    """WITH clause containing CTEs."""
-    ctes: List[CTE]
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_with_clause(self)
-
-@dataclass
-class BinaryOp(Expression):
-    """Binary operation."""
-    left: Expression
-    operator: str
-    right: Expression
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_binary_op(self)
-
-@dataclass
-class FunctionCall(Expression):
-    """Function call."""
-    function_name: str
-    arguments: List[Expression]
-    distinct: bool = False
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_function_call(self)
-
+# Identifier Types - Enhanced for BigQuery lexical specification
 @dataclass
 class Identifier(Expression):
     """Column or table identifier."""
@@ -391,6 +320,78 @@ class Identifier(Expression):
         return self.name
 
 @dataclass
+class UnquotedIdentifier(Identifier):
+    """Unquoted identifier - must begin with letter or underscore."""
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_unquoted_identifier(self)
+
+@dataclass
+class QuotedIdentifier(Identifier):
+    """Quoted identifier - enclosed by backticks, can contain any characters."""
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_quoted_identifier(self)
+
+@dataclass
+class EnhancedGeneralIdentifier(Identifier):
+    """Enhanced general identifier supporting complex path expressions."""
+    parts: List[Union[str, int]]
+    separators: List[str] = field(default_factory=list)  # ., /, :, -
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_enhanced_general_identifier(self)
+
+# Path Expression Types
+@dataclass
+class PathExpression(Expression):
+    """Path expression for navigating object graphs."""
+    parts: List['PathPart']
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_path_expression(self)
+
+@dataclass
+class PathPart(Expression):
+    """Part of a path expression."""
+    value: Union[str, int, Identifier]
+    separator: Optional[str] = None  # ., /, :, -
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_path_part(self)
+
+# Table and Column Name Types
+@dataclass
+class TableName(Expression):
+    """Table name with optional project and dataset qualification."""
+    table: str
+    dataset: Optional[str] = None
+    project: Optional[str] = None
+    supports_dashes: bool = False  # For dash rules in BigQuery
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_table_name(self)
+
+@dataclass
+class ColumnName(Expression):
+    """Column name with dash support."""
+    name: str
+    supports_dashes: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_column_name(self)
+
+@dataclass
+class FieldName(Expression):
+    """Field name for struct and JSON objects."""
+    name: str
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_field_name(self)
+
+    def __str__(self):
+        return self.name
+
+# Literal Types
+@dataclass
 class Literal(Expression):
     """Base class for literal values."""
     value: Any
@@ -399,82 +400,55 @@ class Literal(Expression):
         return visitor.visit_literal(self)
 
 @dataclass
-class Merge(Statement):
-    """MERGE statement."""
-    target_table: TableRef
-    source_table: TableRef
-    merge_condition: Expression
-    actions: List[MergeAction]
+class StringLiteral(Literal):
+    """String literal with BigQuery formatting options."""
+    quote_style: str = '"'  # ", ', """, '''
+    is_raw: bool = False  # r"..." or R"..."
+    is_bytes: bool = False  # b"..." or B"..."
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_merge(self)
+        return visitor.visit_string_literal(self)
 
 @dataclass
-class Select(Statement):
-    """SELECT statement."""
-    select_list: List[SelectColumn]
-    from_clause: Optional[TableRef] = None
-    joins: Optional[List[Join]] = None
-    where_clause: Optional[WhereClause] = None
-    group_by_clause: Optional[GroupByClause] = None
-    having_clause: Optional[HavingClause] = None
-    order_by_clause: Optional[OrderByClause] = None
-    limit_clause: Optional[LimitClause] = None
-    distinct: bool = False
+class BytesLiteral(Literal):
+    """Bytes literal with formatting options."""
+    quote_style: str = '"'  # ", ', """, '''
+    is_raw: bool = False  # br"..." or RB"..."
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_select(self)
+        return visitor.visit_bytes_literal(self)
 
 @dataclass
-class Subquery(Expression):
-    """Subquery expression."""
-    query: Select
+class IntegerLiteral(Literal):
+    """Integer literal."""
+    is_hexadecimal: bool = False  # 0x prefix
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_subquery(self)
+        return visitor.visit_integer_literal(self)
 
 @dataclass
-class UnaryOp(Expression):
-    """Unary operation."""
-    operator: str
-    operand: Expression
-
+class NumericLiteral(Literal):
+    """NUMERIC literal - exact decimal."""
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_unary_op(self)
+        return visitor.visit_numeric_literal(self)
 
 @dataclass
-class WindowFunction(Expression):
-    """Window function call."""
-    function_name: str
-    arguments: List[Expression]
-    window_spec: WindowSpecification
-
+class BigNumericLiteral(Literal):
+    """BIGNUMERIC literal - high precision decimal."""
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_window_function(self)
+        return visitor.visit_bignumeric_literal(self)
 
 @dataclass
 class BooleanLiteral(Literal):
     """Boolean literal."""
-    value: bool
-
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_boolean_literal(self)
 
 @dataclass
 class FloatLiteral(Literal):
     """Float literal."""
-    value: float
-
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_float_literal(self)
-
-@dataclass
-class IntegerLiteral(Literal):
-    """Integer literal."""
-    value: int
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_integer_literal(self)
 
 @dataclass
 class NullLiteral(Literal):
@@ -484,11 +458,98 @@ class NullLiteral(Literal):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_null_literal(self)
 
+# BigQuery Date/Time Literals
 @dataclass
-class StringLiteral(Literal):
-    """String literal."""
-    value: str
+class DateLiteral(Literal):
+    """DATE literal."""
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_date_literal(self)
+
+@dataclass
+class TimeLiteral(Literal):
+    """TIME literal."""
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_time_literal(self)
+
+@dataclass
+class DatetimeLiteral(Literal):
+    """DATETIME literal."""
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_datetime_literal(self)
+
+@dataclass
+class TimestampLiteral(Literal):
+    """TIMESTAMP literal."""
+    timezone: Optional[str] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_string_literal(self)
+        return visitor.visit_timestamp_literal(self)
 
+@dataclass
+class IntervalLiteral(Literal):
+    """INTERVAL literal."""
+    from_part: Optional[str] = None
+    to_part: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_interval_literal(self)
+
+@dataclass
+class ArrayLiteral(Literal):
+    """Array literal."""
+    elements: List[Expression] = field(default_factory=list)
+    element_type: Optional[str] = None  # ARRAY<type>
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_array_literal(self)
+
+@dataclass
+class StructLiteral(Literal):
+    """Struct literal."""
+    fields: List[Tuple[Optional[str], Expression]] = field(default_factory=list)  # [(field_name, value), ...]
+    struct_type: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_struct_literal(self)
+
+@dataclass
+class RangeLiteral(Literal):
+    """RANGE literal."""
+    range_type: str = "DATE"  # DATE, DATETIME, TIMESTAMP
+    lower_bound: Optional[Expression] = None
+    upper_bound: Optional[Expression] = None
+    lower_unbounded: bool = False
+    upper_unbounded: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_range_literal(self)
+
+@dataclass
+class JSONLiteral(Literal):
+    """JSON literal."""
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_json_literal(self)
+
+# Query Parameter Types
+@dataclass
+class NamedParameter(Expression):
+    """Named query parameter (@param)."""
+    name: str
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_named_parameter(self)
+
+@dataclass
+class PositionalParameter(Expression):
+    """Positional query parameter (?)."""
+    position: int
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_positional_parameter(self)
+
+# Comment Types
+@dataclass
+class Comment(ASTNode):
+    """Comment node to preserve comments in AST."""
+    text: str
+    style: str  #
