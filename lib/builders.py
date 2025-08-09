@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from .types import (
     ASTNode,
     Expression,
+    Statement,  # Add Statement to imports
     Identifier,
     Literal,
     BinaryOp,
@@ -29,6 +30,7 @@ from .types import (
     Star,
     SelectColumn,
     TableRef,
+    TableName,  # Add TableName to main imports
     GroupByClause,
     HavingClause,
     OrderByClause,
@@ -73,6 +75,31 @@ from .types import (
     Merge,
     MergeWhenClause,
     MergeAction,
+<<<<<<< HEAD
+    # DDL types (Task 1)
+    CreateView,
+    CreateFunction,
+    AlterTable,
+    AddColumn,
+    DropColumn,
+    RenameColumn,
+    AlterColumn,
+    SetTableOptions,
+    DropStatement,
+    # Scripting types (Task 3)
+    DeclareStatement,
+    VariableDeclaration,
+    SetStatement,
+    IfStatement,
+    ElseIfClause,
+    WhileLoop,
+    ForLoop,
+    BeginEndBlock,
+    ExceptionHandler,
+    BreakStatement,
+    ContinueStatement,
+    CallStatement,
+=======
     # BigQuery ML and External Table imports
     CreateModel,
     MLPredict,
@@ -81,6 +108,7 @@ from .types import (
     CreateExternalTable,
     ExportData,
     LoadData
+>>>>>>> main
 )
 
 class ValidationError(Exception):
@@ -442,6 +470,58 @@ class Builders:
 
     # Clauses
     @staticmethod
+<<<<<<< HEAD
+    def group_by(*expressions: Union[Expression, int, str], rollup: bool = False, cube: bool = False) -> GroupByClause:
+        """
+        GROUP BY builder with ROLLUP/CUBE support.
+        
+        Args:
+            expressions: Column expressions, positions (1,2,3), or 'ALL'
+            rollup: Whether to use GROUP BY ROLLUP
+            cube: Whether to use GROUP BY CUBE
+
+        Examples:
+            b.group_by(b.col("department"), b.col("team"))
+            b.group_by(1, 2)  # By position
+            b.group_by("ALL")  # GROUP BY ALL
+            b.group_by(b.col("category"), rollup=True)
+        """
+        if rollup and cube:
+            raise ValidationError("GROUP BY cannot have both rollup and cube")
+            
+        # Handle special case for "ALL"
+        if len(expressions) == 1 and expressions[0] == "ALL":
+            if rollup or cube:
+                raise ValidationError("GROUP BY ALL cannot be used with ROLLUP or CUBE")
+            return GroupByClause(group_type=GroupByType.ALL)
+
+        # Parse expressions
+        parsed_exprs = []
+        for expr in expressions:
+            if isinstance(expr, int):
+                if expr < 1:
+                    raise ValidationError(f"GROUP BY position must be >= 1, got {expr}")
+                parsed_exprs.append(IntegerLiteral(expr))
+            elif isinstance(expr, str):
+                parsed_exprs.append(Identifier(expr))
+            elif isinstance(expr, Expression):
+                parsed_exprs.append(expr)
+            else:
+                raise ValidationError(f"Invalid GROUP BY expression type: {type(expr)}")
+        
+        # Determine group_type based on flags
+        if rollup:
+            group_type = GroupByType.ROLLUP
+        elif cube:
+            group_type = GroupByType.CUBE
+        else:
+            group_type = GroupByType.STANDARD
+            
+        return GroupByClause(expressions=parsed_exprs, group_type=group_type)
+
+    @staticmethod
+=======
+>>>>>>> main
     def having(condition: Expression) -> HavingClause:
         """HAVING clause builder."""
         if not isinstance(condition, Expression):
@@ -449,6 +529,21 @@ class Builders:
         return HavingClause(condition)
 
     @staticmethod
+<<<<<<< HEAD
+    @staticmethod
+    def order_by(expr: Expression, desc: bool = False, nulls_first: Optional[bool] = None) -> OrderByItem:
+        """ORDER BY builder with NULLS FIRST/LAST."""
+        if not isinstance(expr, Expression):
+            raise TypeError("expr must be an Expression")
+        direction = OrderDirection.DESC if desc else OrderDirection.ASC
+        nulls_order = None
+        if nulls_first is not None:
+            nulls_order = NullsOrder.FIRST if nulls_first else NullsOrder.LAST
+        return OrderByItem(expression=expr, direction=direction, nulls_order=nulls_order)
+
+    @staticmethod
+=======
+>>>>>>> main
     def limit(limit: int, offset: Optional[int] = None) -> LimitClause:
         """LIMIT/OFFSET builder."""
         limit_expr = Builders.lit(limit)
@@ -462,9 +557,31 @@ class Builders:
 
     @staticmethod
     def json(value: Union[dict, list, str]) -> JSONLiteral:
-        """JSON literal builder."""
-        import json as _json
-        json_str = _json.dumps(value) if not isinstance(value, str) else value
+        """
+        Create JSON literal from Python objects or string.
+
+        Examples:
+            b.json({"name": "Alice", "age": 30})
+            b.json([1, 2, 3])
+            b.json('{"raw": "json"}')
+        """
+        if isinstance(value, (dict, list)):
+            import json
+            try:
+                json_str = json.dumps(value, separators=(', ', ': '))  # Include spaces for readability
+            except (TypeError, ValueError) as e:
+                raise ValidationError(f"Invalid JSON value: {e}")
+        elif isinstance(value, str):
+            # Validate it's valid JSON
+            import json
+            try:
+                json.loads(value)  # Validate
+                json_str = value
+            except json.JSONDecodeError as e:
+                raise ValidationError(f"Invalid JSON string: {e}")
+        else:
+            raise ValidationError(f"JSON value must be dict, list, or str, got {type(value)}")
+        
         return JSONLiteral(value=json_str)
 
     @staticmethod
@@ -553,6 +670,8 @@ class Builders:
 
     # GROUP BY builders
     @staticmethod
+<<<<<<< HEAD
+=======
     def group_by(*expressions: Union[Expression, int, str], rollup: bool = False, cube: bool = False) -> GroupByClause:
         """
         GROUP BY builder with ROLLUP/CUBE support and flexible expressions.
@@ -600,6 +719,7 @@ class Builders:
         return GroupByClause(expressions=parsed_exprs, group_type=group_type)
 
     @staticmethod
+>>>>>>> main
     def group_by_rollup(*expressions: Expression) -> GroupByClause:
         """
         GROUP BY with ROLLUP for hierarchical aggregations.
@@ -690,10 +810,15 @@ class Builders:
             raise ValidationError(f"HAVING condition must be an Expression, got {type(condition)}")
         return HavingClause(condition=condition)
 
-    # ORDER BY builder
+    # ORDER BY clause builder
     @staticmethod
+<<<<<<< HEAD
+    def order_by_clause(*items: Union[Expression, Tuple[Expression, str],
+                 Tuple[Expression, str, str]]) -> OrderByClause:
+=======
     def order_by(*items: Union[Expression, Tuple[Expression, str], Tuple[Expression, str, str]], 
                  desc: bool = False, nulls_first: Optional[bool] = None) -> Union[OrderByItem, OrderByClause]:
+>>>>>>> main
         """
         Create ORDER BY clause or item with flexible syntax.
         
@@ -836,35 +961,6 @@ class Builders:
                 return IntervalLiteral(value=f"{value} {unit_upper}")
             else:
                 return IntervalLiteral(value=f"'{value}' {unit_upper}")
-
-    @staticmethod
-    def json(value: Union[dict, list, str]) -> JSONLiteral:
-        """
-        Create JSON literal from Python objects or string.
-
-        Examples:
-            b.json({"name": "Alice", "age": 30})
-            b.json([1, 2, 3])
-            b.json('{"raw": "json"}')
-        """
-        if isinstance(value, (dict, list)):
-            import json
-            try:
-                json_str = json.dumps(value, separators=(',', ':'))
-            except (TypeError, ValueError) as e:
-                raise ValidationError(f"Invalid JSON value: {e}")
-        elif isinstance(value, str):
-            # Validate it's valid JSON
-            import json
-            try:
-                json.loads(value)
-                json_str = value
-            except json.JSONDecodeError as e:
-                raise ValidationError(f"Invalid JSON string: {e}")
-        else:
-            raise ValidationError(f"JSON value must be dict, list, or str, got {type(value)}")
-
-        return JSONLiteral(value=json_str)
 
     @staticmethod
     def param(name: str) -> NamedParameter:
@@ -1222,6 +1318,405 @@ class Builders:
         """
         return MergeBuilder(target, source, on)
 
+<<<<<<< HEAD
+    # DDL Builder Functions (Task 1)
+    @staticmethod
+    def create_view(view_name: Union[str, TableName], query: Select, 
+                   or_replace: bool = False, materialized: bool = False,
+                   if_not_exists: bool = False, columns: Optional[List[str]] = None,
+                   partition_by: Optional[Expression] = None,
+                   cluster_by: Optional[List[Expression]] = None,
+                   options: Optional[Dict[str, Any]] = None) -> CreateView:
+        """
+        Create a CREATE VIEW statement.
+        
+        Examples:
+            b.create_view("my_view", b.select(b.col("*")).from_(b.table("users")))
+            b.create_view("my_view", query, or_replace=True, materialized=True)
+        """
+        if isinstance(view_name, str):
+            view = TableName(table=view_name)
+        else:
+            view = view_name
+            
+        if not isinstance(query, Select):
+            raise ValidationError("query must be a Select statement")
+            
+        return CreateView(
+            view=view,
+            query=query,
+            or_replace=or_replace,
+            materialized=materialized,
+            if_not_exists=if_not_exists,
+            columns=columns,
+            partition_by=partition_by,
+            cluster_by=cluster_by,
+            options=options
+        )
+
+    @staticmethod
+    def create_function(function_name: str, 
+                       parameters: Optional[List[Tuple[str, str]]] = None,
+                       return_type: Optional[str] = None,
+                       language: str = "SQL",
+                       body: Optional[str] = None,
+                       query: Optional[Select] = None,
+                       or_replace: bool = False,
+                       if_not_exists: bool = False,
+                       temp: bool = False,
+                       deterministic: bool = False,
+                       options: Optional[Dict[str, Any]] = None) -> CreateFunction:
+        """
+        Create a CREATE FUNCTION statement.
+        
+        Examples:
+            b.create_function("my_udf", [("x", "INT64")], "INT64", body="x * 2")
+            b.create_function("my_func", query=b.select(b.col("count")).from_(b.table("table1")))
+        """
+        if not function_name:
+            raise ValidationError("Function name cannot be empty")
+            
+        if body and query:
+            raise ValidationError("Function cannot have both body and query")
+            
+        return CreateFunction(
+            function_name=function_name,
+            parameters=parameters or [],
+            return_type=return_type,
+            language=language,
+            body=body,
+            query=query,
+            or_replace=or_replace,
+            if_not_exists=if_not_exists,
+            temp=temp,
+            deterministic=deterministic,
+            options=options
+        )
+
+    @staticmethod
+    def alter_table(table_name: Union[str, TableName], *actions) -> AlterTable:
+        """
+        Create an ALTER TABLE statement.
+        
+        Examples:
+            b.alter_table("my_table", b.add_column("new_col", "STRING"))
+            b.alter_table("my_table", b.drop_column("old_col"), b.rename_column("a", "b"))
+        """
+        if isinstance(table_name, str):
+            table = TableName(table=table_name)
+        else:
+            table = table_name
+            
+        return AlterTable(table=table, actions=list(actions))
+
+    @staticmethod
+    def add_column(column_name: str, column_type: str, 
+                  if_not_exists: bool = False,
+                  default_value: Optional[Expression] = None,
+                  not_null: bool = False) -> AddColumn:
+        """
+        Create an ADD COLUMN action.
+        
+        Examples:
+            b.add_column("new_col", "STRING")
+            b.add_column("id", "INT64", not_null=True, default_value=b.lit(0))
+        """
+        if not column_name:
+            raise ValidationError("Column name cannot be empty")
+        if not column_type:
+            raise ValidationError("Column type cannot be empty")
+            
+        return AddColumn(
+            column_name=column_name,
+            column_type=column_type,
+            if_not_exists=if_not_exists,
+            default_value=default_value,
+            not_null=not_null
+        )
+
+    @staticmethod
+    def drop_column(column_name: str, if_exists: bool = False) -> DropColumn:
+        """
+        Create a DROP COLUMN action.
+        
+        Examples:
+            b.drop_column("old_col")
+            b.drop_column("col", if_exists=True)
+        """
+        if not column_name:
+            raise ValidationError("Column name cannot be empty")
+            
+        return DropColumn(column_name=column_name, if_exists=if_exists)
+
+    @staticmethod
+    def rename_column(old_name: str, new_name: str) -> RenameColumn:
+        """
+        Create a RENAME COLUMN action.
+        
+        Examples:
+            b.rename_column("old_name", "new_name")
+        """
+        if not old_name:
+            raise ValidationError("Old column name cannot be empty")
+        if not new_name:
+            raise ValidationError("New column name cannot be empty")
+            
+        return RenameColumn(old_name=old_name, new_name=new_name)
+
+    @staticmethod
+    def alter_column(column_name: str,
+                    set_data_type: Optional[str] = None,
+                    set_default: Optional[Expression] = None,
+                    drop_default: bool = False,
+                    set_not_null: bool = False,
+                    drop_not_null: bool = False) -> AlterColumn:
+        """
+        Create an ALTER COLUMN action.
+        
+        Examples:
+            b.alter_column("col", set_data_type="STRING")
+            b.alter_column("col", set_default=b.lit("default"))
+            b.alter_column("col", drop_default=True)
+        """
+        if not column_name:
+            raise ValidationError("Column name cannot be empty")
+            
+        # Ensure only one action is specified
+        actions = [set_data_type, set_default, drop_default, set_not_null, drop_not_null]
+        specified_actions = [action for action in actions if action]
+        if len(specified_actions) != 1:
+            raise ValidationError("Exactly one ALTER COLUMN action must be specified")
+            
+        return AlterColumn(
+            column_name=column_name,
+            set_data_type=set_data_type,
+            set_default=set_default,
+            drop_default=drop_default,
+            set_not_null=set_not_null,
+            drop_not_null=drop_not_null
+        )
+
+    @staticmethod
+    def set_table_options(options: Dict[str, Any]) -> SetTableOptions:
+        """
+        Create a SET OPTIONS action.
+        
+        Examples:
+            b.set_table_options({"description": "My table"})
+        """
+        if not options:
+            raise ValidationError("Options dictionary cannot be empty")
+            
+        return SetTableOptions(options=options)
+
+    @staticmethod
+    def drop(object_type: str, object_name: Union[str, TableName],
+             if_exists: bool = False, cascade: bool = False) -> DropStatement:
+        """
+        Create a DROP statement.
+        
+        Examples:
+            b.drop("TABLE", "my_table")
+            b.drop("VIEW", "my_view", if_exists=True)
+            b.drop("FUNCTION", "my_function", cascade=True)
+        """
+        if not object_type:
+            raise ValidationError("Object type cannot be empty")
+        if not object_name:
+            raise ValidationError("Object name cannot be empty")
+            
+        return DropStatement(
+            object_type=object_type.upper(),
+            object_name=object_name,
+            if_exists=if_exists,
+            cascade=cascade
+        )
+
+    # BigQuery Scripting Builders (Task 3)
+    @staticmethod
+    def declare(*variables: Tuple[str, str, Optional[Expression]]) -> DeclareStatement:
+        """
+        Create a DECLARE statement.
+        
+        Examples:
+            b.declare(("var1", "INT64", b.lit(0)), ("var2", "STRING", None))
+            b.declare(("counter", "INT64", b.lit(1)))
+        """
+        var_declarations = []
+        for var_info in variables:
+            if len(var_info) == 2:
+                name, data_type = var_info
+                default_value = None
+            elif len(var_info) == 3:
+                name, data_type, default_value = var_info
+            else:
+                raise ValidationError("Variable declaration must be (name, type) or (name, type, default)")
+            
+            var_declarations.append(VariableDeclaration(
+                name=name,
+                data_type=data_type,
+                default_value=default_value
+            ))
+        
+        return DeclareStatement(variables=var_declarations)
+
+    @staticmethod
+    def set_var(variable_name: str, value: Expression) -> SetStatement:
+        """
+        Create a SET statement for variable assignment.
+        
+        Examples:
+            b.set_var("counter", b.lit(5))
+            b.set_var("result", b.add(b.col("a"), b.col("b")))
+        """
+        if not variable_name:
+            raise ValidationError("Variable name cannot be empty")
+        if not isinstance(value, Expression):
+            raise ValidationError("Value must be an Expression")
+            
+        return SetStatement(variable_name=variable_name, value=value)
+
+    @staticmethod
+    def if_(condition: Expression, *then_statements: "Statement") -> IfStatement:
+        """
+        Create an IF statement.
+        
+        Examples:
+            b.if_(b.gt(b.col("x"), b.lit(0)), b.set_var("result", b.lit("positive")))
+        """
+        if not isinstance(condition, Expression):
+            raise ValidationError("Condition must be an Expression")
+            
+        return IfStatement(
+            condition=condition,
+            then_statements=list(then_statements)
+        )
+
+    @staticmethod
+    def elseif(condition: Expression, *statements: "Statement") -> ElseIfClause:
+        """
+        Create an ELSEIF clause.
+        
+        Examples:
+            elseif_clause = b.elseif(b.eq(b.col("x"), b.lit(0)), b.set_var("result", b.lit("zero")))
+        """
+        if not isinstance(condition, Expression):
+            raise ValidationError("Condition must be an Expression")
+            
+        return ElseIfClause(
+            condition=condition,
+            statements=list(statements)
+        )
+
+    @staticmethod
+    def while_(condition: Expression, *statements: "Statement", label: Optional[str] = None) -> WhileLoop:
+        """
+        Create a WHILE loop.
+        
+        Examples:
+            b.while_(b.gt(b.col("counter"), b.lit(0)), 
+                    b.set_var("counter", b.sub(b.col("counter"), b.lit(1))))
+        """
+        if not isinstance(condition, Expression):
+            raise ValidationError("Condition must be an Expression")
+            
+        return WhileLoop(
+            condition=condition,
+            statements=list(statements),
+            label=label
+        )
+
+    @staticmethod
+    def for_(variable: str, query: Select, *statements: "Statement", label: Optional[str] = None) -> ForLoop:
+        """
+        Create a FOR loop.
+        
+        Examples:
+            b.for_("row", b.select(b.col("*")).from_(b.table("users")),
+                   b.set_var("count", b.add(b.col("count"), b.lit(1))))
+        """
+        if not variable:
+            raise ValidationError("Variable name cannot be empty")
+        if not isinstance(query, Select):
+            raise ValidationError("Query must be a Select statement")
+            
+        return ForLoop(
+            variable=variable,
+            query=query,
+            statements=list(statements),
+            label=label
+        )
+
+    @staticmethod
+    def begin_end(*statements: "Statement", 
+                  exception_handler: Optional[ExceptionHandler] = None,
+                  label: Optional[str] = None) -> BeginEndBlock:
+        """
+        Create a BEGIN-END block.
+        
+        Examples:
+            b.begin_end(
+                b.set_var("x", b.lit(1)),
+                b.set_var("y", b.lit(2))
+            )
+        """
+        return BeginEndBlock(
+            statements=list(statements),
+            exception_handler=exception_handler,
+            label=label
+        )
+
+    @staticmethod
+    def exception_handler(when_conditions: Optional[List[str]] = None,
+                         *statements: "Statement") -> ExceptionHandler:
+        """
+        Create an exception handler.
+        
+        Examples:
+            b.exception_handler(["INVALID_ARGUMENT"], b.set_var("error", b.lit("Invalid input")))
+        """
+        return ExceptionHandler(
+            when_conditions=when_conditions or [],
+            statements=list(statements)
+        )
+
+    @staticmethod
+    def break_(label: Optional[str] = None) -> BreakStatement:
+        """
+        Create a BREAK statement.
+        
+        Examples:
+            b.break_()
+            b.break_("loop_label")
+        """
+        return BreakStatement(label=label)
+
+    @staticmethod
+    def continue_(label: Optional[str] = None) -> ContinueStatement:
+        """
+        Create a CONTINUE statement.
+        
+        Examples:
+            b.continue_()
+            b.continue_("loop_label")
+        """
+        return ContinueStatement(label=label)
+
+    @staticmethod
+    def call(procedure_name: str, *arguments: Expression) -> CallStatement:
+        """
+        Create a CALL statement.
+        
+        Examples:
+            b.call("my_procedure", b.lit("arg1"), b.lit(42))
+        """
+        if not procedure_name:
+            raise ValidationError("Procedure name cannot be empty")
+            
+        return CallStatement(
+            procedure_name=procedure_name,
+            arguments=list(arguments)
+=======
     # BigQuery ML and External Table builders
     @staticmethod
     def create_model(model_name: str,
@@ -1388,6 +1883,7 @@ class Builders:
         return ExportData(
             as_query=as_query,
             options=export_options
+>>>>>>> main
         )
 
 

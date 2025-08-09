@@ -1,0 +1,285 @@
+#!/bin/bash
+# BigQuery AST Types Analysis Commands Log
+# Generated: 2025-08-09
+# Purpose: Analyze all classes and functions in .context/bigquery_ast_types/lib/
+
+echo "=== Starting BigQuery AST Types Analysis ==="
+cd /Users/op/Documents/sym/symbo/.context/bigquery_ast_types/lib
+
+# Command 1: Basic extraction of classes and functions
+echo "=== Command 1: Basic grep for classes and functions ==="
+for file in *.py; do 
+    echo "=== $file ===" 
+    grep -E "^(class |def )" "$file" | head -50
+    echo ""
+done
+
+# Command 2: Detailed Python AST analysis
+echo "=== Command 2: Detailed AST Analysis ==="
+cat << 'PYTHON_SCRIPT' > analyze_ast.py
+import ast
+import os
+import json
+
+def analyze_file(filepath):
+    with open(filepath, 'r') as f:
+        try:
+            tree = ast.parse(f.read())
+            classes = []
+            functions = []
+            
+            for node in tree.nodes:
+                if isinstance(node, ast.ClassDef):
+                    methods = []
+                    class_decorators = [d.id if isinstance(d, ast.Name) else str(d) for d in node.decorator_list]
+                    for item in node.body:
+                        if isinstance(item, ast.FunctionDef):
+                            method_decorators = [d.id if isinstance(d, ast.Name) else str(d) for d in item.decorator_list]
+                            methods.append({
+                                'name': item.name,
+                                'decorators': method_decorators,
+                                'args': [arg.arg for arg in item.args.args]
+                            })
+                    classes.append({
+                        'name': node.name,
+                        'bases': [base.id if isinstance(base, ast.Name) else str(base) for base in node.bases],
+                        'decorators': class_decorators,
+                        'methods': methods
+                    })
+                elif isinstance(node, ast.FunctionDef) and node.col_offset == 0:
+                    func_decorators = [d.id if isinstance(d, ast.Name) else str(d) for d in node.decorator_list]
+                    functions.append({
+                        'name': node.name,
+                        'decorators': func_decorators,
+                        'args': [arg.arg for arg in node.args.args]
+                    })
+            
+            return {'classes': classes, 'functions': functions}
+        except Exception as e:
+            return {'error': str(e)}
+
+# Analyze all Python files
+results = {}
+files = [f for f in os.listdir('.') if f.endswith('.py')]
+for file in sorted(files):
+    print(f'\nAnalyzing {file}...')
+    results[file] = analyze_file(file)
+
+# Save to JSON
+with open('ast_analysis.json', 'w') as f:
+    json.dump(results, f, indent=2)
+
+# Print summary
+for file, data in results.items():
+    if 'error' in data:
+        print(f'\n{file}: ERROR - {data["error"]}')
+        continue
+    
+    print(f'\n=== {file} ===')
+    if data.get('classes'):
+        print(f'  Classes: {len(data["classes"])}')
+        for cls in data['classes']:
+            print(f'    - {cls["name"]} ({len(cls["methods"])} methods)')
+    
+    if data.get('functions'):
+        print(f'  Functions: {len(data["functions"])}')
+        for func in data['functions']:
+            print(f'    - {func["name"]}')
+PYTHON_SCRIPT
+
+python3 analyze_ast.py
+
+# Command 3: Generate detailed report with line counts
+echo "=== Command 3: Detailed report with line counts ==="
+for file in *.py; do
+    echo "=== $file ==="
+    echo "  Total lines: $(wc -l < "$file")"
+    echo "  Classes: $(grep -c "^class " "$file" 2>/dev/null || echo 0)"
+    echo "  Functions: $(grep -c "^def " "$file" 2>/dev/null || echo 0)"
+    echo "  Imports: $(grep -c "^import \|^from " "$file" 2>/dev/null || echo 0)"
+    echo ""
+done
+
+# Command 4: Extract with context (3 lines before/after)
+echo "=== Command 4: Extract with context ==="
+for file in *.py; do
+    echo "=== $file ==="
+    grep -B 1 -A 3 "^class " "$file" 2>/dev/null | head -50
+    echo "---"
+    grep -B 1 -A 2 "^def " "$file" 2>/dev/null | head -30
+    echo ""
+done
+
+# Command 5: SQLite database query for this specific folder
+echo "=== Command 5: Query context database ==="
+sqlite3 /Users/op/Documents/sym/symbo/.context/code_relationships.db << 'SQL'
+.headers on
+.mode column
+SELECT 
+    f.path,
+    COUNT(DISTINCT fn.name) as function_count,
+    COUNT(DISTINCT c.name) as class_count
+FROM files f
+LEFT JOIN functions fn ON f.id = fn.file_id
+LEFT JOIN classes c ON f.id = c.file_id
+WHERE f.path LIKE '%.context/bigquery_ast_types/lib/%'
+GROUP BY f.path
+ORDER BY f.path;
+SQL
+
+# Command 6: Advanced Python analysis with AST
+echo "=== Command 6: Advanced AST analysis ==="
+python3 << 'EOF'
+import ast
+import os
+from pathlib import Path
+
+def get_docstring(node):
+    """Extract docstring from a node."""
+    if isinstance(node, (ast.FunctionDef, ast.ClassDef, ast.Module)):
+        if node.body and isinstance(node.body[0], ast.Expr):
+            if isinstance(node.body[0].value, ast.Str):
+                return node.body[0].value.s
+            elif isinstance(node.body[0].value, ast.Constant):
+                return node.body[0].value.value
+    return None
+
+def analyze_advanced(filepath):
+    """Advanced analysis including docstrings, type hints, etc."""
+    with open(filepath, 'r') as f:
+        content = f.read()
+        try:
+            tree = ast.parse(content)
+            module_docstring = get_docstring(tree)
+            
+            analysis = {
+                'file': filepath,
+                'module_docstring': module_docstring,
+                'imports': [],
+                'classes': [],
+                'functions': [],
+                'constants': []
+            }
+            
+            for node in ast.walk(tree):
+                # Get imports
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        analysis['imports'].append(alias.name)
+                elif isinstance(node, ast.ImportFrom):
+                    module = node.module or ''
+                    for alias in node.names:
+                        analysis['imports'].append(f"{module}.{alias.name}")
+                
+                # Get top-level elements only
+                for top_node in tree.body:
+                    if isinstance(top_node, ast.ClassDef):
+                        class_info = {
+                            'name': top_node.name,
+                            'docstring': get_docstring(top_node),
+                            'bases': [],
+                            'methods': [],
+                            'properties': []
+                        }
+                        
+                        # Get base classes
+                        for base in top_node.bases:
+                            if isinstance(base, ast.Name):
+                                class_info['bases'].append(base.id)
+                            elif isinstance(base, ast.Attribute):
+                                class_info['bases'].append(ast.unparse(base))
+                        
+                        # Get methods and properties
+                        for item in top_node.body:
+                            if isinstance(item, ast.FunctionDef):
+                                is_property = any(
+                                    isinstance(d, ast.Name) and d.id == 'property'
+                                    for d in item.decorator_list
+                                )
+                                
+                                method_info = {
+                                    'name': item.name,
+                                    'is_property': is_property,
+                                    'is_private': item.name.startswith('_'),
+                                    'is_dunder': item.name.startswith('__') and item.name.endswith('__'),
+                                    'params': len(item.args.args),
+                                    'has_docstring': get_docstring(item) is not None
+                                }
+                                
+                                if is_property:
+                                    class_info['properties'].append(method_info)
+                                else:
+                                    class_info['methods'].append(method_info)
+                        
+                        if class_info['name'] not in [c['name'] for c in analysis['classes']]:
+                            analysis['classes'].append(class_info)
+                    
+                    elif isinstance(top_node, ast.FunctionDef):
+                        func_info = {
+                            'name': top_node.name,
+                            'docstring': get_docstring(top_node),
+                            'params': [arg.arg for arg in top_node.args.args],
+                            'decorators': [ast.unparse(d) for d in top_node.decorator_list]
+                        }
+                        if func_info['name'] not in [f['name'] for f in analysis['functions']]:
+                            analysis['functions'].append(func_info)
+                    
+                    elif isinstance(top_node, ast.Assign):
+                        for target in top_node.targets:
+                            if isinstance(target, ast.Name) and target.id.isupper():
+                                analysis['constants'].append(target.id)
+            
+            return analysis
+            
+        except Exception as e:
+            return {'file': filepath, 'error': str(e)}
+
+# Analyze all files
+lib_path = Path('.')
+for py_file in sorted(lib_path.glob('*.py')):
+    if py_file.name == '__init__.py':
+        continue
+    
+    result = analyze_advanced(str(py_file))
+    
+    print(f"\n{'='*60}")
+    print(f"FILE: {py_file.name}")
+    print('='*60)
+    
+    if 'error' in result:
+        print(f"ERROR: {result['error']}")
+        continue
+    
+    if result['module_docstring']:
+        print(f"MODULE DOCSTRING: {result['module_docstring'][:100]}...")
+    
+    print(f"\nIMPORTS ({len(result['imports'])}):")
+    for imp in result['imports'][:5]:
+        print(f"  - {imp}")
+    if len(result['imports']) > 5:
+        print(f"  ... and {len(result['imports'])-5} more")
+    
+    print(f"\nCLASSES ({len(result['classes'])}):")
+    for cls in result['classes']:
+        base_str = f" extends {', '.join(cls['bases'])}" if cls['bases'] else ""
+        print(f"  {cls['name']}{base_str}")
+        print(f"    Methods: {len(cls['methods'])}")
+        print(f"    Properties: {len(cls['properties'])}")
+        if cls['docstring']:
+            print(f"    Docstring: {cls['docstring'][:50]}...")
+    
+    print(f"\nFUNCTIONS ({len(result['functions'])}):")
+    for func in result['functions']:
+        params = ', '.join(func['params'])
+        print(f"  {func['name']}({params})")
+        if func['decorators']:
+            print(f"    Decorators: {', '.join(func['decorators'])}")
+    
+    print(f"\nCONSTANTS ({len(result['constants'])}):")
+    for const in result['constants'][:10]:
+        print(f"  - {const}")
+    if len(result['constants']) > 10:
+        print(f"  ... and {len(result['constants'])-10} more")
+EOF
+
+echo "=== Analysis Complete ==="

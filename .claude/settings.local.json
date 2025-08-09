@@ -12,7 +12,9 @@
       "Bash(grep:*)",
       "Bash(python -m pytest tests/ -v --tb=short)",
       "Bash(python test:*)",
-      "Bash(python run_tests.py:*)"
+      "Bash(python run_tests.py:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
