@@ -334,7 +334,7 @@ class QuotedIdentifier(Identifier):
 @dataclass
 class EnhancedGeneralIdentifier(Identifier):
     """Enhanced general identifier supporting complex path expressions."""
-    parts: List[Union[str, int]]
+    parts: List[Union[str, int]] = field(default_factory=list)
     separators: List[str] = field(default_factory=list)  # ., /, :, -
 
     def accept(self, visitor: "ASTVisitor") -> Any:
