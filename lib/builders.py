@@ -432,16 +432,53 @@ class Builders:
 
     # Clauses
     @staticmethod
-    def group_by(*expressions: Expression, rollup: bool = False, cube: bool = False) -> GroupByClause:
-        """GROUP BY builder with ROLLUP/CUBE support."""
+    def group_by(*expressions: Union[Expression, int, str], rollup: bool = False, cube: bool = False) -> GroupByClause:
+        """
+        GROUP BY builder with ROLLUP/CUBE support.
+        
+        Args:
+            expressions: Column expressions, positions (1,2,3), or 'ALL'
+            rollup: Whether to use GROUP BY ROLLUP
+            cube: Whether to use GROUP BY CUBE
+
+        Examples:
+            b.group_by(b.col("department"), b.col("team"))
+            b.group_by(1, 2)  # By position
+            b.group_by("ALL")  # GROUP BY ALL
+            b.group_by(b.col("category"), rollup=True)
+        """
         if rollup and cube:
             raise ValidationError("GROUP BY cannot have both rollup and cube")
-        exprs: List[Expression] = []
+            
+        # Handle special case for "ALL"
+        if len(expressions) == 1 and expressions[0] == "ALL":
+            if rollup or cube:
+                raise ValidationError("GROUP BY ALL cannot be used with ROLLUP or CUBE")
+            return GroupByClause(group_type=GroupByType.ALL)
+
+        # Parse expressions
+        parsed_exprs = []
         for expr in expressions:
-            if not isinstance(expr, Expression):
-                raise TypeError("All group by expressions must be Expression instances")
-            exprs.append(expr)
-        return GroupByClause(expressions=exprs, rollup=rollup, cube=cube)
+            if isinstance(expr, int):
+                if expr < 1:
+                    raise ValidationError(f"GROUP BY position must be >= 1, got {expr}")
+                parsed_exprs.append(IntegerLiteral(expr))
+            elif isinstance(expr, str):
+                parsed_exprs.append(Identifier(expr))
+            elif isinstance(expr, Expression):
+                parsed_exprs.append(expr)
+            else:
+                raise ValidationError(f"Invalid GROUP BY expression type: {type(expr)}")
+        
+        # Determine group_type based on flags
+        if rollup:
+            group_type = GroupByType.ROLLUP
+        elif cube:
+            group_type = GroupByType.CUBE
+        else:
+            group_type = GroupByType.STANDARD
+            
+        return GroupByClause(expressions=parsed_exprs, group_type=group_type)
 
     @staticmethod
     def having(condition: Expression) -> HavingClause:
@@ -451,12 +488,16 @@ class Builders:
         return HavingClause(condition)
 
     @staticmethod
+    @staticmethod
     def order_by(expr: Expression, desc: bool = False, nulls_first: Optional[bool] = None) -> OrderByItem:
         """ORDER BY builder with NULLS FIRST/LAST."""
         if not isinstance(expr, Expression):
             raise TypeError("expr must be an Expression")
         direction = OrderDirection.DESC if desc else OrderDirection.ASC
-        return OrderByItem(expression=expr, direction=direction, nulls_first=nulls_first)
+        nulls_order = None
+        if nulls_first is not None:
+            nulls_order = NullsOrder.FIRST if nulls_first else NullsOrder.LAST
+        return OrderByItem(expression=expr, direction=direction, nulls_order=nulls_order)
 
     @staticmethod
     def limit(limit: int, offset: Optional[int] = None) -> LimitClause:
@@ -472,9 +513,31 @@ class Builders:
 
     @staticmethod
     def json(value: Union[dict, list, str]) -> JSONLiteral:
-        """JSON literal builder."""
-        import json as _json
-        json_str = _json.dumps(value) if not isinstance(value, str) else value
+        """
+        Create JSON literal from Python objects or string.
+
+        Examples:
+            b.json({"name": "Alice", "age": 30})
+            b.json([1, 2, 3])
+            b.json('{"raw": "json"}')
+        """
+        if isinstance(value, (dict, list)):
+            import json
+            try:
+                json_str = json.dumps(value, separators=(', ', ': '))  # Include spaces for readability
+            except (TypeError, ValueError) as e:
+                raise ValidationError(f"Invalid JSON value: {e}")
+        elif isinstance(value, str):
+            # Validate it's valid JSON
+            import json
+            try:
+                json.loads(value)  # Validate
+                json_str = value
+            except json.JSONDecodeError as e:
+                raise ValidationError(f"Invalid JSON string: {e}")
+        else:
+            raise ValidationError(f"JSON value must be dict, list, or str, got {type(value)}")
+        
         return JSONLiteral(value=json_str)
 
     @staticmethod
@@ -562,37 +625,6 @@ class Builders:
         )
 
     # GROUP BY builders
-    @staticmethod
-    def group_by(*expressions: Union[Expression, int, str]) -> GroupByClause:
-        """
-        Create GROUP BY clause.
-
-        Args:
-            expressions: Column expressions, positions (1,2,3), or 'ALL'
-
-        Examples:
-            b.group_by(b.col("department"), b.col("team"))
-            b.group_by(1, 2)  # By position
-            b.group_by("ALL")  # GROUP BY ALL
-        """
-        if len(expressions) == 1 and expressions[0] == "ALL":
-            return GroupByClause(group_type=GroupByType.ALL)
-
-        parsed_exprs = []
-        for expr in expressions:
-            if isinstance(expr, int):
-                if expr < 1:
-                    raise ValidationError(f"GROUP BY position must be >= 1, got {expr}")
-                parsed_exprs.append(IntegerLiteral(expr))
-            elif isinstance(expr, str):
-                parsed_exprs.append(Identifier(expr))
-            elif isinstance(expr, Expression):
-                parsed_exprs.append(expr)
-            else:
-                raise ValidationError(f"Invalid GROUP BY expression type: {type(expr)}")
-
-        return GroupByClause(expressions=parsed_exprs)
-
     @staticmethod
     def group_by_rollup(*expressions: Expression) -> GroupByClause:
         """
@@ -684,9 +716,9 @@ class Builders:
             raise ValidationError(f"HAVING condition must be an Expression, got {type(condition)}")
         return HavingClause(condition=condition)
 
-    # ORDER BY builder
+    # ORDER BY clause builder
     @staticmethod
-    def order_by(*items: Union[Expression, Tuple[Expression, str],
+    def order_by_clause(*items: Union[Expression, Tuple[Expression, str],
                  Tuple[Expression, str, str]]) -> OrderByClause:
         """
         Create ORDER BY clause with flexible syntax.
@@ -812,35 +844,6 @@ class Builders:
                 return IntervalLiteral(value=f"{value} {unit_upper}")
             else:
                 return IntervalLiteral(value=f"'{value}' {unit_upper}")
-
-    @staticmethod
-    def json(value: Union[dict, list, str]) -> JSONLiteral:
-        """
-        Create JSON literal from Python objects or string.
-
-        Examples:
-            b.json({"name": "Alice", "age": 30})
-            b.json([1, 2, 3])
-            b.json('{"raw": "json"}')
-        """
-        if isinstance(value, (dict, list)):
-            import json
-            try:
-                json_str = json.dumps(value, separators=(',', ':'))
-            except (TypeError, ValueError) as e:
-                raise ValidationError(f"Invalid JSON value: {e}")
-        elif isinstance(value, str):
-            # Validate it's valid JSON
-            import json
-            try:
-                json.loads(value)
-                json_str = value
-            except json.JSONDecodeError as e:
-                raise ValidationError(f"Invalid JSON string: {e}")
-        else:
-            raise ValidationError(f"JSON value must be dict, list, or str, got {type(value)}")
-
-        return JSONLiteral(value=json_str)
 
     @staticmethod
     def param(name: str) -> NamedParameter:

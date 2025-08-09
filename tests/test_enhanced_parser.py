@@ -281,6 +281,46 @@ def test_visitor_interface():
         def visit_positional_parameter(self, node):
             pass
 
+        # Missing abstract methods identified in the error
+        def visit_case(self, node):
+            pass
+
+        def visit_cast(self, node):
+            pass
+
+        def visit_create_table(self, node):
+            pass
+
+        def visit_insert(self, node):
+            pass
+
+        def visit_pivot(self, node):
+            pass
+
+        def visit_qualify_clause(self, node):
+            pass
+
+        def visit_set_operation(self, node):
+            pass
+
+        def visit_star(self, node):
+            pass
+
+        def visit_tablesample(self, node):
+            pass
+
+        def visit_unnest(self, node):
+            pass
+
+        def visit_unpivot(self, node):
+            pass
+
+        def visit_update(self, node):
+            pass
+
+        def visit_when_clause(self, node):
+            pass
+
     visitor = TestVisitor()
     nodes = [
         ast_types.UnquotedIdentifier("test_column"),

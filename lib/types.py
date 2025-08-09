@@ -275,6 +275,35 @@ class ASTVisitor(ABC):
     def visit_create_table(self, node: "CreateTable") -> Any:
         pass
 
+    # Additional visitor methods for expressions and constructs
+    @abstractmethod
+    def visit_cast(self, node: "Cast") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_star(self, node: "Star") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_qualify_clause(self, node: "QualifyClause") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_unnest(self, node: "Unnest") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_tablesample(self, node: "TableSample") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_pivot(self, node: "Pivot") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_unpivot(self, node: "Unpivot") -> Any:
+        pass
+
     # Specific comment style visitors
     def visit_hash_comment(self, node: "HashComment") -> Any:
         return self.visit_comment(node)
@@ -608,12 +637,18 @@ class ArrayLiteral(Literal):
     elements: List[Expression] = field(default_factory=list)
     element_type: Optional[str] = None  # ARRAY<type>
 
-    def __post_init__(self):
-        # If value is passed as a list, use it as elements
-        if isinstance(self.value, list) and not self.elements:
-            self.elements = self.value
-        elif not hasattr(self, 'value') or self.value is None:
-            self.value = self.elements
+    def __init__(self, value: Optional[Any] = None, elements: Optional[List[Expression]] = None, 
+                 element_type: Optional[str] = None, **kwargs):
+        """Initialize ArrayLiteral with flexible parameter handling."""
+        if elements is None:
+            elements = []
+        if value is None:
+            value = elements
+        elif isinstance(value, list) and not elements:
+            elements = value
+        super().__init__(value=value, **kwargs)
+        self.elements = elements
+        self.element_type = element_type
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_array_literal(self)
@@ -628,12 +663,18 @@ class StructLiteral(Literal):
     fields: List[Tuple[Optional[str], Expression]] = field(default_factory=list)  # [(field_name, value), ...]
     struct_type: Optional[str] = None
 
-    def __post_init__(self):
-        # If value is passed as a list of tuples, use it as fields
-        if isinstance(self.value, list) and not self.fields:
-            self.fields = self.value
-        elif not hasattr(self, 'value') or self.value is None:
-            self.value = self.fields
+    def __init__(self, value: Optional[Any] = None, fields: Optional[List[Tuple[Optional[str], Expression]]] = None,
+                 struct_type: Optional[str] = None, **kwargs):
+        """Initialize StructLiteral with flexible parameter handling."""
+        if fields is None:
+            fields = []
+        if value is None:
+            value = fields
+        elif isinstance(value, list) and not fields:
+            fields = value
+        super().__init__(value=value, **kwargs)
+        self.fields = fields
+        self.struct_type = struct_type
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_struct_literal(self)
@@ -779,7 +820,7 @@ class Cast(Expression):
     safe: bool = False
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)
+        return visitor.visit_cast(self)
 
     def __str__(self) -> str:
         func = "SAFE_CAST" if self.safe else "CAST"
@@ -802,7 +843,7 @@ class Star(Expression):
         self.replace_columns = replace_columns or {}
     
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)  # Will be updated to visit_star
+        return visitor.visit_star(self)  # Updated from generic_visit
     
     def __str__(self) -> str:
         result = f"{self.table}.*" if self.table else "*"
@@ -830,6 +871,19 @@ class SelectColumn(ASTNode):
     expression: Expression
     alias: Optional[str] = None
 
+    def __init__(self, expression: Optional[Expression] = None, alias: Optional[str] = None, 
+                 expr: Optional[Expression] = None, **kwargs):
+        """Initialize SelectColumn, accepting both 'expression' and 'expr' for compatibility."""
+        super().__init__(**kwargs)
+        # Handle both 'expression' and 'expr' parameter names for compatibility
+        if expression is not None:
+            self.expression = expression
+        elif expr is not None:
+            self.expression = expr
+        else:
+            raise ValueError("Either 'expression' or 'expr' must be provided")
+        self.alias = alias
+
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_select_column(self)
 
@@ -848,6 +902,16 @@ class GroupByClause(ASTNode):
     group_type: GroupByType = GroupByType.STANDARD
     grouping_sets: Optional[List[List[Expression]]] = None
 
+    @property
+    def rollup(self) -> bool:
+        """Check if this is a GROUP BY ROLLUP."""
+        return self.group_type == GroupByType.ROLLUP
+    
+    @property
+    def cube(self) -> bool:
+        """Check if this is a GROUP BY CUBE."""
+        return self.group_type == GroupByType.CUBE
+
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_group_by_clause(self)
 
@@ -865,7 +929,7 @@ class QualifyClause(ASTNode):
     condition: Expression
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)
+        return visitor.visit_qualify_clause(self)
 
 @dataclass
 class OrderByItem(ASTNode):
@@ -873,6 +937,13 @@ class OrderByItem(ASTNode):
     expression: Expression
     direction: OrderDirection = OrderDirection.ASC
     nulls_order: Optional[NullsOrder] = None
+
+    @property
+    def nulls_first(self) -> Optional[bool]:
+        """Check if NULLS FIRST is specified."""
+        if self.nulls_order is None:
+            return None
+        return self.nulls_order == NullsOrder.FIRST
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_order_by_item(self)
@@ -1201,7 +1272,7 @@ class Unnest(Expression):
     offset_alias: Optional[str] = None
     
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)
+        return visitor.visit_unnest(self)
 
 @dataclass
 class TableSample(ASTNode):
@@ -1213,7 +1284,7 @@ class TableSample(ASTNode):
     seed: Optional[int] = None
     
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)
+        return visitor.visit_tablesample(self)
 
 @dataclass
 class Pivot(ASTNode):
@@ -1226,7 +1297,7 @@ class Pivot(ASTNode):
     alias: Optional[str] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)
+        return visitor.visit_pivot(self)
 
 @dataclass
 class Unpivot(ASTNode):
@@ -1239,7 +1310,7 @@ class Unpivot(ASTNode):
     alias: Optional[str] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)
+        return visitor.visit_unpivot(self)
 
 @dataclass
 class CreateTable(Statement):

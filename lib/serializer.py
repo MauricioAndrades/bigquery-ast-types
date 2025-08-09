@@ -783,6 +783,159 @@ class SQLSerializer(ASTVisitor):
         """Visit a block comment."""
         self._write(f"/* {node.text} */")
 
+    # Missing visitor methods that were using generic_visit
+    def visit_cast(self, node) -> Any:
+        """Visit a CAST expression."""
+        func = "SAFE_CAST" if node.safe else "CAST"
+        self._write(func)
+        self._write("(")
+        node.expr.accept(self)
+        self._write(" AS ")
+        self._write(node.target_type)
+        self._write(")")
+
+    def visit_star(self, node) -> Any:
+        """Visit a star expression."""
+        if node.table:
+            self._write(f"{node.table}.*")
+        else:
+            self._write("*")
+        
+        if node.except_columns:
+            self._write(" EXCEPT(")
+            for i, col in enumerate(node.except_columns):
+                if i > 0:
+                    self._write(", ")
+                self._write(col)
+            self._write(")")
+        
+        if node.replace_columns:
+            self._write(" REPLACE(")
+            items = list(node.replace_columns.items())
+            for i, (col, expr) in enumerate(items):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
+                self._write(f" AS {col}")
+            self._write(")")
+
+    def visit_array_literal(self, node) -> Any:
+        """Visit an array literal."""
+        self._write("[")
+        for i, element in enumerate(node.elements):
+            if i > 0:
+                self._write(", ")
+            element.accept(self)
+        self._write("]")
+
+    def visit_struct_literal(self, node) -> Any:
+        """Visit a struct literal."""
+        self._write("STRUCT(")
+        for i, (name, expr) in enumerate(node.fields):
+            if i > 0:
+                self._write(", ")
+            expr.accept(self)
+            if name:
+                self._write(f" AS {name}")
+        self._write(")")
+
+    def visit_range_literal(self, node) -> Any:
+        """Visit a range literal."""
+        self._write(f"RANGE<{node.range_type}>(")
+        if node.lower_bound:
+            node.lower_bound.accept(self)
+        else:
+            self._write("UNBOUNDED")
+        self._write(", ")
+        if node.upper_bound:
+            node.upper_bound.accept(self)
+        else:
+            self._write("UNBOUNDED")
+        self._write(")")
+
+    def visit_json_literal(self, node) -> Any:
+        """Visit a JSON literal."""
+        self._write(f"JSON '{node.value}'")
+
+    def visit_named_parameter(self, node) -> Any:
+        """Visit a named parameter."""
+        self._write(f"@{node.name}")
+
+    def visit_positional_parameter(self, node) -> Any:
+        """Visit a positional parameter."""
+        self._write("?")
+
+    def visit_date_literal(self, node) -> Any:
+        """Visit a date literal."""
+        self._write(f"DATE '{node.value}'")
+
+    def visit_time_literal(self, node) -> Any:
+        """Visit a time literal."""
+        self._write(f"TIME '{node.value}'")
+
+    def visit_datetime_literal(self, node) -> Any:
+        """Visit a datetime literal."""
+        self._write(f"DATETIME '{node.value}'")
+
+    def visit_timestamp_literal(self, node) -> Any:
+        """Visit a timestamp literal."""
+        self._write(f"TIMESTAMP '{node.value}'")
+
+    def visit_interval_literal(self, node) -> Any:
+        """Visit an interval literal."""
+        self._write(f"INTERVAL {node.value} {node.unit}")
+
+    def visit_qualify_clause(self, node) -> Any:
+        """Visit a QUALIFY clause."""
+        self._write("QUALIFY ")
+        node.condition.accept(self)
+
+    def visit_unnest(self, node) -> Any:
+        """Visit an UNNEST expression."""
+        self._write("UNNEST(")
+        node.array_expr.accept(self)
+        self._write(")")
+        if node.with_offset:
+            self._write(" WITH OFFSET")
+            if node.offset_alias:
+                self._write(f" AS {node.offset_alias}")
+
+    def visit_tablesample(self, node) -> Any:
+        """Visit a TABLESAMPLE clause."""
+        node.table.accept(self)
+        self._write(f" TABLESAMPLE {node.method}(")
+        if node.percent is not None:
+            self._write(f"{node.percent} PERCENT")
+        elif node.rows is not None:
+            self._write(f"{node.rows} ROWS")
+        self._write(")")
+        if node.seed is not None:
+            self._write(f" REPEATABLE({node.seed})")
+
+    def visit_pivot(self, node) -> Any:
+        """Visit a PIVOT clause."""
+        node.source.accept(self) if hasattr(node.source, 'accept') else self._write(str(node.source))
+        self._write(f" PIVOT({node.aggregate_function}({node.value_column}) FOR {node.pivot_column} IN (")
+        for i, value in enumerate(node.pivot_values):
+            if i > 0:
+                self._write(", ")
+            self._write(str(value))
+        self._write("))")
+        if node.alias:
+            self._write(f" AS {node.alias}")
+
+    def visit_unpivot(self, node) -> Any:
+        """Visit an UNPIVOT clause."""
+        node.source.accept(self) if hasattr(node.source, 'accept') else self._write(str(node.source))
+        self._write(f" UNPIVOT{'INCLUDE NULLS' if node.include_nulls else ''}({node.value_column} FOR {node.name_column} IN (")
+        for i, col in enumerate(node.columns):
+            if i > 0:
+                self._write(", ")
+            self._write(col)
+        self._write("))")
+        if node.alias:
+            self._write(f" AS {node.alias}")
+
 
 # Convenience functions
 def to_sql(node: ASTNode, options: Optional[SerializerOptions] = None) -> str:
