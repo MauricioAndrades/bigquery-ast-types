@@ -577,11 +577,27 @@ class Builders:
     @staticmethod
     def cast(expr: Expression, target_type: str) -> Cast:
         """CAST expression."""
+        # Validate target type
+        valid_types = {
+            'STRING', 'INT64', 'FLOAT64', 'NUMERIC', 'BIGNUMERIC', 
+            'BOOL', 'DATE', 'DATETIME', 'TIME', 'TIMESTAMP',
+            'BYTES', 'ARRAY', 'STRUCT', 'JSON'
+        }
+        if target_type.upper() not in valid_types:
+            raise ValidationError(f"Invalid data type: {target_type}")
         return Cast(expr, target_type, safe=False)
 
     @staticmethod
     def safe_cast(expr: Expression, target_type: str) -> Cast:
         """SAFE_CAST expression."""
+        # Validate target type
+        valid_types = {
+            'STRING', 'INT64', 'FLOAT64', 'NUMERIC', 'BIGNUMERIC', 
+            'BOOL', 'DATE', 'DATETIME', 'TIME', 'TIMESTAMP',
+            'BYTES', 'ARRAY', 'STRUCT', 'JSON'
+        }
+        if target_type.upper() not in valid_types:
+            raise ValidationError(f"Invalid data type: {target_type}")
         return Cast(expr, target_type, safe=True)
 
     # CASE expressions

@@ -208,6 +208,7 @@ class TestComplexLiterals:
     def test_range_literal(self):
         """Test RANGE literal."""
         literal = ast_types.RangeLiteral(
+            value=None,  # RangeLiteral requires value from parent Literal class
             range_type='DATE',
             lower_bound=ast_types.DateLiteral('2023-01-01'),
             upper_bound=ast_types.DateLiteral('2023-12-31')
