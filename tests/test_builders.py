@@ -20,9 +20,11 @@ from lib.types import (
     Select,
     SetOperator,
     GroupByClause,
+    GroupByType,
     HavingClause,
     OrderByItem,
     OrderDirection,
+    NullsOrder,
     LimitClause,
     IntervalLiteral,
     JSONLiteral,
@@ -352,7 +354,7 @@ class TestClauseBuilders:
     def test_group_by_builder(self):
         clause = b.group_by(b.col("category"), rollup=True)
         assert isinstance(clause, GroupByClause)
-        assert clause.rollup is True
+        assert clause.group_type == GroupByType.ROLLUP
         assert len(clause.expressions) == 1
 
     def test_group_by_rollup_cube_exclusive(self):
@@ -369,7 +371,7 @@ class TestClauseBuilders:
         item = b.order_by(b.col("name"), desc=True, nulls_first=False)
         assert isinstance(item, OrderByItem)
         assert item.direction == OrderDirection.DESC
-        assert item.nulls_first is False
+        assert item.nulls_order == NullsOrder.LAST
         assert str(item) == "name DESC NULLS LAST"
 
     def test_limit_builder(self):
@@ -386,7 +388,7 @@ class TestClauseBuilders:
     def test_json_builder(self):
         lit = b.json({"key": "value"})
         assert isinstance(lit, JSONLiteral)
-        assert lit.value == '{"key": "value"}'
+        assert lit.value == '{"key":"value"}'
 
     def test_param_builder(self):
         param = b.param("user_id")

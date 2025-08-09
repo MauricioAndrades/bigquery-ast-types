@@ -1,7 +1,11 @@
 __pycache__/
 *.pyc
+<<<<<<< HEAD
 *.py[cod]
 *$py.class
+=======
+*.pyo
+>>>>>>> main
 .pytest_cache/
 *.egg-info/
 build/
@@ -11,3 +15,7 @@ dist/
 .vscode/
 .idea/
 
+node_modules/
+dist/
+*.log
+.ignore

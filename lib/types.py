@@ -275,6 +275,7 @@ class ASTVisitor(ABC):
     def visit_create_table(self, node: "CreateTable") -> Any:
         pass
 
+<<<<<<< HEAD
     # Additional visitor methods for expressions and constructs
     @abstractmethod
     def visit_cast(self, node: "Cast") -> Any:
@@ -388,6 +389,35 @@ class ASTVisitor(ABC):
 
     @abstractmethod
     def visit_call_statement(self, node: "CallStatement") -> Any:
+=======
+    # BigQuery ML and External Table visitors
+    @abstractmethod
+    def visit_create_model(self, node: "CreateModel") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_ml_predict(self, node: "MLPredict") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_ml_evaluate(self, node: "MLEvaluate") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_ml_explain(self, node: "MLExplain") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_create_external_table(self, node: "CreateExternalTable") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_export_data(self, node: "ExportData") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_load_data(self, node: "LoadData") -> Any:
+>>>>>>> main
         pass
 
     # Specific comment style visitors
@@ -1406,6 +1436,7 @@ class CreateTable(Statement):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_create_table(self)
 
+<<<<<<< HEAD
 # Additional DDL Statements (Task 1)
 
 @dataclass
@@ -1633,7 +1664,78 @@ class CallStatement(Statement):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_call_statement(self)
 
+=======
+# BigQuery ML and External Table Support
+>>>>>>> main
 @dataclass
+class CreateModel(Statement):
+    """CREATE MODEL statement for BigQuery ML."""
+    model_name: str
+    options: Dict[str, Expression] = field(default_factory=dict)
+    as_query: Optional[Select] = None
+    transform: Optional[Expression] = None
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_create_model(self)
+
+@dataclass
+class MLPredict(Expression):
+    """ML.PREDICT function call for BigQuery ML predictions."""
+    model_name: str
+    input_data: Union[Select, TableRef]
+    struct_options: Dict[str, Expression] = field(default_factory=dict)
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_ml_predict(self)
+
+@dataclass
+class MLEvaluate(Expression):
+    """ML.EVALUATE function call for BigQuery ML model evaluation."""
+    model_name: str
+    input_data: Union[Select, TableRef]
+    struct_options: Dict[str, Expression] = field(default_factory=dict)
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_ml_evaluate(self)
+
+@dataclass
+class MLExplain(Expression):
+    """ML.EXPLAIN_PREDICT function call for BigQuery ML model explanations."""
+    model_name: str
+    input_data: Union[Select, TableRef]
+    struct_options: Dict[str, Expression] = field(default_factory=dict)
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_ml_explain(self)
+
+@dataclass
+class CreateExternalTable(Statement):
+    """CREATE EXTERNAL TABLE statement for external data sources."""
+    table_name: str
+    schema: Optional[List[str]] = field(default_factory=list)
+    options: Dict[str, Expression] = field(default_factory=dict)
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_create_external_table(self)
+
+@dataclass
+class ExportData(Statement):
+    """EXPORT DATA statement for exporting query results."""
+    as_query: Select
+    options: Dict[str, Expression] = field(default_factory=dict)
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_export_data(self)
+
+@dataclass
+class LoadData(Statement):
+    """LOAD DATA statement for loading data into tables."""
+    table_name: str
+    source_uris: List[str] = field(default_factory=list)
+    options: Dict[str, Expression] = field(default_factory=dict)
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_load_data(self)
 
 class BQDataType(Enum):
     """BigQuery base data types."""

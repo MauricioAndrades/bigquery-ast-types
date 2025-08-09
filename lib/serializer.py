@@ -220,12 +220,12 @@ class SQLSerializer(ASTVisitor):
             node (TableName): The table name node.
         """
         if node.project:
-            node.project.accept(self)
+            self._write(node.project)
             self._write(".")
         if node.dataset:
-            node.dataset.accept(self)
+            self._write(node.dataset)
             self._write(".")
-        node.table.accept(self)
+        self._write(node.table)
 
     def visit_table_ref(self, node: TableRef) -> Any:
         """
@@ -783,6 +783,7 @@ class SQLSerializer(ASTVisitor):
         """Visit a block comment."""
         self._write(f"/* {node.text} */")
 
+<<<<<<< HEAD
     # Missing visitor methods that were using generic_visit
     def visit_cast(self, node) -> Any:
         """Visit a CAST expression."""
@@ -1301,6 +1302,159 @@ class SQLSerializer(ASTVisitor):
                 self._write(", ")
             arg.accept(self)
         self._write(")")
+=======
+    # BigQuery ML and External Table visitor implementations
+    def visit_create_model(self, node) -> Any:
+        """Visit a CREATE MODEL statement."""
+        self._write("CREATE MODEL ")
+        self._write(node.model_name)
+        
+        if node.options:
+            self._write(" OPTIONS(")
+            option_parts = []
+            for key, value_expr in node.options.items():
+                option_parts.append(f"{key}=")
+                # Store current position to append value
+                current_len = len(option_parts[-1])
+                value_sql = self._serialize_expression(value_expr)
+                option_parts[-1] += value_sql
+            self._write(", ".join(option_parts))
+            self._write(")")
+        
+        if node.transform:
+            self._write(" TRANSFORM(")
+            node.transform.accept(self)
+            self._write(")")
+        
+        if node.as_query:
+            self._write(" AS ")
+            node.as_query.accept(self)
+
+    def visit_ml_predict(self, node) -> Any:
+        """Visit a ML.PREDICT function call."""
+        self._write("ML.PREDICT(MODEL ")
+        self._write(node.model_name)
+        self._write(", ")
+        
+        # Handle input data (Select or TableRef)
+        node.input_data.accept(self)
+        
+        if node.struct_options:
+            self._write(", STRUCT(")
+            option_parts = []
+            for key, value_expr in node.struct_options.items():
+                value_sql = self._serialize_expression(value_expr)
+                option_parts.append(f"{value_sql} AS {key}")
+            self._write(", ".join(option_parts))
+            self._write(")")
+        
+        self._write(")")
+
+    def visit_ml_evaluate(self, node) -> Any:
+        """Visit a ML.EVALUATE function call."""
+        self._write("ML.EVALUATE(MODEL ")
+        self._write(node.model_name)
+        self._write(", ")
+        
+        # Handle input data (Select or TableRef)
+        node.input_data.accept(self)
+        
+        if node.struct_options:
+            self._write(", STRUCT(")
+            option_parts = []
+            for key, value_expr in node.struct_options.items():
+                value_sql = self._serialize_expression(value_expr)
+                option_parts.append(f"{value_sql} AS {key}")
+            self._write(", ".join(option_parts))
+            self._write(")")
+        
+        self._write(")")
+
+    def visit_ml_explain(self, node) -> Any:
+        """Visit a ML.EXPLAIN_PREDICT function call."""
+        self._write("ML.EXPLAIN_PREDICT(MODEL ")
+        self._write(node.model_name)
+        self._write(", ")
+        
+        # Handle input data (Select or TableRef)
+        node.input_data.accept(self)
+        
+        if node.struct_options:
+            self._write(", STRUCT(")
+            option_parts = []
+            for key, value_expr in node.struct_options.items():
+                value_sql = self._serialize_expression(value_expr)
+                option_parts.append(f"{value_sql} AS {key}")
+            self._write(", ".join(option_parts))
+            self._write(")")
+        
+        self._write(")")
+
+    def visit_create_external_table(self, node) -> Any:
+        """Visit a CREATE EXTERNAL TABLE statement."""
+        self._write("CREATE OR REPLACE EXTERNAL TABLE ")
+        self._write(node.table_name)
+        
+        if node.schema:
+            self._write(" (")
+            self._write(", ".join(node.schema))
+            self._write(")")
+        
+        if node.options:
+            self._write(" OPTIONS(")
+            option_parts = []
+            for key, value_expr in node.options.items():
+                value_sql = self._serialize_expression(value_expr)
+                option_parts.append(f"{key}={value_sql}")
+            self._write(", ".join(option_parts))
+            self._write(")")
+
+    def visit_export_data(self, node) -> Any:
+        """Visit an EXPORT DATA statement."""
+        self._write("EXPORT DATA")
+        
+        if node.options:
+            self._write(" OPTIONS(")
+            option_parts = []
+            for key, value_expr in node.options.items():
+                value_sql = self._serialize_expression(value_expr)
+                option_parts.append(f"{key}={value_sql}")
+            self._write(", ".join(option_parts))
+            self._write(")")
+        
+        self._write(" AS ")
+        node.as_query.accept(self)
+
+    def visit_load_data(self, node) -> Any:
+        """Visit a LOAD DATA statement."""
+        self._write("LOAD DATA INTO ")
+        self._write(node.table_name)
+        
+        if node.source_uris:
+            self._write(" FROM FILES(")
+            uri_parts = [f"'{uri}'" for uri in node.source_uris]
+            self._write(", ".join(uri_parts))
+            self._write(")")
+        
+        if node.options:
+            self._write(" WITH OPTIONS(")
+            option_parts = []
+            for key, value_expr in node.options.items():
+                value_sql = self._serialize_expression(value_expr)
+                option_parts.append(f"{key}={value_sql}")
+            self._write(", ".join(option_parts))
+            self._write(")")
+
+    def _serialize_expression(self, expr) -> str:
+        """Helper method to serialize an expression to string."""
+        if hasattr(expr, 'accept'):
+            # Create a temporary serializer for the expression
+            temp_serializer = SQLSerializer(self.options)
+            expr.accept(temp_serializer)
+            return "".join(temp_serializer.buffer).strip()
+        else:
+            return str(expr)
+>>>>>>> main
 
 
 # Convenience functions

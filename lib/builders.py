@@ -75,6 +75,7 @@ from .types import (
     Merge,
     MergeWhenClause,
     MergeAction,
+<<<<<<< HEAD
     # DDL types (Task 1)
     CreateView,
     CreateFunction,
@@ -98,6 +99,16 @@ from .types import (
     BreakStatement,
     ContinueStatement,
     CallStatement,
+=======
+    # BigQuery ML and External Table imports
+    CreateModel,
+    MLPredict,
+    MLEvaluate,
+    MLExplain,
+    CreateExternalTable,
+    ExportData,
+    LoadData
+>>>>>>> main
 )
 
 class ValidationError(Exception):
@@ -416,12 +427,14 @@ class Builders:
     @staticmethod
     def array(*elements: Expression) -> Array:
         """Array literal."""
-        return Array(elements=list(elements))
+        element_list = list(elements)
+        return Array(value=element_list, elements=element_list)
 
     @staticmethod
     def struct(**fields: Expression) -> Struct:
         """STRUCT literal."""
-        return Struct(fields=[(name, expr) for name, expr in fields.items()])
+        field_list = [(name, expr) for name, expr in fields.items()]
+        return Struct(value=field_list, fields=field_list)
 
     # SELECT components
     @staticmethod
@@ -457,6 +470,7 @@ class Builders:
 
     # Clauses
     @staticmethod
+<<<<<<< HEAD
     def group_by(*expressions: Union[Expression, int, str], rollup: bool = False, cube: bool = False) -> GroupByClause:
         """
         GROUP BY builder with ROLLUP/CUBE support.
@@ -506,6 +520,8 @@ class Builders:
         return GroupByClause(expressions=parsed_exprs, group_type=group_type)
 
     @staticmethod
+=======
+>>>>>>> main
     def having(condition: Expression) -> HavingClause:
         """HAVING clause builder."""
         if not isinstance(condition, Expression):
@@ -513,6 +529,7 @@ class Builders:
         return HavingClause(condition)
 
     @staticmethod
+<<<<<<< HEAD
     @staticmethod
     def order_by(expr: Expression, desc: bool = False, nulls_first: Optional[bool] = None) -> OrderByItem:
         """ORDER BY builder with NULLS FIRST/LAST."""
@@ -525,6 +542,8 @@ class Builders:
         return OrderByItem(expression=expr, direction=direction, nulls_order=nulls_order)
 
     @staticmethod
+=======
+>>>>>>> main
     def limit(limit: int, offset: Optional[int] = None) -> LimitClause:
         """LIMIT/OFFSET builder."""
         limit_expr = Builders.lit(limit)
@@ -651,6 +670,56 @@ class Builders:
 
     # GROUP BY builders
     @staticmethod
+<<<<<<< HEAD
+=======
+    def group_by(*expressions: Union[Expression, int, str], rollup: bool = False, cube: bool = False) -> GroupByClause:
+        """
+        GROUP BY builder with ROLLUP/CUBE support and flexible expressions.
+        
+        Args:
+            expressions: Column expressions, positions (1,2,3), or 'ALL'
+            rollup: Whether to use ROLLUP grouping
+            cube: Whether to use CUBE grouping
+        
+        Examples:
+            b.group_by(b.col("department"), b.col("team"))
+            b.group_by(1, 2)  # By position
+            b.group_by("ALL")  # GROUP BY ALL
+            b.group_by(b.col("category"), rollup=True)
+        """
+        if rollup and cube:
+            raise ValidationError("GROUP BY cannot have both rollup and cube")
+            
+        # Handle GROUP BY ALL
+        if len(expressions) == 1 and expressions[0] == "ALL":
+            return GroupByClause(group_type=GroupByType.ALL)
+
+        # Parse and validate expressions
+        parsed_exprs = []
+        for expr in expressions:
+            if isinstance(expr, int):
+                if expr < 1:
+                    raise ValidationError(f"GROUP BY position must be >= 1, got {expr}")
+                parsed_exprs.append(IntegerLiteral(expr))
+            elif isinstance(expr, str):
+                parsed_exprs.append(Identifier(expr))
+            elif isinstance(expr, Expression):
+                parsed_exprs.append(expr)
+            else:
+                raise ValidationError(f"Invalid GROUP BY expression type: {type(expr)}")
+        
+        # Determine group type based on parameters
+        if rollup:
+            group_type = GroupByType.ROLLUP
+        elif cube:
+            group_type = GroupByType.CUBE
+        else:
+            group_type = GroupByType.STANDARD
+            
+        return GroupByClause(expressions=parsed_exprs, group_type=group_type)
+
+    @staticmethod
+>>>>>>> main
     def group_by_rollup(*expressions: Expression) -> GroupByClause:
         """
         GROUP BY with ROLLUP for hierarchical aggregations.
@@ -743,20 +812,37 @@ class Builders:
 
     # ORDER BY clause builder
     @staticmethod
+<<<<<<< HEAD
     def order_by_clause(*items: Union[Expression, Tuple[Expression, str],
                  Tuple[Expression, str, str]]) -> OrderByClause:
+=======
+    def order_by(*items: Union[Expression, Tuple[Expression, str], Tuple[Expression, str, str]], 
+                 desc: bool = False, nulls_first: Optional[bool] = None) -> Union[OrderByItem, OrderByClause]:
+>>>>>>> main
         """
-        Create ORDER BY clause with flexible syntax.
-
-        Examples:
-            b.order_by(b.col("name"))  # Default ASC
-            b.order_by((b.col("age"), "DESC"))
+        Create ORDER BY clause or item with flexible syntax.
+        
+        Single expression mode (returns OrderByItem):
+            b.order_by(b.col("name"), desc=True, nulls_first=False)
+        
+        Multiple expressions mode (returns OrderByClause):
+            b.order_by(b.col("name"), (b.col("age"), "DESC"))
             b.order_by((b.col("salary"), "DESC", "NULLS LAST"))
-            b.order_by(
-                b.col("dept"),
-                (b.col("salary"), "DESC", "NULLS FIRST")
-            )
         """
+        # Single expression with parameters - return OrderByItem
+        if (len(items) == 1 and isinstance(items[0], Expression) and 
+            not isinstance(items[0], tuple) and (desc or nulls_first is not None)):
+            expr = items[0]
+            direction = OrderDirection.DESC if desc else OrderDirection.ASC
+            
+            # Convert nulls_first to NullsOrder
+            nulls_order = None
+            if nulls_first is not None:
+                nulls_order = NullsOrder.FIRST if nulls_first else NullsOrder.LAST
+                
+            return OrderByItem(expression=expr, direction=direction, nulls_order=nulls_order)
+        
+        # Multiple expressions or tuple syntax - return OrderByClause
         if not items:
             raise ValidationError("ORDER BY requires at least one item")
 
@@ -768,34 +854,40 @@ class Builders:
             elif isinstance(item, tuple):
                 if len(item) < 1 or len(item) > 3:
                     raise ValidationError(f"ORDER BY tuple must have 1-3 elements, got {len(item)}")
-
+                
                 expr = item[0]
                 if not isinstance(expr, Expression):
-                    raise ValidationError(f"First element must be Expression, got {type(expr)}")
-
+                    raise ValidationError(f"ORDER BY expression must be Expression, got {type(expr)}")
+                
+                # Parse direction
                 direction = OrderDirection.ASC
+                if len(item) > 1:
+                    direction_str = item[1].upper()
+                    if direction_str == "DESC":
+                        direction = OrderDirection.DESC
+                    elif direction_str == "ASC":
+                        direction = OrderDirection.ASC
+                    else:
+                        raise ValidationError(f"Invalid ORDER BY direction: {item[1]}")
+                
+                # Parse nulls ordering
                 nulls_order = None
-
-                if len(item) >= 2:
-                    try:
-                        direction = OrderDirection[item[1].upper()]
-                    except (KeyError, AttributeError):
-                        raise ValidationError(f"Invalid direction: {item[1]}")
-
-                if len(item) >= 3:
-                    nulls_part = item[2].upper().replace("NULLS ", "")
-                    try:
-                        nulls_order = NullsOrder[nulls_part]
-                    except KeyError:
+                if len(item) > 2:
+                    nulls_str = item[2].upper()
+                    if nulls_str == "NULLS FIRST":
+                        nulls_order = NullsOrder.FIRST
+                    elif nulls_str == "NULLS LAST":
+                        nulls_order = NullsOrder.LAST
+                    else:
                         raise ValidationError(f"Invalid NULLS ordering: {item[2]}")
-
+                
                 order_items.append(OrderByItem(
                     expression=expr,
                     direction=direction,
                     nulls_order=nulls_order
                 ))
             else:
-                raise ValidationError(f"Invalid ORDER BY item type: {type(item)}")
+                raise ValidationError(f"ORDER BY item must be Expression or tuple, got {type(item)}")
 
         return OrderByClause(items=order_items)
 
@@ -1226,6 +1318,7 @@ class Builders:
         """
         return MergeBuilder(target, source, on)
 
+<<<<<<< HEAD
     # DDL Builder Functions (Task 1)
     @staticmethod
     def create_view(view_name: Union[str, TableName], query: Select, 
@@ -1623,6 +1716,174 @@ class Builders:
         return CallStatement(
             procedure_name=procedure_name,
             arguments=list(arguments)
+=======
+    # BigQuery ML and External Table builders
+    @staticmethod
+    def create_model(model_name: str,
+                    options: Optional[Dict[str, Any]] = None,
+                    as_query: Optional['Select'] = None,
+                    transform: Optional[Expression] = None) -> 'CreateModel':
+        """
+        Create CREATE MODEL statement for BigQuery ML.
+        
+        Args:
+            model_name: Name of the model to create
+            options: Dictionary of model options (e.g., model_type, input_label_cols)
+            as_query: SELECT query for training data
+            transform: Optional TRANSFORM clause for feature engineering
+            
+        Examples:
+            b.create_model("my_dataset.my_model",
+                          options={"model_type": "linear_reg", "input_label_cols": ["label"]},
+                          as_query=b.select(...))
+        """
+        if not model_name or not isinstance(model_name, str):
+            raise ValidationError("Model name must be a non-empty string")
+        
+        model_options = {}
+        if options:
+            if not isinstance(options, dict):
+                raise ValidationError("Model options must be a dictionary")
+            # Convert values to expressions/literals
+            for key, value in options.items():
+                if not isinstance(key, str):
+                    raise ValidationError(f"Option key must be string, got {type(key)}")
+                if isinstance(value, Expression):
+                    model_options[key] = value
+                elif isinstance(value, list):
+                    # Convert list to string representation for BigQuery options
+                    model_options[key] = Builders.lit(str(value))
+                else:
+                    model_options[key] = Builders.lit(value)
+        
+        return CreateModel(
+            model_name=model_name,
+            options=model_options,
+            as_query=as_query,
+            transform=transform
+        )
+
+    @staticmethod
+    def ml_predict(model_name: str,
+                  input_data: Union['Select', 'TableRef'],
+                  struct_options: Optional[Dict[str, Any]] = None) -> 'MLPredict':
+        """
+        Create ML.PREDICT function call for BigQuery ML predictions.
+        
+        Args:
+            model_name: Name of the trained model
+            input_data: SELECT query or table reference for input data
+            struct_options: Optional dictionary of prediction options
+            
+        Examples:
+            b.ml_predict("my_dataset.my_model", b.select(...))
+            b.ml_predict("my_dataset.my_model", b.table("input_table"))
+        """
+        if not model_name or not isinstance(model_name, str):
+            raise ValidationError("Model name must be a non-empty string")
+        
+        if not isinstance(input_data, (Select, TableRef)):
+            raise ValidationError("Input data must be Select or TableRef")
+        
+        options = {}
+        if struct_options:
+            if not isinstance(struct_options, dict):
+                raise ValidationError("Struct options must be a dictionary")
+            for key, value in struct_options.items():
+                if not isinstance(key, str):
+                    raise ValidationError(f"Option key must be string, got {type(key)}")
+                if isinstance(value, Expression):
+                    options[key] = value
+                elif isinstance(value, list):
+                    options[key] = Builders.lit(str(value))
+                else:
+                    options[key] = Builders.lit(value)
+        
+        return MLPredict(
+            model_name=model_name,
+            input_data=input_data,
+            struct_options=options
+        )
+
+    @staticmethod
+    def create_external_table(table_name: str,
+                            schema: Optional[List[str]] = None,
+                            options: Optional[Dict[str, Any]] = None) -> 'CreateExternalTable':
+        """
+        Create CREATE EXTERNAL TABLE statement for external data sources.
+        
+        Args:
+            table_name: Name of the external table to create
+            schema: Optional list of column definitions
+            options: Dictionary of external table options (e.g., format, uris)
+            
+        Examples:
+            b.create_external_table("my_dataset.external_table",
+                                   schema=["id INT64", "name STRING"],
+                                   options={"format": "CSV", "uris": ["gs://bucket/file.csv"]})
+        """
+        if not table_name or not isinstance(table_name, str):
+            raise ValidationError("Table name must be a non-empty string")
+        
+        table_schema = schema or []
+        if not isinstance(table_schema, list):
+            raise ValidationError("Schema must be a list")
+        
+        table_options = {}
+        if options:
+            if not isinstance(options, dict):
+                raise ValidationError("Options must be a dictionary")
+            for key, value in options.items():
+                if not isinstance(key, str):
+                    raise ValidationError(f"Option key must be string, got {type(key)}")
+                if isinstance(value, Expression):
+                    table_options[key] = value
+                elif isinstance(value, list):
+                    table_options[key] = Builders.lit(str(value))
+                else:
+                    table_options[key] = Builders.lit(value)
+        
+        return CreateExternalTable(
+            table_name=table_name,
+            schema=table_schema,
+            options=table_options
+        )
+
+    @staticmethod
+    def export_data(options: Dict[str, Any],
+                   as_query: 'Select') -> 'ExportData':
+        """
+        Create EXPORT DATA statement for exporting query results.
+        
+        Args:
+            options: Dictionary of export options (e.g., uri, format)
+            as_query: SELECT query whose results to export
+            
+        Examples:
+            b.export_data({"uri": "gs://bucket/export/*", "format": "CSV"},
+                         b.select(...))
+        """
+        if not options or not isinstance(options, dict):
+            raise ValidationError("Export options must be a non-empty dictionary")
+        
+        if not isinstance(as_query, Select):
+            raise ValidationError("AS query must be a Select statement")
+        
+        export_options = {}
+        for key, value in options.items():
+            if not isinstance(key, str):
+                raise ValidationError(f"Option key must be string, got {type(key)}")
+            if isinstance(value, Expression):
+                export_options[key] = value
+            elif isinstance(value, list):
+                export_options[key] = Builders.lit(str(value))
+            else:
+                export_options[key] = Builders.lit(value)
+        
+        return ExportData(
+            as_query=as_query,
+            options=export_options
+>>>>>>> main
         )
 
 

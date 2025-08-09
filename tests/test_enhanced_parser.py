@@ -281,6 +281,7 @@ def test_visitor_interface():
         def visit_positional_parameter(self, node):
             pass
 
+<<<<<<< HEAD
         # Missing abstract methods identified in the error
         def visit_case(self, node):
             pass
@@ -383,6 +384,24 @@ def test_visitor_interface():
             pass
 
         def visit_call_statement(self, node):
+=======
+        def visit_case(self, node):
+            pass
+
+        def visit_when_clause(self, node):
+            pass
+
+        def visit_insert(self, node):
+            pass
+
+        def visit_update(self, node):
+            pass
+
+        def visit_create_table(self, node):
+            pass
+
+        def visit_set_operation(self, node):
+>>>>>>> main
             pass
 
     visitor = TestVisitor()
