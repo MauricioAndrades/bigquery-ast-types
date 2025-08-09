@@ -119,16 +119,21 @@ class SQLGlotParser:
         select_list = []
         for projection in select.expressions:
             if isinstance(projection, exp.Star):
-                select_list.append(SelectColumn(expr=b.col("*")))
+                select_list.append(SelectColumn(expression=b.col("*")))
             elif isinstance(projection, exp.Alias):
                 expr = self._transform_expression(projection.this)
-                select_list.append(SelectColumn(expr=expr, alias=projection.alias))
+                select_list.append(SelectColumn(expression=expr, alias=projection.alias))
             else:
                 expr = self._transform_expression(projection)
-                select_list.append(SelectColumn(expr=expr))
+                select_list.append(SelectColumn(expression=expr))
 
         # Create Select node
         result = Select(select_list=select_list)
+
+        # Handle WITH clause if present
+        if select.args.get("with"):
+            with_node = select.args["with"]
+            result.with_clause = self._transform_with(with_node)
 
         # Add FROM clause if present
         if select.args.get("from"):

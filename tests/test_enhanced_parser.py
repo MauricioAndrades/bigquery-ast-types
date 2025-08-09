@@ -281,6 +281,24 @@ def test_visitor_interface():
         def visit_positional_parameter(self, node):
             pass
 
+        def visit_case(self, node):
+            pass
+
+        def visit_when_clause(self, node):
+            pass
+
+        def visit_insert(self, node):
+            pass
+
+        def visit_update(self, node):
+            pass
+
+        def visit_create_table(self, node):
+            pass
+
+        def visit_set_operation(self, node):
+            pass
+
     visitor = TestVisitor()
     nodes = [
         ast_types.UnquotedIdentifier("test_column"),

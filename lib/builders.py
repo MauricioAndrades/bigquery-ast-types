@@ -399,12 +399,14 @@ class Builders:
     @staticmethod
     def array(*elements: Expression) -> Array:
         """Array literal."""
-        return Array(elements=list(elements))
+        element_list = list(elements)
+        return Array(value=element_list, elements=element_list)
 
     @staticmethod
     def struct(**fields: Expression) -> Struct:
         """STRUCT literal."""
-        return Struct(fields=[(name, expr) for name, expr in fields.items()])
+        field_list = [(name, expr) for name, expr in fields.items()]
+        return Struct(value=field_list, fields=field_list)
 
     # SELECT components
     @staticmethod
@@ -440,31 +442,11 @@ class Builders:
 
     # Clauses
     @staticmethod
-    def group_by(*expressions: Expression, rollup: bool = False, cube: bool = False) -> GroupByClause:
-        """GROUP BY builder with ROLLUP/CUBE support."""
-        if rollup and cube:
-            raise ValidationError("GROUP BY cannot have both rollup and cube")
-        exprs: List[Expression] = []
-        for expr in expressions:
-            if not isinstance(expr, Expression):
-                raise TypeError("All group by expressions must be Expression instances")
-            exprs.append(expr)
-        return GroupByClause(expressions=exprs, rollup=rollup, cube=cube)
-
-    @staticmethod
     def having(condition: Expression) -> HavingClause:
         """HAVING clause builder."""
         if not isinstance(condition, Expression):
             raise TypeError("condition must be an Expression")
         return HavingClause(condition)
-
-    @staticmethod
-    def order_by(expr: Expression, desc: bool = False, nulls_first: Optional[bool] = None) -> OrderByItem:
-        """ORDER BY builder with NULLS FIRST/LAST."""
-        if not isinstance(expr, Expression):
-            raise TypeError("expr must be an Expression")
-        direction = OrderDirection.DESC if desc else OrderDirection.ASC
-        return OrderByItem(expression=expr, direction=direction, nulls_first=nulls_first)
 
     @staticmethod
     def limit(limit: int, offset: Optional[int] = None) -> LimitClause:
@@ -571,21 +553,29 @@ class Builders:
 
     # GROUP BY builders
     @staticmethod
-    def group_by(*expressions: Union[Expression, int, str]) -> GroupByClause:
+    def group_by(*expressions: Union[Expression, int, str], rollup: bool = False, cube: bool = False) -> GroupByClause:
         """
-        Create GROUP BY clause.
-
+        GROUP BY builder with ROLLUP/CUBE support and flexible expressions.
+        
         Args:
             expressions: Column expressions, positions (1,2,3), or 'ALL'
-
+            rollup: Whether to use ROLLUP grouping
+            cube: Whether to use CUBE grouping
+        
         Examples:
             b.group_by(b.col("department"), b.col("team"))
             b.group_by(1, 2)  # By position
             b.group_by("ALL")  # GROUP BY ALL
+            b.group_by(b.col("category"), rollup=True)
         """
+        if rollup and cube:
+            raise ValidationError("GROUP BY cannot have both rollup and cube")
+            
+        # Handle GROUP BY ALL
         if len(expressions) == 1 and expressions[0] == "ALL":
             return GroupByClause(group_type=GroupByType.ALL)
 
+        # Parse and validate expressions
         parsed_exprs = []
         for expr in expressions:
             if isinstance(expr, int):
@@ -598,8 +588,16 @@ class Builders:
                 parsed_exprs.append(expr)
             else:
                 raise ValidationError(f"Invalid GROUP BY expression type: {type(expr)}")
-
-        return GroupByClause(expressions=parsed_exprs)
+        
+        # Determine group type based on parameters
+        if rollup:
+            group_type = GroupByType.ROLLUP
+        elif cube:
+            group_type = GroupByType.CUBE
+        else:
+            group_type = GroupByType.STANDARD
+            
+        return GroupByClause(expressions=parsed_exprs, group_type=group_type)
 
     @staticmethod
     def group_by_rollup(*expressions: Expression) -> GroupByClause:
@@ -694,20 +692,32 @@ class Builders:
 
     # ORDER BY builder
     @staticmethod
-    def order_by(*items: Union[Expression, Tuple[Expression, str],
-                 Tuple[Expression, str, str]]) -> OrderByClause:
+    def order_by(*items: Union[Expression, Tuple[Expression, str], Tuple[Expression, str, str]], 
+                 desc: bool = False, nulls_first: Optional[bool] = None) -> Union[OrderByItem, OrderByClause]:
         """
-        Create ORDER BY clause with flexible syntax.
-
-        Examples:
-            b.order_by(b.col("name"))  # Default ASC
-            b.order_by((b.col("age"), "DESC"))
+        Create ORDER BY clause or item with flexible syntax.
+        
+        Single expression mode (returns OrderByItem):
+            b.order_by(b.col("name"), desc=True, nulls_first=False)
+        
+        Multiple expressions mode (returns OrderByClause):
+            b.order_by(b.col("name"), (b.col("age"), "DESC"))
             b.order_by((b.col("salary"), "DESC", "NULLS LAST"))
-            b.order_by(
-                b.col("dept"),
-                (b.col("salary"), "DESC", "NULLS FIRST")
-            )
         """
+        # Single expression with parameters - return OrderByItem
+        if (len(items) == 1 and isinstance(items[0], Expression) and 
+            not isinstance(items[0], tuple) and (desc or nulls_first is not None)):
+            expr = items[0]
+            direction = OrderDirection.DESC if desc else OrderDirection.ASC
+            
+            # Convert nulls_first to NullsOrder
+            nulls_order = None
+            if nulls_first is not None:
+                nulls_order = NullsOrder.FIRST if nulls_first else NullsOrder.LAST
+                
+            return OrderByItem(expression=expr, direction=direction, nulls_order=nulls_order)
+        
+        # Multiple expressions or tuple syntax - return OrderByClause
         if not items:
             raise ValidationError("ORDER BY requires at least one item")
 
@@ -719,34 +729,40 @@ class Builders:
             elif isinstance(item, tuple):
                 if len(item) < 1 or len(item) > 3:
                     raise ValidationError(f"ORDER BY tuple must have 1-3 elements, got {len(item)}")
-
+                
                 expr = item[0]
                 if not isinstance(expr, Expression):
-                    raise ValidationError(f"First element must be Expression, got {type(expr)}")
-
+                    raise ValidationError(f"ORDER BY expression must be Expression, got {type(expr)}")
+                
+                # Parse direction
                 direction = OrderDirection.ASC
+                if len(item) > 1:
+                    direction_str = item[1].upper()
+                    if direction_str == "DESC":
+                        direction = OrderDirection.DESC
+                    elif direction_str == "ASC":
+                        direction = OrderDirection.ASC
+                    else:
+                        raise ValidationError(f"Invalid ORDER BY direction: {item[1]}")
+                
+                # Parse nulls ordering
                 nulls_order = None
-
-                if len(item) >= 2:
-                    try:
-                        direction = OrderDirection[item[1].upper()]
-                    except (KeyError, AttributeError):
-                        raise ValidationError(f"Invalid direction: {item[1]}")
-
-                if len(item) >= 3:
-                    nulls_part = item[2].upper().replace("NULLS ", "")
-                    try:
-                        nulls_order = NullsOrder[nulls_part]
-                    except KeyError:
+                if len(item) > 2:
+                    nulls_str = item[2].upper()
+                    if nulls_str == "NULLS FIRST":
+                        nulls_order = NullsOrder.FIRST
+                    elif nulls_str == "NULLS LAST":
+                        nulls_order = NullsOrder.LAST
+                    else:
                         raise ValidationError(f"Invalid NULLS ordering: {item[2]}")
-
+                
                 order_items.append(OrderByItem(
                     expression=expr,
                     direction=direction,
                     nulls_order=nulls_order
                 ))
             else:
-                raise ValidationError(f"Invalid ORDER BY item type: {type(item)}")
+                raise ValidationError(f"ORDER BY item must be Expression or tuple, got {type(item)}")
 
         return OrderByClause(items=order_items)
 
