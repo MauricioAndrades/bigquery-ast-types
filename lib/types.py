@@ -323,6 +323,12 @@ class OrderDirection(Enum):
     ASC = "ASC"
     DESC = "DESC"
 
+
+class NullsOrder(Enum):
+    """Ordering of NULL values in ORDER BY clauses."""
+    FIRST = "FIRST"
+    LAST = "LAST"
+
 @dataclass
 class SourceLocation:
     """Source location information."""
@@ -790,8 +796,12 @@ class WhereClause(ASTNode):
 
 @dataclass
 class GroupByClause(ASTNode):
-    """GROUP BY clause."""
+    """GROUP BY clause with advanced grouping support."""
     expressions: List[Expression] = field(default_factory=list)
+    rollup: Optional[List[Expression]] = None
+    cube: Optional[List[Expression]] = None
+    grouping_sets: Optional[List[List[Expression]]] = None
+    all: bool = False
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_group_by_clause(self)
@@ -806,15 +816,21 @@ class HavingClause(ASTNode):
 
 @dataclass
 class OrderByItem(ASTNode):
-    """Single ORDER BY item."""
+    """Single ORDER BY item with NULLS ordering."""
     expression: Expression
     direction: OrderDirection = OrderDirection.ASC
+    nulls_order: Optional[NullsOrder] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_order_by_item(self)
 
     def __str__(self) -> str:
-        return f"{self.expression} {self.direction.value}"
+        parts = [str(self.expression)]
+        if self.direction:
+            parts.append(self.direction.value)
+        if self.nulls_order is not None:
+            parts.append(f"NULLS {self.nulls_order.value}")
+        return " ".join(parts)
 
 @dataclass
 class OrderByClause(ASTNode):
@@ -912,11 +928,12 @@ class SetOperator(Enum):
 
 @dataclass
 class SetOperation(Statement):
-    """Set operation combining two statements."""
-    left: Statement
-    right: Statement
+    """Set operation combining SELECT statements."""
+    left: Select
+    right: Select
     operator: SetOperator
     all: bool = False
+    corresponding: bool = False
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_set_operation(self)

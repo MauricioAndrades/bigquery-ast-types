@@ -10,13 +10,13 @@ Date: 2025-07-31
 
 # TODO: Add `from __future__ import annotations` for cleaner type hints (see issue #2)
 from typing import Any, List, Optional, Union, Dict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field  # pyright: ignore [unused-import]
 
 # Import types from types module instead of redefining them
 from .types import (
     ASTNode,
     Expression,
-    Identifier, 
+    Identifier,
     Literal,
     BinaryOp,
     UnaryOp,
@@ -29,8 +29,17 @@ from .types import (
     Star,
     SelectColumn,
     TableRef,
+    GroupByClause,
+    HavingClause,
     OrderByClause,
     OrderByItem,
+    OrderDirection,
+    NullsOrder,
+    LimitClause,
+    IntervalLiteral,
+    JSONLiteral,
+    NamedParameter,
+    PositionalParameter,
     WhenClause,
     StringLiteral,
     IntegerLiteral,
@@ -385,6 +394,142 @@ class Builders:
         table_node = TableName(table=name)
         return TableRef(table=table_node, alias=alias)
 
+    # Clauses
+    @staticmethod
+    def group_by(*expressions: Union[Expression, int, str]) -> GroupByClause:
+        """Create GROUP BY clause.
+
+        Args:
+            expressions: Column expressions, positions (1,2,3), or 'ALL'
+
+        Examples:
+            b.group_by(b.col("department"), b.col("team"))
+            b.group_by(1, 2)  # By position
+            b.group_by("ALL")  # GROUP BY ALL
+        """
+        if len(expressions) == 1 and expressions[0] == "ALL":
+            return GroupByClause(all=True)
+
+        parsed_exprs: List[Expression] = []
+        for expr in expressions:
+            if isinstance(expr, int):
+                parsed_exprs.append(IntegerLiteral(expr))
+            elif isinstance(expr, str):
+                parsed_exprs.append(Identifier(expr))
+            elif isinstance(expr, Expression):
+                parsed_exprs.append(expr)
+            else:
+                raise ValidationError(f"Invalid GROUP BY expression: {expr}")
+
+        return GroupByClause(expressions=parsed_exprs)
+
+    @staticmethod
+    def group_by_rollup(*expressions: Expression) -> GroupByClause:
+        """GROUP BY with ROLLUP."""
+        return GroupByClause(rollup=list(expressions))
+
+    @staticmethod
+    def group_by_cube(*expressions: Expression) -> GroupByClause:
+        """GROUP BY with CUBE."""
+        return GroupByClause(cube=list(expressions))
+
+    @staticmethod
+    def grouping_sets(*sets: List[Expression]) -> GroupByClause:
+        """GROUP BY with GROUPING SETS."""
+        return GroupByClause(grouping_sets=list(sets))
+
+    @staticmethod
+    def having(condition: Expression) -> HavingClause:
+        """Create HAVING clause for filtering grouped results."""
+        if not isinstance(condition, Expression):
+            raise ValidationError("HAVING condition must be an Expression")
+        return HavingClause(condition=condition)
+
+    @staticmethod
+    def order_by(*items: Union[Expression, tuple]) -> OrderByClause:
+        """Create ORDER BY clause with flexible syntax."""
+        order_items: List[OrderByItem] = []
+        for item in items:
+            if isinstance(item, Expression):
+                order_items.append(OrderByItem(expression=item))
+            elif isinstance(item, tuple):
+                expr = item[0]
+                direction = OrderDirection.ASC
+                nulls_order: Optional[NullsOrder] = None
+                if len(item) >= 2:
+                    direction = OrderDirection[item[1].upper()]
+                if len(item) >= 3:
+                    nulls_part = item[2].upper().replace("NULLS ", "")
+                    nulls_order = NullsOrder[nulls_part]
+                order_items.append(OrderByItem(expression=expr, direction=direction, nulls_order=nulls_order))
+            else:
+                raise ValidationError(f"Invalid ORDER BY item: {item}")
+
+        return OrderByClause(items=order_items)
+
+    @staticmethod
+    def limit(limit: Union[int, Expression], offset: Optional[Union[int, Expression]] = None) -> LimitClause:
+        """Create LIMIT clause with optional OFFSET."""
+        limit_expr = IntegerLiteral(limit) if isinstance(limit, int) else limit
+        offset_expr = None
+        if offset is not None:
+            offset_expr = IntegerLiteral(offset) if isinstance(offset, int) else offset
+        return LimitClause(limit=limit_expr, offset=offset_expr)
+
+    @staticmethod
+    def union(left: Select, right: Select, all: bool = False, corresponding: bool = False) -> SetOperation:
+        """Create UNION operation."""
+        return SetOperation(left=left, right=right, operator=SetOperator.UNION, all=all, corresponding=corresponding)
+
+    @staticmethod
+    def intersect(left: Select, right: Select, all: bool = False, corresponding: bool = False) -> SetOperation:
+        """Create INTERSECT operation."""
+        return SetOperation(left=left, right=right, operator=SetOperator.INTERSECT, all=all, corresponding=corresponding)
+
+    @staticmethod
+    def except_(left: Select, right: Select, all: bool = False, corresponding: bool = False) -> SetOperation:
+        """Create EXCEPT operation."""
+        return SetOperation(left=left, right=right, operator=SetOperator.EXCEPT, all=all, corresponding=corresponding)
+
+    @staticmethod
+    def interval(value: int, unit: str) -> IntervalLiteral:
+        """Create INTERVAL literal with single datetime part."""
+        valid_units = {"YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND"}
+        if unit.upper() not in valid_units:
+            raise ValidationError(f"Invalid interval unit: {unit}")
+        return IntervalLiteral(value=f"{value} {unit.upper()}")
+
+    @staticmethod
+    def interval_range(value: str, start_unit: str, end_unit: str) -> IntervalLiteral:
+        """Create INTERVAL with datetime range."""
+        return IntervalLiteral(value=value, from_part=start_unit.upper(), to_part=end_unit.upper())
+
+    @staticmethod
+    def json(value: Union[dict, list, str]) -> JSONLiteral:
+        """Create JSON literal from Python objects or string."""
+        if isinstance(value, (dict, list)):
+            import json as _json
+            json_str = _json.dumps(value, indent=2)
+        else:
+            json_str = value
+        return JSONLiteral(value=json_str)
+
+    @staticmethod
+    def param(name: str) -> NamedParameter:
+        """Create named query parameter."""
+        if not name or not isinstance(name, str):
+            raise ValidationError("Parameter name must be a non-empty string")
+        if not (name[0].isalpha() or name[0] == '_'):
+            raise ValidationError(
+                f"Parameter name must start with letter or underscore: {name}"
+            )
+        return NamedParameter(name=name)
+
+    @staticmethod
+    def param_positional(position: int = None) -> PositionalParameter:
+        """Create positional query parameter."""
+        return PositionalParameter(position=position or 0)
+
     # Complex helpers
     @staticmethod
     def null_safe_eq(left: Expression, right: Expression) -> Expression:
@@ -396,27 +541,6 @@ class Builders:
                 Builders.is_null(right)
             )
         )
-
-    # Set operations
-    @staticmethod
-    def set_op(left: Select, right: Select, operator: SetOperator, all: bool = False) -> SetOperation:
-        """Generic set operation between two SELECT statements."""
-        return SetOperation(left=left, right=right, operator=operator, all=all)
-
-    @staticmethod
-    def union(left: Select, right: Select, all: bool = False) -> SetOperation:
-        """UNION or UNION ALL."""
-        return Builders.set_op(left, right, SetOperator.UNION, all)
-
-    @staticmethod
-    def intersect(left: Select, right: Select, all: bool = False) -> SetOperation:
-        """INTERSECT or INTERSECT ALL."""
-        return Builders.set_op(left, right, SetOperator.INTERSECT, all)
-
-    @staticmethod
-    def except_(left: Select, right: Select, all: bool = False) -> SetOperation:
-        """EXCEPT or EXCEPT ALL."""
-        return Builders.set_op(left, right, SetOperator.EXCEPT, all)
 
 
 # Export builder instance

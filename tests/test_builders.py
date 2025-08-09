@@ -15,7 +15,21 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 from lib import b, ValidationError, Identifier, Literal, BinaryOp
-from lib.types import OrderByClause, Select, SetOperator
+from lib.types import (
+    OrderByClause,
+    Select,
+    SetOperator,
+    GroupByClause,
+    HavingClause,
+    OrderDirection,
+    NullsOrder,
+    LimitClause,
+    IntervalLiteral,
+    JSONLiteral,
+    NamedParameter,
+    IntegerLiteral,
+    PositionalParameter,
+)
 
 
 class TestIdentifierBuilder:
@@ -319,19 +333,90 @@ class TestComplexBuilders:
 class TestSetOperations:
     """Test builders for set operations."""
 
-    def test_union_all_builder(self):
-        left = Select(select_list=[b.select_col(b.lit(1))])
-        right = Select(select_list=[b.select_col(b.lit(2))])
-        union = b.union(left, right, all=True)
-        assert union.operator == SetOperator.UNION
-        assert union.all is True
+    def test_set_operations(self):
+        s1 = Select(select_list=[b.select_col(b.col("a"))])
+        s2 = Select(select_list=[b.select_col(b.col("b"))])
 
-    def test_intersect_builder(self):
-        left = Select(select_list=[b.select_col(b.lit(1))])
-        right = Select(select_list=[b.select_col(b.lit(1))])
-        inter = b.intersect(left, right)
-        assert inter.operator == SetOperator.INTERSECT
-        assert inter.all is False
+        u = b.union(s1, s2)
+        assert u.operator == SetOperator.UNION
+        assert u.all is False
+
+        u_all = b.union(s1, s2, all=True)
+        assert u_all.all is True
+
+        i = b.intersect(s1, s2)
+        assert i.operator == SetOperator.INTERSECT
+
+        e = b.except_(s1, s2)
+        assert e.operator == SetOperator.EXCEPT
+
+
+class TestClauseBuilders:
+    """Test builders for SQL clauses and literals."""
+
+    def test_group_by(self):
+        gb = b.group_by(b.col("dept"), b.col("team"))
+        assert len(gb.expressions) == 2
+
+        gb = b.group_by(1, 2, 3)
+        assert all(isinstance(e, IntegerLiteral) for e in gb.expressions)
+
+        gb = b.group_by("ALL")
+        assert gb.all is True
+
+        gb = b.group_by_rollup(b.col("year"), b.col("month"))
+        assert gb.rollup == [b.col("year"), b.col("month")]
+
+        gb = b.group_by_cube(b.col("product"), b.col("region"))
+        assert gb.cube is not None
+
+        gb = b.grouping_sets([b.col("a")], [b.col("b")], [])
+        assert len(gb.grouping_sets) == 3
+
+    def test_having(self):
+        condition = b.gt(b.col("cnt"), b.lit(1))
+        clause = b.having(condition)
+        assert isinstance(clause, HavingClause)
+        assert clause.condition == condition
+
+    def test_order_by(self):
+        ob = b.order_by(b.col("name"))
+        assert ob.items[0].direction == OrderDirection.ASC
+
+        ob = b.order_by((b.col("age"), "DESC"))
+        assert ob.items[0].direction == OrderDirection.DESC
+
+        ob = b.order_by((b.col("salary"), "DESC", "NULLS LAST"))
+        assert ob.items[0].nulls_order == NullsOrder.LAST
+
+        ob = b.order_by(b.col("dept"), (b.col("salary"), "DESC", "NULLS FIRST"))
+        assert len(ob.items) == 2
+        assert ob.items[1].nulls_order == NullsOrder.FIRST
+
+    def test_limit(self):
+        clause = b.limit(10, offset=5)
+        assert isinstance(clause, LimitClause)
+        assert clause.limit.value == 10
+        assert clause.offset.value == 5
+
+    def test_interval(self):
+        lit = b.interval(5, "DAY")
+        assert isinstance(lit, IntervalLiteral)
+        assert lit.value == "5 DAY"
+
+    def test_json(self):
+        lit = b.json({"key": "value"})
+        assert isinstance(lit, JSONLiteral)
+        assert '"key": "value"' in lit.value
+
+    def test_param(self):
+        param = b.param("user_id")
+        assert isinstance(param, NamedParameter)
+        assert param.name == "user_id"
+
+        pos = b.param_positional(0)
+        assert isinstance(pos, PositionalParameter)
+        assert pos.position == 0
 
 
 if __name__ == "__main__":

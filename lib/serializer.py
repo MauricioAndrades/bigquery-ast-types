@@ -33,6 +33,7 @@ from .types import (
     OrderByClause,
     OrderByItem,
     LimitClause,
+    SetOperation,
     CTE,
     WithClause,
     Merge,
@@ -231,17 +232,42 @@ class SQLSerializer(ASTVisitor):
         node.condition.accept(self)
 
     def visit_group_by_clause(self, node: GroupByClause) -> Any:
-        """
-        Serialize a GROUP BY clause.
-        Args:
-            node (GroupByClause): The GROUP BY clause node.
-        """
+        """Serialize a GROUP BY clause with advanced grouping."""
         self._keyword("GROUP BY")
         self._write(" ")
-        for i, expr in enumerate(node.expressions):
-            if i > 0:
-                self._write(", ")
-            expr.accept(self)
+        if node.all:
+            self._write("ALL")
+        elif node.rollup is not None:
+            self._write("ROLLUP(")
+            for i, expr in enumerate(node.rollup):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
+            self._write(")")
+        elif node.cube is not None:
+            self._write("CUBE(")
+            for i, expr in enumerate(node.cube):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
+            self._write(")")
+        elif node.grouping_sets is not None:
+            self._write("GROUPING SETS(")
+            for i, grouping in enumerate(node.grouping_sets):
+                if i > 0:
+                    self._write(", ")
+                self._write("(")
+                for j, expr in enumerate(grouping):
+                    if j > 0:
+                        self._write(", ")
+                    expr.accept(self)
+                self._write(")")
+            self._write(")")
+        else:
+            for i, expr in enumerate(node.expressions):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
 
     def visit_having_clause(self, node: HavingClause) -> Any:
         """
@@ -263,6 +289,8 @@ class SQLSerializer(ASTVisitor):
         node.expression.accept(self)
         if node.direction:
             self._write(f" {node.direction.value}")
+        if node.nulls_order is not None:
+            self._write(f" NULLS {node.nulls_order.value}")
 
     def visit_order_by_clause(self, node: OrderByClause) -> Any:
         """
@@ -360,6 +388,20 @@ class SQLSerializer(ASTVisitor):
         if node.limit_clause:
             self._write(" ")
             node.limit_clause.accept(self)
+
+    def visit_set_operation(self, node: SetOperation) -> Any:
+        """Serialize a set operation combining SELECT statements."""
+        node.left.accept(self)
+        self._write(" ")
+        self._keyword(node.operator.value)
+        if node.all:
+            self._write(" ")
+            self._keyword("ALL")
+        if node.corresponding:
+            self._write(" ")
+            self._keyword("CORRESPONDING")
+        self._write(" ")
+        node.right.accept(self)
 
     def visit_subquery(self, node: Subquery) -> Any:
         """
@@ -584,7 +626,11 @@ class SQLSerializer(ASTVisitor):
 
     def visit_interval_literal(self, node) -> Any:
         """Visit an interval literal."""
-        self._write(f"INTERVAL {node.value} {node.unit}")
+        self._write("INTERVAL ")
+        if getattr(node, "from_part", None) and getattr(node, "to_part", None):
+            self._write(f"'{node.value}' {node.from_part} TO {node.to_part}")
+        else:
+            self._write(f"{node.value}")
 
     def visit_array_literal(self, node) -> Any:
         """Visit an array literal."""
