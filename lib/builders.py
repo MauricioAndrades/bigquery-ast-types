@@ -72,7 +72,15 @@ from .types import (
     Unpivot,
     Merge,
     MergeWhenClause,
-    MergeAction
+    MergeAction,
+    # BigQuery ML and External Table imports
+    CreateModel,
+    MLPredict,
+    MLEvaluate,
+    MLExplain,
+    CreateExternalTable,
+    ExportData,
+    LoadData
 )
 
 class ValidationError(Exception):
@@ -1213,6 +1221,174 @@ class Builders:
                 .when_not_matched_by_source_delete()
         """
         return MergeBuilder(target, source, on)
+
+    # BigQuery ML and External Table builders
+    @staticmethod
+    def create_model(model_name: str,
+                    options: Optional[Dict[str, Any]] = None,
+                    as_query: Optional['Select'] = None,
+                    transform: Optional[Expression] = None) -> 'CreateModel':
+        """
+        Create CREATE MODEL statement for BigQuery ML.
+        
+        Args:
+            model_name: Name of the model to create
+            options: Dictionary of model options (e.g., model_type, input_label_cols)
+            as_query: SELECT query for training data
+            transform: Optional TRANSFORM clause for feature engineering
+            
+        Examples:
+            b.create_model("my_dataset.my_model",
+                          options={"model_type": "linear_reg", "input_label_cols": ["label"]},
+                          as_query=b.select(...))
+        """
+        if not model_name or not isinstance(model_name, str):
+            raise ValidationError("Model name must be a non-empty string")
+        
+        model_options = {}
+        if options:
+            if not isinstance(options, dict):
+                raise ValidationError("Model options must be a dictionary")
+            # Convert values to expressions/literals
+            for key, value in options.items():
+                if not isinstance(key, str):
+                    raise ValidationError(f"Option key must be string, got {type(key)}")
+                if isinstance(value, Expression):
+                    model_options[key] = value
+                elif isinstance(value, list):
+                    # Convert list to string representation for BigQuery options
+                    model_options[key] = Builders.lit(str(value))
+                else:
+                    model_options[key] = Builders.lit(value)
+        
+        return CreateModel(
+            model_name=model_name,
+            options=model_options,
+            as_query=as_query,
+            transform=transform
+        )
+
+    @staticmethod
+    def ml_predict(model_name: str,
+                  input_data: Union['Select', 'TableRef'],
+                  struct_options: Optional[Dict[str, Any]] = None) -> 'MLPredict':
+        """
+        Create ML.PREDICT function call for BigQuery ML predictions.
+        
+        Args:
+            model_name: Name of the trained model
+            input_data: SELECT query or table reference for input data
+            struct_options: Optional dictionary of prediction options
+            
+        Examples:
+            b.ml_predict("my_dataset.my_model", b.select(...))
+            b.ml_predict("my_dataset.my_model", b.table("input_table"))
+        """
+        if not model_name or not isinstance(model_name, str):
+            raise ValidationError("Model name must be a non-empty string")
+        
+        if not isinstance(input_data, (Select, TableRef)):
+            raise ValidationError("Input data must be Select or TableRef")
+        
+        options = {}
+        if struct_options:
+            if not isinstance(struct_options, dict):
+                raise ValidationError("Struct options must be a dictionary")
+            for key, value in struct_options.items():
+                if not isinstance(key, str):
+                    raise ValidationError(f"Option key must be string, got {type(key)}")
+                if isinstance(value, Expression):
+                    options[key] = value
+                elif isinstance(value, list):
+                    options[key] = Builders.lit(str(value))
+                else:
+                    options[key] = Builders.lit(value)
+        
+        return MLPredict(
+            model_name=model_name,
+            input_data=input_data,
+            struct_options=options
+        )
+
+    @staticmethod
+    def create_external_table(table_name: str,
+                            schema: Optional[List[str]] = None,
+                            options: Optional[Dict[str, Any]] = None) -> 'CreateExternalTable':
+        """
+        Create CREATE EXTERNAL TABLE statement for external data sources.
+        
+        Args:
+            table_name: Name of the external table to create
+            schema: Optional list of column definitions
+            options: Dictionary of external table options (e.g., format, uris)
+            
+        Examples:
+            b.create_external_table("my_dataset.external_table",
+                                   schema=["id INT64", "name STRING"],
+                                   options={"format": "CSV", "uris": ["gs://bucket/file.csv"]})
+        """
+        if not table_name or not isinstance(table_name, str):
+            raise ValidationError("Table name must be a non-empty string")
+        
+        table_schema = schema or []
+        if not isinstance(table_schema, list):
+            raise ValidationError("Schema must be a list")
+        
+        table_options = {}
+        if options:
+            if not isinstance(options, dict):
+                raise ValidationError("Options must be a dictionary")
+            for key, value in options.items():
+                if not isinstance(key, str):
+                    raise ValidationError(f"Option key must be string, got {type(key)}")
+                if isinstance(value, Expression):
+                    table_options[key] = value
+                elif isinstance(value, list):
+                    table_options[key] = Builders.lit(str(value))
+                else:
+                    table_options[key] = Builders.lit(value)
+        
+        return CreateExternalTable(
+            table_name=table_name,
+            schema=table_schema,
+            options=table_options
+        )
+
+    @staticmethod
+    def export_data(options: Dict[str, Any],
+                   as_query: 'Select') -> 'ExportData':
+        """
+        Create EXPORT DATA statement for exporting query results.
+        
+        Args:
+            options: Dictionary of export options (e.g., uri, format)
+            as_query: SELECT query whose results to export
+            
+        Examples:
+            b.export_data({"uri": "gs://bucket/export/*", "format": "CSV"},
+                         b.select(...))
+        """
+        if not options or not isinstance(options, dict):
+            raise ValidationError("Export options must be a non-empty dictionary")
+        
+        if not isinstance(as_query, Select):
+            raise ValidationError("AS query must be a Select statement")
+        
+        export_options = {}
+        for key, value in options.items():
+            if not isinstance(key, str):
+                raise ValidationError(f"Option key must be string, got {type(key)}")
+            if isinstance(value, Expression):
+                export_options[key] = value
+            elif isinstance(value, list):
+                export_options[key] = Builders.lit(str(value))
+            else:
+                export_options[key] = Builders.lit(value)
+        
+        return ExportData(
+            as_query=as_query,
+            options=export_options
+        )
 
 
 # Phase 2: MergeBuilder class for fluent API
