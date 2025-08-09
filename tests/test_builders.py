@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 from lib import b, ValidationError, Identifier, Literal, BinaryOp
-from lib.types import OrderByClause
+from lib.types import OrderByClause, Select, SetOperator
 
 
 class TestIdentifierBuilder:
@@ -314,6 +314,24 @@ class TestComplexBuilders:
         assert "OVER" in win_str
         assert "PARTITION BY" in win_str
         assert "ORDER BY" in win_str
+
+
+class TestSetOperations:
+    """Test builders for set operations."""
+
+    def test_union_all_builder(self):
+        left = Select(select_list=[b.select_col(b.lit(1))])
+        right = Select(select_list=[b.select_col(b.lit(2))])
+        union = b.union(left, right, all=True)
+        assert union.operator == SetOperator.UNION
+        assert union.all is True
+
+    def test_intersect_builder(self):
+        left = Select(select_list=[b.select_col(b.lit(1))])
+        right = Select(select_list=[b.select_col(b.lit(1))])
+        inter = b.intersect(left, right)
+        assert inter.operator == SetOperator.INTERSECT
+        assert inter.all is False
 
 
 if __name__ == "__main__":
