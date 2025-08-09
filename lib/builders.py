@@ -56,6 +56,10 @@ class Literal(ASTNode):
             return 'TRUE' if self.value else 'FALSE'
         elif self.datatype == 'string':
             return f"'{self.value}'"
+        elif self.datatype == 'date':
+            return f"DATE '{self.value}'"
+        elif self.datatype == 'timestamp':
+            return f"TIMESTAMP '{self.value}'"
         return str(self.value)
 
 
@@ -287,6 +291,20 @@ class MergeAction(ASTNode):
 Expression = Union[Identifier, Literal, BinaryOp, UnaryOp, FunctionCall,
                   Cast, Case, WindowFunction, Array, Struct, Star]
 
+ExpressionTypes = (
+    Identifier,
+    Literal,
+    BinaryOp,
+    UnaryOp,
+    FunctionCall,
+    Cast,
+    Case,
+    WindowFunction,
+    Array,
+    Struct,
+    Star,
+)
+
 
 # Builder Functions - The fluent API
 class Builders:
@@ -296,6 +314,8 @@ class Builders:
     @staticmethod
     def col(name: str, table: Optional[str] = None) -> Identifier:
         """Create a column reference."""
+        if not isinstance(name, str) or not name:
+            raise ValidationError("Column name cannot be empty")
         return Identifier(name, table)
 
     @staticmethod
@@ -307,18 +327,22 @@ class Builders:
     @staticmethod
     def lit(value: Any) -> Literal:
         """Create a literal value."""
-        # TODO: Add validation for BigQuery-specific literal constraints (max string length, numeric precision)
-        # TODO: Support additional literal types like BYTES, DATE, TIMESTAMP (see issue #3)
+        # Validate type and BigQuery-specific constraints
         if value is None:
             return Literal(None, 'null')
-        elif isinstance(value, bool):
+        if isinstance(value, bool):
             return Literal(value, 'boolean')
-        elif isinstance(value, str):
+        if isinstance(value, str):
+            if len(value) > 1_048_576:
+                raise ValidationError("String literal exceeds 1MB limit")
             return Literal(value, 'string')
-        elif isinstance(value, (int, float)):
+        if isinstance(value, int):
+            if value < -2**63 or value > 2**63 - 1:
+                raise ValidationError("Integer literal out of INT64 range")
             return Literal(value, 'number')
-        else:
-            raise ValueError(f"Unsupported literal type: {type(value)}")
+        if isinstance(value, float):
+            return Literal(value, 'number')
+        raise TypeError("Unsupported literal type")
 
     @staticmethod
     def null() -> Literal:
@@ -401,31 +425,43 @@ class Builders:
     @staticmethod
     def eq(left: Expression, right: Expression) -> BinaryOp:
         """Equality comparison."""
+        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('=', left, right)
 
     @staticmethod
     def neq(left: Expression, right: Expression) -> BinaryOp:
         """Inequality comparison."""
+        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('!=', left, right)
 
     @staticmethod
     def lt(left: Expression, right: Expression) -> BinaryOp:
         """Less than comparison."""
+        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('<', left, right)
 
     @staticmethod
     def lte(left: Expression, right: Expression) -> BinaryOp:
         """Less than or equal comparison."""
+        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('<=', left, right)
 
     @staticmethod
     def gt(left: Expression, right: Expression) -> BinaryOp:
         """Greater than comparison."""
+        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('>', left, right)
 
     @staticmethod
     def gte(left: Expression, right: Expression) -> BinaryOp:
         """Greater than or equal comparison."""
+        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('>=', left, right)
 
     @staticmethod
@@ -482,6 +518,10 @@ class Builders:
     @staticmethod
     def func(name: str, *args: Expression) -> FunctionCall:
         """Generic function call."""
+        if not isinstance(name, str) or not name:
+            raise ValidationError("Function name cannot be empty")
+        if not all(isinstance(arg, ExpressionTypes) for arg in args):
+            raise TypeError("All function arguments must be Expression instances")
         return FunctionCall(name, list(args))
 
     @staticmethod
@@ -521,11 +561,23 @@ class Builders:
     @staticmethod
     def cast(expr: Expression, target_type: str) -> Cast:
         """CAST expression."""
+        valid_types = {
+            'STRING', 'INT64', 'FLOAT64', 'BOOL', 'BOOLEAN',
+            'DATE', 'TIMESTAMP', 'NUMERIC', 'BIGNUMERIC'
+        }
+        if not isinstance(target_type, str) or target_type.upper() not in valid_types:
+            raise ValidationError("Invalid data type")
         return Cast(expr, target_type, safe=False)
 
     @staticmethod
     def safe_cast(expr: Expression, target_type: str) -> Cast:
         """SAFE_CAST expression."""
+        valid_types = {
+            'STRING', 'INT64', 'FLOAT64', 'BOOL', 'BOOLEAN',
+            'DATE', 'TIMESTAMP', 'NUMERIC', 'BIGNUMERIC'
+        }
+        if not isinstance(target_type, str) or target_type.upper() not in valid_types:
+            raise ValidationError("Invalid data type")
         return Cast(expr, target_type, safe=True)
 
     # CASE expressions
