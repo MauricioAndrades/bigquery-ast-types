@@ -12,6 +12,10 @@ Date: 2025-07-31
 from typing import Any, List, Optional, Union, Dict
 from dataclasses import dataclass, field
 
+class ValidationError(Exception):
+    """Custom exception for builder validation errors in BigQuery AST."""
+    pass
+
 
 # Base AST Node Types
 @dataclass
