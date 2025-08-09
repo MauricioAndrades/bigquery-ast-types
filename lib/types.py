@@ -534,6 +534,10 @@ class ArrayLiteral(Literal):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_array_literal(self)
 
+    def __str__(self) -> str:
+        elements_str = ", ".join(str(e) for e in self.elements)
+        return f"[{elements_str}]"
+
 @dataclass
 class StructLiteral(Literal):
     """Struct literal."""
@@ -542,6 +546,10 @@ class StructLiteral(Literal):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_struct_literal(self)
+
+    def __str__(self) -> str:
+        fields_str = ", ".join(f"{expr} AS {name}" for name, expr in self.fields)
+        return f"STRUCT({fields_str})"
 
 @dataclass
 class RangeLiteral(Literal):
@@ -615,6 +623,9 @@ class BlockComment(Comment):
     def __init__(self, text: str, is_multiline: bool = True):
         super().__init__(text=text, style="/* */", is_multiline=is_multiline)
 
+# ---------------------------------------------------------------------------
+# Additional core node types used by the builder utilities.
+
 # Expression Nodes
 @dataclass
 class BinaryOp(Expression):
@@ -626,6 +637,9 @@ class BinaryOp(Expression):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_binary_op(self)
 
+    def __str__(self) -> str:
+        return f"({self.left} {self.operator} {self.right})"
+
 @dataclass
 class UnaryOp(Expression):
     """Unary operation."""
@@ -635,6 +649,9 @@ class UnaryOp(Expression):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_unary_op(self)
 
+    def __str__(self) -> str:
+        return f"{self.operator} {self.operand}"
+
 @dataclass
 class FunctionCall(Expression):
     """Function call expression."""
@@ -643,6 +660,24 @@ class FunctionCall(Expression):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_function_call(self)
+
+    def __str__(self) -> str:
+        args_str = ", ".join(str(a) for a in self.arguments)
+        return f"{self.function_name}({args_str})"
+
+@dataclass
+class Cast(Expression):
+    """CAST expression."""
+    expr: Expression
+    target_type: str
+    safe: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        func = "SAFE_CAST" if self.safe else "CAST"
+        return f"{func}({self.expr} AS {self.target_type})"
 
 # Statement and Clause Types
 @dataclass
@@ -695,6 +730,9 @@ class OrderByItem(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_order_by_item(self)
+
+    def __str__(self) -> str:
+        return f"{self.expression} {self.direction.value}"
 
 @dataclass
 class OrderByClause(ASTNode):
@@ -829,7 +867,19 @@ class WindowFunction(Expression):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_window_function(self)
 
-# Additional Statement Types from main branch
+    def __str__(self) -> str:
+        args_str = ", ".join(str(a) for a in self.arguments)
+        parts = []
+        if self.window_spec.partition_by:
+            partition_str = ", ".join(str(e) for e in self.window_spec.partition_by)
+            parts.append(f"PARTITION BY {partition_str}")
+        if self.window_spec.order_by:
+            order_str = ", ".join(str(o) for o in self.window_spec.order_by.items)
+            parts.append(f"ORDER BY {order_str}")
+        over = " ".join(parts)
+        return f"{self.function_name}({args_str}) OVER ({over})"
+
+# Additional Statement Types
 @dataclass
 class WhenClause(ASTNode):
     """WHEN clause in CASE expression."""
@@ -839,6 +889,9 @@ class WhenClause(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_when_clause(self)
 
+    def __str__(self) -> str:
+        return f"WHEN {self.condition} THEN {self.result}"
+
 @dataclass
 class Case(Expression):
     """CASE expression."""
@@ -847,6 +900,14 @@ class Case(Expression):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_case(self)
+
+    def __str__(self) -> str:
+        clauses = "\n  ".join(str(w) for w in self.whens)
+        result = f"CASE\n  {clauses}"
+        if self.else_result:
+            result += f"\n  ELSE {self.else_result}"
+        result += "\n  END"
+        return result
 
 @dataclass
 class Insert(Statement):
@@ -876,3 +937,17 @@ class CreateTable(Statement):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_create_table(self)
+
+@dataclass
+class Star(Expression):
+    """SELECT * expression."""
+    except_columns: List[str] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        if self.except_columns:
+            cols = ", ".join(self.except_columns)
+            return f"* EXCEPT ({cols})"
+        return "*"
