@@ -866,6 +866,7 @@ class Select(Statement):
     having_clause: Optional[HavingClause] = None
     order_by_clause: Optional[OrderByClause] = None
     limit_clause: Optional[LimitClause] = None
+    with_clause: Optional["WithClause"] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_select(self)

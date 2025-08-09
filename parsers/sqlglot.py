@@ -23,7 +23,9 @@ from ..lib.types import (
     StringLiteral, BytesLiteral, IntegerLiteral, NumericLiteral, BigNumericLiteral,
     FloatLiteral, BooleanLiteral, NullLiteral, DateLiteral, TimeLiteral, TimestampLiteral, IntervalLiteral, JSONLiteral, ArrayLiteral,
     NamedParameter, PositionalParameter, Literal,
-    DatetimeLiteral
+    DatetimeLiteral,
+    GroupByClause, HavingClause, OrderByClause, OrderByItem, LimitClause,
+    CTE, WithClause, OrderDirection
 )
 
 # Define a generic Statement type for AST root nodes
@@ -51,6 +53,12 @@ class SQLGlotParser:
         """Transform SQLGlot AST to our AST."""
         if isinstance(node, exp.Select):
             return self._transform_select(node)
+        elif isinstance(node, exp.With):
+            with_clause = self._transform_with(node)
+            stmt = self._transform(node.this)
+            if isinstance(stmt, Select):
+                stmt.with_clause = with_clause
+            return stmt
         elif isinstance(node, exp.Insert):
             return self._transform_insert(node)
         elif isinstance(node, exp.Update):
@@ -79,6 +87,16 @@ class SQLGlotParser:
         """Transform SQLGlot subquery to our Subquery."""
         select = self._transform_select(sub.this)
         return Subquery(query=select, alias=sub.alias)
+
+    def _transform_with(self, with_expr: exp.With) -> WithClause:
+        """Transform SQLGlot WITH clause to our WithClause."""
+        ctes: List[CTE] = []
+        for cte_exp in with_expr.expressions or []:
+            name = cte_exp.alias
+            query = self._transform_select(cte_exp.this)
+            columns = [col.name for col in cte_exp.args.get("columns") or []]
+            ctes.append(CTE(name=name, query=query, columns=columns or None))
+        return WithClause(ctes=ctes)
 
     def _transform_select(self, select: exp.Select) -> Select:
         """Transform SQLGlot Select to our Select using builder API for columns."""
@@ -112,6 +130,41 @@ class SQLGlotParser:
         if select.args.get("where"):
             condition = self._transform_expression(select.args["where"].this)
             result.where_clause = WhereClause(condition=condition)
+
+        # GROUP BY clause
+        if select.args.get("group"):
+            group_exprs = [
+                self._transform_expression(g)
+                for g in select.args["group"].expressions or []
+            ]
+            result.group_by_clause = GroupByClause(expressions=group_exprs)
+
+        # HAVING clause
+        if select.args.get("having"):
+            having_expr = self._transform_expression(select.args["having"].this)
+            result.having_clause = HavingClause(condition=having_expr)
+
+        # ORDER BY clause
+        if select.args.get("order"):
+            order_items: List[OrderByItem] = []
+            for order in select.args["order"].expressions or []:
+                expr = self._transform_expression(order.this)
+                direction = OrderDirection.DESC if order.args.get("desc") else OrderDirection.ASC
+                order_items.append(OrderByItem(expression=expr, direction=direction))
+            result.order_by_clause = OrderByClause(items=order_items)
+
+        # LIMIT/OFFSET clause
+        limit_expr = select.args.get("limit")
+        offset_expr = select.args.get("offset")
+        if limit_expr or offset_expr:
+            limit_value = self._transform_expression(limit_expr.this) if limit_expr else None
+            if limit_value is not None:
+                offset_value = (
+                    self._transform_expression(offset_expr.this)
+                    if offset_expr
+                    else None
+                )
+                result.limit_clause = LimitClause(limit=limit_value, offset=offset_value)
 
         return result
 
