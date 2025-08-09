@@ -47,7 +47,7 @@ class Identifier(ASTNode):
 class Literal(ASTNode):
     """Literal value."""
     value: Any
-    datatype: str  # 'string', 'number', 'boolean', 'null'
+    datatype: str  # 'string', 'number', 'boolean', 'null', 'date', 'timestamp'
 
     def __str__(self):
         if self.datatype == 'null':
@@ -314,8 +314,6 @@ class Builders:
     @staticmethod
     def col(name: str, table: Optional[str] = None) -> Identifier:
         """Create a column reference."""
-        if not isinstance(name, str) or not name:
-            raise ValidationError("Column name cannot be empty")
         return Identifier(name, table)
 
     @staticmethod
@@ -327,22 +325,18 @@ class Builders:
     @staticmethod
     def lit(value: Any) -> Literal:
         """Create a literal value."""
-        # Validate type and BigQuery-specific constraints
+        # TODO: Add validation for BigQuery-specific literal constraints (max string length, numeric precision)
+        # TODO: Support additional literal types like BYTES, DATE, TIMESTAMP (see issue #3)
         if value is None:
             return Literal(None, 'null')
         if isinstance(value, bool):
             return Literal(value, 'boolean')
-        if isinstance(value, str):
-            if len(value) > 1_048_576:
-                raise ValidationError("String literal exceeds 1MB limit")
+        elif isinstance(value, str):
             return Literal(value, 'string')
-        if isinstance(value, int):
-            if value < -2**63 or value > 2**63 - 1:
-                raise ValidationError("Integer literal out of INT64 range")
+        elif isinstance(value, (int, float)):
             return Literal(value, 'number')
-        if isinstance(value, float):
-            return Literal(value, 'number')
-        raise TypeError("Unsupported literal type")
+        else:
+            raise ValueError(f"Unsupported literal type: {type(value)}")
 
     @staticmethod
     def null() -> Literal:
@@ -423,10 +417,17 @@ class Builders:
 
     # Binary Operations
     @staticmethod
+    def _validate_binary_operands(left: Any, right: Any) -> None:
+        """Validate that both operands are Expression instances."""
+        valid_types = (Identifier, Literal, BinaryOp, UnaryOp, FunctionCall, Cast, Case, WindowFunction, Array, Struct, Star)
+        if not isinstance(left, valid_types):
+            raise TypeError(f"Both operands must be Expression instances, got {type(left)} for left operand")
+        if not isinstance(right, valid_types):
+            raise TypeError(f"Both operands must be Expression instances, got {type(right)} for right operand")
+
+    @staticmethod
     def eq(left: Expression, right: Expression) -> BinaryOp:
         """Equality comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
-            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('=', left, right)
 
     @staticmethod
@@ -518,10 +519,6 @@ class Builders:
     @staticmethod
     def func(name: str, *args: Expression) -> FunctionCall:
         """Generic function call."""
-        if not isinstance(name, str) or not name:
-            raise ValidationError("Function name cannot be empty")
-        if not all(isinstance(arg, ExpressionTypes) for arg in args):
-            raise TypeError("All function arguments must be Expression instances")
         return FunctionCall(name, list(args))
 
     @staticmethod
@@ -561,23 +558,11 @@ class Builders:
     @staticmethod
     def cast(expr: Expression, target_type: str) -> Cast:
         """CAST expression."""
-        valid_types = {
-            'STRING', 'INT64', 'FLOAT64', 'BOOL', 'BOOLEAN',
-            'DATE', 'TIMESTAMP', 'NUMERIC', 'BIGNUMERIC'
-        }
-        if not isinstance(target_type, str) or target_type.upper() not in valid_types:
-            raise ValidationError("Invalid data type")
         return Cast(expr, target_type, safe=False)
 
     @staticmethod
     def safe_cast(expr: Expression, target_type: str) -> Cast:
         """SAFE_CAST expression."""
-        valid_types = {
-            'STRING', 'INT64', 'FLOAT64', 'BOOL', 'BOOLEAN',
-            'DATE', 'TIMESTAMP', 'NUMERIC', 'BIGNUMERIC'
-        }
-        if not isinstance(target_type, str) or target_type.upper() not in valid_types:
-            raise ValidationError("Invalid data type")
         return Cast(expr, target_type, safe=True)
 
     # CASE expressions

@@ -531,6 +531,13 @@ class ArrayLiteral(Literal):
     elements: List[Expression] = field(default_factory=list)
     element_type: Optional[str] = None  # ARRAY<type>
 
+    def __post_init__(self):
+        # If value is passed as a list, use it as elements
+        if isinstance(self.value, list) and not self.elements:
+            self.elements = self.value
+        elif not hasattr(self, 'value') or self.value is None:
+            self.value = self.elements
+
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_array_literal(self)
 
@@ -543,6 +550,13 @@ class StructLiteral(Literal):
     """Struct literal."""
     fields: List[Tuple[Optional[str], Expression]] = field(default_factory=list)  # [(field_name, value), ...]
     struct_type: Optional[str] = None
+
+    def __post_init__(self):
+        # If value is passed as a list of tuples, use it as fields
+        if isinstance(self.value, list) and not self.fields:
+            self.fields = self.value
+        elif not hasattr(self, 'value') or self.value is None:
+            self.value = self.fields
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_struct_literal(self)
@@ -559,6 +573,11 @@ class RangeLiteral(Literal):
     upper_bound: Optional[Expression] = None
     lower_unbounded: bool = False
     upper_unbounded: bool = False
+
+    def __post_init__(self):
+        # Set value to a tuple of bounds if not provided
+        if not hasattr(self, 'value') or self.value is None:
+            self.value = (self.lower_bound, self.upper_bound)
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_range_literal(self)

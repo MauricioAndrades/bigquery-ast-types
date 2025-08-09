@@ -8,7 +8,16 @@ Author: Little Bow Wow 🐕
 Date: 2025-07-31
 """
 
-from alib import DuplicateAnalysisBuilder
+import sys
+import os
+import pytest
+
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+try:
+    from utils.symbo_query import DuplicateAnalysisBuilder
+except ImportError:
+    pytest.skip("DuplicateAnalysisBuilder not available (missing sqlglot)", allow_module_level=True)
 
 
 def test_duplicate_analysis():

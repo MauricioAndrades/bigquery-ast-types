@@ -20,20 +20,11 @@ from .serializer import (
 # Import these separately to avoid circular imports and expose builder types
 try:
     from .builders import (
-        b,
-        Builders,
-        ValidationError,
-        Identifier as _Identifier,
-        Literal as _Literal,
-        BinaryOp as _BinaryOp,
-        OrderByClause as _OrderByClause,
+        b, Builders, ValidationError,
+        Identifier, Literal, BinaryOp, UnaryOp, FunctionCall,
+        Cast, Case, WindowFunction, Array, Struct, Star,
+        SelectColumn, TableRef, OrderByClause
     )
-
-    # Override core types with builder implementations used in tests
-    Identifier = _Identifier
-    Literal = _Literal
-    BinaryOp = _BinaryOp
-    OrderByClause = _OrderByClause
 except ImportError:
     pass
 

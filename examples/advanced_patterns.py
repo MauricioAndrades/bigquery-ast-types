@@ -15,10 +15,14 @@ Date: 2025-07-31
 
 import sys
 
-sys.path.append("..")
+# Add project and library paths if needed
+sys.path.append("/Users/op/libs")
+sys.path.append("/Users/op/Documents/sym/symbo/.context/bigquery-ast-types/lib")
 
 import sqlglot
 from sqlglot import exp
+
+# Import custom AST utilities and pattern matchers
 from lib.bsql import (
     j,
     SQLNode,
@@ -193,13 +197,16 @@ def demo_multi_statement():
         print(f"Statement {i} ({stmt_type}):")
 
         # Extract table references
-        tables = extract_table_references(stmt)
+        tables = extract_table_references(stmt) if stmt is not None else []
         if tables:
             print(f"  Tables: {', '.join(tables)}")
 
         # Show first line of SQL
-        sql_lines = stmt.sql(pretty=True).split("\n")
-        print(f"  SQL: {sql_lines[0]}...")
+        if stmt is not None:
+            sql_lines = stmt.sql(pretty=True).split("\n")
+            print(f"  SQL: {sql_lines[0]}...")
+        else:
+            print("  SQL: <None>")
         print()
 
 

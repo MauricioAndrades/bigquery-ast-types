@@ -10,7 +10,9 @@ Date: 2025-07-31
 print("✅ insertBefore and insertAfter Implementation Status\n")
 
 # Read the collection.py file to verify implementation
-with open("symbo-ast/collection.py", "r") as f:
+import os
+file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "lib", "collection.py")
+with open(file_path, "r") as f:
     content = f.read()
 
 # Check for the methods

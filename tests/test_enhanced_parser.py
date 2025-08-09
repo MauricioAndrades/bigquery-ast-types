@@ -18,11 +18,11 @@ def import_module_from_path(name, path):
     return module
 
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../sqlglot"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 try:
-    ast_types = import_module_from_path("ast_types", "./lib/types.py")
-    sqlglot_parser = import_module_from_path("sqlglot_parser", "./parsers/sqlglot.py")
+    ast_types = import_module_from_path("ast_types", os.path.join(os.path.dirname(__file__), "../lib/types.py"))
+    sqlglot_parser = import_module_from_path("sqlglot_parser", os.path.join(os.path.dirname(__file__), "../parsers/sqlglot.py"))
 except Exception as exc:  # pragma: no cover - skip if dependencies missing
     pytest.skip(f"Required modules not available: {exc}", allow_module_level=True)
 
