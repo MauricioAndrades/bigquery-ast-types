@@ -152,6 +152,33 @@ class SQLSerializer(ASTVisitor):
         """
         self._write("NULL")
 
+    def visit_star(self, node) -> Any:
+        """
+        Serialize a star expression (*).
+        Args:
+            node (Star): The star expression node.
+        """
+        if node.table:
+            self._write(f"{node.table}.")
+        self._write("*")
+
+        if node.except_columns:
+            self._write(" EXCEPT(")
+            for i, col in enumerate(node.except_columns):
+                if i > 0:
+                    self._write(", ")
+                self._write(col)
+            self._write(")")
+
+        if node.replace_columns:
+            self._write(" REPLACE(")
+            for i, (col, expr) in enumerate(node.replace_columns.items()):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
+                self._write(f" AS {col}")
+            self._write(")")
+
     def visit_binary_op(self, node: BinaryOp) -> Any:
         """
         Serialize a binary operation.
@@ -236,16 +263,45 @@ class SQLSerializer(ASTVisitor):
         Args:
             node (GroupByClause): The GROUP BY clause node.
         """
+        from .types import GroupByType
+
         self._keyword("GROUP BY")
         self._write(" ")
-        for i, expr in enumerate(node.expressions):
-            if i > 0:
-                self._write(", ")
-            expr.accept(self)
-        if node.rollup:
-            self._write(" WITH ROLLUP")
-        elif node.cube:
-            self._write(" WITH CUBE")
+
+        if node.group_type == GroupByType.ALL:
+            self._write("ALL")
+        elif node.group_type == GroupByType.ROLLUP:
+            self._write("ROLLUP(")
+            for i, expr in enumerate(node.expressions):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
+            self._write(")")
+        elif node.group_type == GroupByType.CUBE:
+            self._write("CUBE(")
+            for i, expr in enumerate(node.expressions):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
+            self._write(")")
+        elif node.group_type == GroupByType.GROUPING_SETS:
+            self._write("GROUPING SETS(")
+            for i, group in enumerate(node.grouping_sets):
+                if i > 0:
+                    self._write(", ")
+                self._write("(")
+                for j, expr in enumerate(group):
+                    if j > 0:
+                        self._write(", ")
+                    expr.accept(self)
+                self._write(")")
+            self._write(")")
+        else:
+            # Standard GROUP BY
+            for i, expr in enumerate(node.expressions):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
 
     def visit_having_clause(self, node: HavingClause) -> Any:
         """
@@ -267,8 +323,8 @@ class SQLSerializer(ASTVisitor):
         node.expression.accept(self)
         if node.direction:
             self._write(f" {node.direction.value}")
-        if node.nulls_first is not None:
-            self._write(" NULLS FIRST" if node.nulls_first else " NULLS LAST")
+        if node.nulls_order:
+            self._write(f" NULLS {node.nulls_order.value}")
 
     def visit_order_by_clause(self, node: OrderByClause) -> Any:
         """
@@ -366,6 +422,24 @@ class SQLSerializer(ASTVisitor):
         if node.limit_clause:
             self._write(" ")
             node.limit_clause.accept(self)
+
+    def visit_set_operation(self, node) -> Any:
+        """
+        Serialize a set operation (UNION/INTERSECT/EXCEPT).
+        Args:
+            node (SetOperation): The set operation node.
+        """
+        node.left.accept(self)
+        self._write(" ")
+        self._keyword(node.operator.value)
+        if node.all:
+            self._write(" ")
+            self._keyword("ALL")
+        if node.corresponding:
+            self._write(" ")
+            self._keyword("CORRESPONDING")
+        self._write(" ")
+        node.right.accept(self)
 
     def visit_subquery(self, node: Subquery) -> Any:
         """

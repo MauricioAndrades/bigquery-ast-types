@@ -11,7 +11,8 @@
       "Bash(pytest:*)",
       "Bash(grep:*)",
       "Bash(python -m pytest tests/ -v --tb=short)",
-      "Bash(python test:*)"
+      "Bash(python test:*)",
+      "Bash(python run_tests.py:*)"
     ],
     "deny": []
   }

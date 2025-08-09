@@ -323,6 +323,30 @@ class OrderDirection(Enum):
     ASC = "ASC"
     DESC = "DESC"
 
+class NullsOrder(Enum):
+    """NULL value ordering in ORDER BY."""
+    FIRST = "FIRST"
+    LAST = "LAST"
+
+class GroupByType(Enum):
+    """Type of GROUP BY operation."""
+    STANDARD = "STANDARD"
+    ROLLUP = "ROLLUP"
+    CUBE = "CUBE"
+    GROUPING_SETS = "GROUPING_SETS"
+    ALL = "ALL"
+
+class FrameType(Enum):
+    """Window frame type."""
+    ROWS = "ROWS"
+    RANGE = "RANGE"
+
+class FrameBound(Enum):
+    """Window frame bound."""
+    UNBOUNDED_PRECEDING = "UNBOUNDED PRECEDING"
+    UNBOUNDED_FOLLOWING = "UNBOUNDED FOLLOWING"
+    CURRENT_ROW = "CURRENT ROW"
+
 @dataclass
 class SourceLocation:
     """Source location information."""
@@ -761,6 +785,35 @@ class Cast(Expression):
         func = "SAFE_CAST" if self.safe else "CAST"
         return f"{func}({self.expr} AS {self.target_type})"
 
+@dataclass
+class Star(Expression):
+    """Star expression (*) for SELECT ALL."""
+    table: Optional[str] = None  # For table.* syntax
+    except_columns: List[str] = field(default_factory=list)  # For * EXCEPT(col1, col2)
+    replace_columns: Dict[str, Expression] = field(default_factory=dict)  # For * REPLACE(expr AS col)
+    
+    def __init__(self, table: Optional[str] = None, 
+                 except_columns: Optional[List[str]] = None,
+                 replace_columns: Optional[Dict[str, Expression]] = None,
+                 location: Optional['SourceLocation'] = None):
+        super().__init__(location)
+        self.table = table
+        self.except_columns = except_columns or []
+        self.replace_columns = replace_columns or {}
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)  # Will be updated to visit_star
+    
+    def __str__(self) -> str:
+        result = f"{self.table}.*" if self.table else "*"
+        if self.except_columns:
+            cols = ", ".join(self.except_columns)
+            result += f" EXCEPT({cols})"
+        if self.replace_columns:
+            replacements = ", ".join(f"{expr} AS {col}" for col, expr in self.replace_columns.items())
+            result += f" REPLACE({replacements})"
+        return result
+
 # Statement and Clause Types
 @dataclass
 class TableRef(ASTNode):
@@ -790,10 +843,10 @@ class WhereClause(ASTNode):
 
 @dataclass
 class GroupByClause(ASTNode):
-    """GROUP BY clause."""
+    """GROUP BY clause with advanced grouping support."""
     expressions: List[Expression] = field(default_factory=list)
-    rollup: bool = False
-    cube: bool = False
+    group_type: GroupByType = GroupByType.STANDARD
+    grouping_sets: Optional[List[List[Expression]]] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_group_by_clause(self)
@@ -807,22 +860,28 @@ class HavingClause(ASTNode):
         return visitor.visit_having_clause(self)
 
 @dataclass
+class QualifyClause(ASTNode):
+    """QUALIFY clause for window function filtering."""
+    condition: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+@dataclass
 class OrderByItem(ASTNode):
-    """Single ORDER BY item."""
+    """Single ORDER BY item with NULLS ordering."""
     expression: Expression
     direction: OrderDirection = OrderDirection.ASC
-    nulls_first: Optional[bool] = None
+    nulls_order: Optional[NullsOrder] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_order_by_item(self)
 
     def __str__(self) -> str:
-        parts = [str(self.expression)]
-        if self.direction:
-            parts.append(self.direction.value)
-        if self.nulls_first is not None:
-            parts.append("NULLS FIRST" if self.nulls_first else "NULLS LAST")
-        return " ".join(parts)
+        result = f"{self.expression} {self.direction.value}"
+        if self.nulls_order:
+            result += f" NULLS {self.nulls_order.value}"
+        return result
 
 @dataclass
 class OrderByClause(ASTNode):
@@ -876,6 +935,7 @@ class Select(Statement):
     where_clause: Optional[WhereClause] = None
     group_by_clause: Optional[GroupByClause] = None
     having_clause: Optional[HavingClause] = None
+    qualify_clause: Optional[QualifyClause] = None
     order_by_clause: Optional[OrderByClause] = None
     limit_clause: Optional[LimitClause] = None
     with_clause: Optional["WithClause"] = None
@@ -906,6 +966,7 @@ class CTE(ASTNode):
 class WithClause(ASTNode):
     """WITH clause containing CTEs."""
     ctes: List[CTE] = field(default_factory=list)
+    recursive: bool = False
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_with_clause(self)
@@ -920,11 +981,12 @@ class SetOperator(Enum):
 
 @dataclass
 class SetOperation(Statement):
-    """Set operation combining two statements."""
+    """Set operation combining SELECT statements."""
     left: Statement
     right: Statement
     operator: SetOperator
     all: bool = False
+    corresponding: bool = False  # BigQuery CORRESPONDING support
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_set_operation(self)
@@ -954,6 +1016,16 @@ class MergeDelete(ASTNode):
         return visitor.visit_merge_delete(self)
 
 @dataclass
+class MergeWhenClause(ASTNode):
+    """Single WHEN clause in MERGE."""
+    match_type: str  # "MATCHED", "NOT_MATCHED", "NOT_MATCHED_BY_SOURCE"
+    condition: Optional[Expression] = None
+    action: Union[MergeUpdate, MergeInsert, MergeDelete]
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+@dataclass
 class MergeAction(ASTNode):
     """WHEN ... THEN action in MERGE."""
     action: Union[MergeInsert, MergeUpdate, MergeDelete]
@@ -964,20 +1036,33 @@ class MergeAction(ASTNode):
 
 @dataclass
 class Merge(Statement):
-    """MERGE statement."""
+    """MERGE statement with enhanced support."""
     target_table: TableRef
-    source_table: TableRef
+    source: Union[TableRef, Subquery]
     merge_condition: Expression
+    when_clauses: List[MergeWhenClause] = field(default_factory=list)
+    # Keep legacy actions for backward compatibility
     actions: List[MergeAction] = field(default_factory=list)
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge(self)
 
 @dataclass
+class WindowFrame(ASTNode):
+    """Window frame specification."""
+    frame_type: FrameType
+    start_bound: Union[FrameBound, Tuple[int, str]]  # (n, "PRECEDING"/"FOLLOWING")
+    end_bound: Optional[Union[FrameBound, Tuple[int, str]]] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+@dataclass
 class WindowSpecification(ASTNode):
     """Window specification for window functions."""
     partition_by: List[Expression] = field(default_factory=list)
     order_by: Optional[OrderByClause] = None
+    frame: Optional[WindowFrame] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_window_specification(self)
@@ -1106,6 +1191,50 @@ class Update(Statement):
         return visitor.visit_update(self)
 
 @dataclass
+class Unnest(Expression):
+    """UNNEST table function."""
+    array_expr: Expression
+    with_offset: bool = False
+    offset_alias: Optional[str] = None
+    
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+@dataclass
+class TableSample(ASTNode):
+    """TABLESAMPLE clause."""
+    method: str  # "SYSTEM" or "BERNOULLI"
+    percent: float
+    seed: Optional[int] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+@dataclass
+class Pivot(ASTNode):
+    """PIVOT operation."""
+    input_table: Union[TableRef, Subquery]
+    aggregate_functions: List[Tuple[str, Expression]]  # [(agg_func, value_column), ...]
+    pivot_column: Expression
+    pivot_values: List[Expression]
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+@dataclass
+class Unpivot(ASTNode):
+    """UNPIVOT operation."""
+    input_table: Union[TableRef, Subquery]
+    value_column: str
+    name_column: str
+    unpivot_columns: List[str]
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+@dataclass
 class CreateTable(Statement):
     """CREATE TABLE statement."""
     table: TableName
@@ -1114,18 +1243,6 @@ class CreateTable(Statement):
         return visitor.visit_create_table(self)
 
 @dataclass
-class Star(Expression):
-    """SELECT * expression."""
-    except_columns: List[str] = field(default_factory=list)
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.generic_visit(self)
-
-    def __str__(self) -> str:
-        if self.except_columns:
-            cols = ", ".join(self.except_columns)
-            return f"* EXCEPT ({cols})"
-        return "*"
 
 class BQDataType(Enum):
     """BigQuery base data types."""
