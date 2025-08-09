@@ -58,7 +58,21 @@ from .types import (
     HavingClause,
     LimitClause,
     NamedParameter,
-    PositionalParameter
+    PositionalParameter,
+    # Phase 2 imports
+    WithClause,
+    CTE,
+    QualifyClause,
+    WindowFrame,
+    FrameType,
+    FrameBound,
+    Unnest,
+    TableSample,
+    Pivot,
+    Unpivot,
+    Merge,
+    MergeWhenClause,
+    MergeAction
 )
 
 class ValidationError(Exception):
@@ -948,9 +962,9 @@ class Builders:
             raise ValidationError(f"UNNEST requires an Expression, got {type(array_expr)}")
         
         return Unnest(
-            array_expression=array_expr,
-            ordinality=ordinality,
-            alias=alias
+            array_expr=array_expr,
+            with_offset=ordinality,
+            offset_alias=alias
         )
 
     # Phase 2: TABLESAMPLE

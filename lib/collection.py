@@ -10,16 +10,10 @@ Date: 2025-07-31
 
 from typing import List, Callable, Optional, Any, Union, TypeVar, Generic
 
-try:
     # Try relative imports first (when used as module)
-    from .node_path import NodePath
-    from .visitor import BaseVisitor, visit
-    from .types import ASTNode
-except ImportError:
-    # Fall back to absolute imports (when run directly)
-    from node_path import NodePath
-    from visitor import BaseVisitor, visit
-    from types import ASTNode
+from .node_path import NodePath
+from .visitor import BaseVisitor, visit
+from .types import ASTNode
 
 T = TypeVar("T", bound=ASTNode)
 
@@ -263,9 +257,11 @@ class Collection(Generic[T]):
                 new_node = node
 
             try:
+                if not isinstance(new_node, ASTNode):
+                    raise TypeError(f"insert_after expects ASTNode, got {type(new_node)}")
                 new_path = path.insert_after(new_node)
                 new_paths.append(new_path)
-            except ValueError as e:
+            except (ValueError, TypeError) as e:
                 # Could either skip or raise, depending on desired behavior
                 raise ValueError(f"Cannot insert after {path}: {e}")
 

@@ -1015,34 +1015,37 @@ class MergeDelete(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge_delete(self)
 
+from enum import Enum
+
+class MergeAction(Enum):
+    """Action types for MERGE WHEN clauses."""
+    INSERT = "INSERT"
+    UPDATE = "UPDATE"
+    DELETE = "DELETE"
+
 @dataclass
 class MergeWhenClause(ASTNode):
     """Single WHEN clause in MERGE."""
     match_type: str  # "MATCHED", "NOT_MATCHED", "NOT_MATCHED_BY_SOURCE"
+    action: MergeAction
     condition: Optional[Expression] = None
-    action: Union[MergeUpdate, MergeInsert, MergeDelete]
+    # For UPDATE action
+    update_assignments: Optional[Dict[str, Expression]] = None
+    # For INSERT action
+    insert_columns: Optional[List[str]] = None
+    insert_values: Optional[List[Expression]] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.generic_visit(self)
 
-@dataclass
-class MergeAction(ASTNode):
-    """WHEN ... THEN action in MERGE."""
-    action: Union[MergeInsert, MergeUpdate, MergeDelete]
-    condition: Optional[Expression] = None
-
-    def accept(self, visitor: "ASTVisitor") -> Any:
-        return visitor.visit_merge_action(self)
 
 @dataclass
 class Merge(Statement):
     """MERGE statement with enhanced support."""
-    target_table: TableRef
-    source: Union[TableRef, Subquery]
-    merge_condition: Expression
+    target: TableRef
+    source: Union[TableRef, Select]
+    on_condition: Expression
     when_clauses: List[MergeWhenClause] = field(default_factory=list)
-    # Keep legacy actions for backward compatibility
-    actions: List[MergeAction] = field(default_factory=list)
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge(self)
@@ -1203,20 +1206,23 @@ class Unnest(Expression):
 @dataclass
 class TableSample(ASTNode):
     """TABLESAMPLE clause."""
-    method: str  # "SYSTEM" or "BERNOULLI"
-    percent: float
+    table: TableRef
+    method: str = "BERNOULLI"  # "SYSTEM", "BERNOULLI", or "RESERVOIR"
+    percent: Optional[float] = None
+    rows: Optional[int] = None
     seed: Optional[int] = None
-
+    
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.generic_visit(self)
 
 @dataclass
 class Pivot(ASTNode):
     """PIVOT operation."""
-    input_table: Union[TableRef, Subquery]
-    aggregate_functions: List[Tuple[str, Expression]]  # [(agg_func, value_column), ...]
-    pivot_column: Expression
-    pivot_values: List[Expression]
+    source: Union[TableRef, Select]
+    aggregate_function: str
+    value_column: str
+    pivot_column: str
+    pivot_values: List[Any]
     alias: Optional[str] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
@@ -1225,10 +1231,11 @@ class Pivot(ASTNode):
 @dataclass
 class Unpivot(ASTNode):
     """UNPIVOT operation."""
-    input_table: Union[TableRef, Subquery]
+    source: Union[TableRef, Select]
     value_column: str
     name_column: str
-    unpivot_columns: List[str]
+    columns: List[str]
+    include_nulls: bool = False
     alias: Optional[str] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:

@@ -128,7 +128,7 @@ class OrderMergeBuilder:
         ]
         window.order_by = [
             OrderByClause(b.col("order_ts"), "DESC"),
-            OrderByClause(b.col("symbiosys_ts"), "DESC"),
+            OrderByClause([b.col("symbiosys_ts")], "DESC"),
         ]
 
         inner_query = Select(
