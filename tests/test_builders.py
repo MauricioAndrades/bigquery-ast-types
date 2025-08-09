@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 from lib import b, ValidationError, Identifier, Literal, BinaryOp
-from lib.builders import OrderByClause
+from lib.types import OrderByClause
 
 
 class TestIdentifierBuilder:
@@ -50,7 +50,7 @@ class TestLiteralBuilder:
         null = b.null()
         assert isinstance(null, Literal)
         assert null.value is None
-        assert null.datatype == "null"
+        assert null.type == "null"
         assert str(null) == "NULL"
 
     def test_boolean_literals(self):
@@ -66,7 +66,7 @@ class TestLiteralBuilder:
 
     def test_string_literal(self):
         s = b.lit("hello world")
-        assert s.datatype == "string"
+        assert s.type == "string"
         assert str(s) == "'hello world'"
 
     def test_string_literal_max_size(self):
@@ -77,7 +77,7 @@ class TestLiteralBuilder:
 
     def test_integer_literal(self):
         i = b.lit(42)
-        assert i.datatype == "number"
+        assert i.type == "number"
         assert str(i) == "42"
 
     def test_integer_range_validation(self):
@@ -91,12 +91,12 @@ class TestLiteralBuilder:
 
     def test_float_literal(self):
         f = b.lit(3.14)
-        assert f.datatype == "number"
+        assert f.type == "number"
         assert str(f) == "3.14"
 
     def test_date_literal(self):
         d = b.date("2024-01-15")
-        assert d.datatype == "date"
+        assert d.type == "date"
         assert str(d) == "DATE '2024-01-15'"
 
     def test_invalid_date_format(self):
@@ -108,7 +108,7 @@ class TestLiteralBuilder:
 
     def test_timestamp_literal(self):
         ts = b.timestamp("2024-01-15 10:30:45")
-        assert ts.datatype == "timestamp"
+        assert ts.type == "timestamp"
         assert str(ts) == "TIMESTAMP '2024-01-15 10:30:45'"
 
         # Also accept ISO format

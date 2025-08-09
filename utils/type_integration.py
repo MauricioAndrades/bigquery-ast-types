@@ -14,9 +14,15 @@ from dataclasses import dataclass, field
 from sqlglot import exp, parse_one
 from sqlglot.expressions import DataType as SQLGlotDataType
 
-from ..lib.types import (
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from lib.types import (
     BQDataType, BigQueryType, TypeParser, TypeValidator,
-    TypeCaster, TYPE_ALIASES
+    TypeCaster, TYPE_ALIASES, TypeParameter
 )
 
 

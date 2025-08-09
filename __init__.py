@@ -31,6 +31,9 @@ if __package__:
 
     # Collection utilities
     from .lib.collection import Collection, create_collection
+    
+    # BSQL utilities
+    from .lib.bsql import Iterator, SQLNode, j
 
     # Parsers
     from .parsers.sqlglot import parse, SQLGlotParser
