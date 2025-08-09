@@ -317,6 +317,9 @@ class SQLSerializer(ASTVisitor):
         Args:
             node (Select): The SELECT statement node.
         """
+        if node.with_clause:
+            node.with_clause.accept(self)
+            self._write(" ")
         self._keyword("SELECT")
         if node.distinct:
             self._write(" ")
