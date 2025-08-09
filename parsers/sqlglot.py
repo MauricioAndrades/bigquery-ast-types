@@ -14,8 +14,8 @@ except ImportError:
 from sqlglot.dialects import BigQuery
 
 # Import AST node types and builders
-from ..lib.builders import b
-from ..lib.types import (
+from lib.builders import b
+from lib.types import (
     Select, SelectColumn, Merge, WhereClause, Identifier, TableName, TableRef, EnhancedGeneralIdentifier,
     Join, JoinType, BinaryOp, Expression, FunctionCall, PathExpression, PathPart,
     Subquery, Case, WhenClause, Insert, Update, CreateTable,
