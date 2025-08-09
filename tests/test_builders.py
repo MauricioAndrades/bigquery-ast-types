@@ -15,7 +15,19 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 from lib import b, ValidationError, Identifier, Literal, BinaryOp
-from lib.types import OrderByClause, Select, SetOperator
+from lib.types import (
+    OrderByClause,
+    Select,
+    SetOperator,
+    GroupByClause,
+    HavingClause,
+    OrderByItem,
+    OrderDirection,
+    LimitClause,
+    IntervalLiteral,
+    JSONLiteral,
+    NamedParameter,
+)
 
 
 class TestIdentifierBuilder:
@@ -332,6 +344,54 @@ class TestSetOperations:
         inter = b.intersect(left, right)
         assert inter.operator == SetOperator.INTERSECT
         assert inter.all is False
+
+
+class TestClauseBuilders:
+    """Test builders for SQL clauses and literals."""
+
+    def test_group_by_builder(self):
+        clause = b.group_by(b.col("category"), rollup=True)
+        assert isinstance(clause, GroupByClause)
+        assert clause.rollup is True
+        assert len(clause.expressions) == 1
+
+    def test_group_by_rollup_cube_exclusive(self):
+        with pytest.raises(ValidationError):
+            b.group_by(b.col("a"), rollup=True, cube=True)
+
+    def test_having_builder(self):
+        condition = b.gt(b.col("cnt"), b.lit(1))
+        clause = b.having(condition)
+        assert isinstance(clause, HavingClause)
+        assert clause.condition == condition
+
+    def test_order_by_builder(self):
+        item = b.order_by(b.col("name"), desc=True, nulls_first=False)
+        assert isinstance(item, OrderByItem)
+        assert item.direction == OrderDirection.DESC
+        assert item.nulls_first is False
+        assert str(item) == "name DESC NULLS LAST"
+
+    def test_limit_builder(self):
+        clause = b.limit(10, offset=5)
+        assert isinstance(clause, LimitClause)
+        assert clause.limit.value == 10
+        assert clause.offset.value == 5
+
+    def test_interval_builder(self):
+        lit = b.interval(5, "DAY")
+        assert isinstance(lit, IntervalLiteral)
+        assert lit.value == "5 DAY"
+
+    def test_json_builder(self):
+        lit = b.json({"key": "value"})
+        assert isinstance(lit, JSONLiteral)
+        assert lit.value == '{"key": "value"}'
+
+    def test_param_builder(self):
+        param = b.param("user_id")
+        assert isinstance(param, NamedParameter)
+        assert param.name == "user_id"
 
 
 if __name__ == "__main__":
