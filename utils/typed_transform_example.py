@@ -13,9 +13,15 @@ from typing import List, Dict, Optional, Tuple
 from sqlglot import exp, parse_one
 from dataclasses import dataclass
 
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from lib import *
-from bq_types import BigQueryType, BQDataType, TypeParser
-from type_integration import TypeInferrer, TableSchema, TypedColumn, TypeEnforcer
+from lib.types import BigQueryType, BQDataType, TypeParser
+from utils.type_integration import TypeInferrer, TableSchema, TypedColumn, TypeEnforcer
 
 
 @dataclass

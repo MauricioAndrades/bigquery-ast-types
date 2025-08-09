@@ -10,10 +10,13 @@ Date: 2025-07-31
 
 from typing import List, Dict, Optional
 import pendulum
-from lib.builders import OrderByClause
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from lib.builders import b, Select, CTE, WithClause, Merge, Expression, MergeAction
-from ..parsers.sqlglot import parse  # Import parse function
+from lib.types import OrderByClause, Select, CTE, WithClause, Merge, MergeAction, Expression
+from lib.builders import b
+from parsers.sqlglot import parse  # Import parse function
 from lib.visitor import BaseVisitor
 
 

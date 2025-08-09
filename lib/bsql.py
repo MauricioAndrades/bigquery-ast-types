@@ -137,7 +137,7 @@ class SQLNode:
         return SQLNode(self.node.transform(fn).copy())
 
     def __repr__(self) -> str:
-        return f"<JSQLNode {type(self.node).__name__}: {str(self.node)[:50]}...>"
+        return f"<SQLNode {type(self.node).__name__}: {str(self.node)[:50]}...>"
 
     def __getattr__(self, name: str) -> Any:
         """Proxy attribute access to underlying node."""
@@ -169,7 +169,7 @@ class j:
 
     # Builders for common nodes
     @staticmethod
-    def Select(*expressions: Union[str, exp.Expression], **kwargs) -> SQLNode:
+    def Select(*expressions: Union[str, exp.Expression, SQLNode], **kwargs) -> SQLNode:
         """Build SELECT statement."""
         exprs = []
         for e in expressions:
@@ -177,9 +177,10 @@ class j:
                 exprs.append(exp.column(e))
             elif isinstance(e, SQLNode):
                 exprs.append(e.node)
-            else:
+            elif isinstance(e, exp.Expression):
                 exprs.append(e)
-
+            else:
+                raise TypeError(f"Unsupported type for Select: {type(e)}")
         return SQLNode(exp.Select(expressions=exprs, **kwargs))
 
     @staticmethod
@@ -224,6 +225,8 @@ class j:
     @staticmethod
     def And(*conditions: exp.Expression) -> SQLNode:
         """Build AND expression."""
+        if not conditions:
+            raise ValueError("And requires at least one condition")
         result = conditions[0]
         for cond in conditions[1:]:
             result = exp.And(this=result, expression=cond)
@@ -232,6 +235,8 @@ class j:
     @staticmethod
     def Or(*conditions: exp.Expression) -> SQLNode:
         """Build OR expression."""
+        if not conditions:
+            raise ValueError("Or requires at least one condition")
         result = conditions[0]
         for cond in conditions[1:]:
             result = exp.Or(this=result, expression=cond)
@@ -264,13 +269,12 @@ class j:
         return SQLNode(exp.alias_(expr, alias))
 
     @staticmethod
-    def CTE(name: str, query: Union[str, exp.Expression]) -> SQLNode:
+    def CTE(name: str, query: Union[str, exp.Expression, SQLNode]) -> SQLNode:
         """Build CTE."""
         if isinstance(query, str):
             query = sqlglot.parse_one(query, read="bigquery")
         elif isinstance(query, SQLNode):
             query = query.node
-
         # Create a table alias for the CTE
         cte = exp.CTE(this=query, alias=exp.TableAlias(this=exp.Identifier(this=name)))
         return SQLNode(cte)
@@ -412,13 +416,14 @@ def inject_cte(
     ast = ast.copy()
 
     # Create or update WITH clause
-    new_cte = exp.CTE(this=cte_query, alias=cte_name)
-
+    new_cte = exp.CTE(
+        this=cte_query,
+        alias=exp.TableAlias(this=exp.Identifier(this=cte_name))
+    )
     if ast.args.get("with"):
         # Add to existing WITH clause
         ast.args["with"].expressions.append(new_cte)
     else:
         # Create new WITH clause
         ast.args["with"] = exp.With(expressions=[new_cte])
-
     return ast

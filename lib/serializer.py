@@ -519,6 +519,187 @@ class SQLSerializer(ASTVisitor):
         node.window_spec.accept(self)
         self._write(")")
 
+    # Missing visitor methods - placeholder implementations
+    def visit_unquoted_identifier(self, node) -> Any:
+        """Visit an unquoted identifier."""
+        self._write(node.name)
+
+    def visit_quoted_identifier(self, node) -> Any:
+        """Visit a quoted identifier."""
+        self._write(f"`{node.name}`")
+
+    def visit_enhanced_general_identifier(self, node) -> Any:
+        """Visit an enhanced general identifier."""
+        self._write(node.name)
+
+    def visit_path_expression(self, node) -> Any:
+        """Visit a path expression."""
+        for i, part in enumerate(node.parts):
+            if i > 0:
+                self._write(".")
+            part.accept(self)
+
+    def visit_path_part(self, node) -> Any:
+        """Visit a path part."""
+        self._write(str(node.name))
+
+    def visit_column_name(self, node) -> Any:
+        """Visit a column name."""
+        self._write(node.name)
+
+    def visit_field_name(self, node) -> Any:
+        """Visit a field name."""
+        self._write(node.name)
+
+    def visit_bytes_literal(self, node) -> Any:
+        """Visit a bytes literal."""
+        self._write(f"b'{node.value}'")
+
+    def visit_numeric_literal(self, node) -> Any:
+        """Visit a numeric literal."""
+        self._write(f"NUMERIC '{node.value}'")
+
+    def visit_bignumeric_literal(self, node) -> Any:
+        """Visit a bignumeric literal."""
+        self._write(f"BIGNUMERIC '{node.value}'")
+
+    def visit_date_literal(self, node) -> Any:
+        """Visit a date literal."""
+        self._write(f"DATE '{node.value}'")
+
+    def visit_time_literal(self, node) -> Any:
+        """Visit a time literal."""
+        self._write(f"TIME '{node.value}'")
+
+    def visit_datetime_literal(self, node) -> Any:
+        """Visit a datetime literal."""
+        self._write(f"DATETIME '{node.value}'")
+
+    def visit_timestamp_literal(self, node) -> Any:
+        """Visit a timestamp literal."""
+        self._write(f"TIMESTAMP '{node.value}'")
+
+    def visit_interval_literal(self, node) -> Any:
+        """Visit an interval literal."""
+        self._write(f"INTERVAL {node.value} {node.unit}")
+
+    def visit_array_literal(self, node) -> Any:
+        """Visit an array literal."""
+        self._write("[")
+        for i, elem in enumerate(node.elements):
+            if i > 0:
+                self._write(", ")
+            elem.accept(self)
+        self._write("]")
+
+    def visit_struct_literal(self, node) -> Any:
+        """Visit a struct literal."""
+        self._write("STRUCT(")
+        for i, (key, value) in enumerate(node.fields):
+            if i > 0:
+                self._write(", ")
+            self._write(f"{key} AS ")
+            value.accept(self)
+        self._write(")")
+
+    def visit_range_literal(self, node) -> Any:
+        """Visit a range literal."""
+        self._write(f"RANGE<{node.type}>({node.start}, {node.end})")
+
+    def visit_json_literal(self, node) -> Any:
+        """Visit a JSON literal."""
+        self._write(f"JSON '{node.value}'")
+
+    def visit_named_parameter(self, node) -> Any:
+        """Visit a named parameter."""
+        self._write(f"@{node.name}")
+
+    def visit_positional_parameter(self, node) -> Any:
+        """Visit a positional parameter."""
+        self._write("?")
+
+    def visit_comment(self, node) -> Any:
+        """Visit a comment."""
+        self._write(f"-- {node.text}")
+
+    def visit_case(self, node) -> Any:
+        """Visit a CASE expression."""
+        self._write("CASE")
+        if hasattr(node, 'expression') and node.expression:
+            self._write(" ")
+            node.expression.accept(self)
+        for when in node.when_clauses:
+            when.accept(self)
+        if hasattr(node, 'else_clause') and node.else_clause:
+            self._write(" ELSE ")
+            node.else_clause.accept(self)
+        self._write(" END")
+
+    def visit_when_clause(self, node) -> Any:
+        """Visit a WHEN clause."""
+        self._write(" WHEN ")
+        node.condition.accept(self)
+        self._write(" THEN ")
+        node.result.accept(self)
+
+    def visit_insert(self, node) -> Any:
+        """Visit an INSERT statement."""
+        self._write("INSERT INTO ")
+        node.table.accept(self)
+        if node.columns:
+            self._write(" (")
+            for i, col in enumerate(node.columns):
+                if i > 0:
+                    self._write(", ")
+                col.accept(self)
+            self._write(")")
+        self._write(" VALUES (")
+        for i, val in enumerate(node.values):
+            if i > 0:
+                self._write(", ")
+            val.accept(self)
+        self._write(")")
+
+    def visit_update(self, node) -> Any:
+        """Visit an UPDATE statement."""
+        self._write("UPDATE ")
+        node.table.accept(self)
+        self._write(" SET ")
+        for i, (col, val) in enumerate(node.assignments):
+            if i > 0:
+                self._write(", ")
+            col.accept(self)
+            self._write(" = ")
+            val.accept(self)
+        if node.where:
+            self._write(" WHERE ")
+            node.where.accept(self)
+
+    def visit_create_table(self, node) -> Any:
+        """Visit a CREATE TABLE statement."""
+        self._write("CREATE TABLE ")
+        if node.if_not_exists:
+            self._write("IF NOT EXISTS ")
+        node.table.accept(self)
+        self._write(" (")
+        for i, col in enumerate(node.columns):
+            if i > 0:
+                self._write(", ")
+            col.accept(self)
+        self._write(")")
+
+    def visit_hash_comment(self, node) -> Any:
+        """Visit a hash comment."""
+        self._write(f"# {node.text}")
+
+    def visit_dash_comment(self, node) -> Any:
+        """Visit a dash comment."""
+        self._write(f"-- {node.text}")
+
+    def visit_block_comment(self, node) -> Any:
+        """Visit a block comment."""
+        self._write(f"/* {node.text} */")
+
 
 # Convenience functions
 def to_sql(node: ASTNode, options: Optional[SerializerOptions] = None) -> str:

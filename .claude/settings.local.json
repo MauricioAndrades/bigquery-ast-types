@@ -10,7 +10,8 @@
       "Bash(python3:*)",
       "Bash(pytest:*)",
       "Bash(grep:*)",
-      "Bash(python -m pytest tests/ -v --tb=short)"
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python test:*)"
     ],
     "deny": []
   }

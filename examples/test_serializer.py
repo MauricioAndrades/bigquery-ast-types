@@ -8,13 +8,12 @@ Date: 2025-07-31
 """
 
 import sys
-import os
+from pathlib import Path
 
-# Add parent directory to path
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import bigquery_ast_types as ast
-from bigquery_ast_types import (
+from lib import (
     b,
     to_sql,
     pretty_print,
@@ -33,21 +32,20 @@ def test_simple_select():
     print("=== Simple SELECT ===")
 
     # Build AST using builders
-    query = b.select(
-        b.col("order_id"),
-        SelectColumn(b.col("customer_id"), "visitor_id"),
-        SelectColumn(b.func("COUNT", b.col("*")), "order_count"),
-    )
-    
-    # Set from clause
-    table = TableRef(
-        TableName(
-            project=Identifier("my-project"),
-            dataset=Identifier("my_dataset"),
-            table=Identifier("orders"),
+    query = Select(
+        select_list=[
+            SelectColumn(b.col("order_id")),
+            SelectColumn(b.col("customer_id"), "visitor_id"),
+            SelectColumn(b.func("COUNT", b.star()), "order_count"),
+        ],
+        from_clause=TableRef(
+            TableName(
+                project=Identifier("my-project"),
+                dataset=Identifier("my_dataset"),
+                table=Identifier("orders"),
+            )
         )
     )
-    query.from_clause = table
 
     # Test different formatting options
     print("\nExpanded format:")
@@ -67,15 +65,17 @@ def test_simple_select():
 def test_literals():
     """Test serializing different literal types."""
     print("\n\n=== Literals ===")
-    
-    query = b.select(
-        SelectColumn(b.lit("Hello World"), "string_val"),
-        SelectColumn(b.lit(42), "int_val"),
-        SelectColumn(b.lit(3.14), "float_val"),
-        SelectColumn(b.lit(True), "bool_val"),
-        SelectColumn(b.lit(None), "null_val"),
+
+    query = Select(
+        select_list=[
+            SelectColumn(b.lit("Hello World"), "string_val"),
+            SelectColumn(b.lit(42), "int_val"),
+            SelectColumn(b.lit(3.14), "float_val"),
+            SelectColumn(b.lit(True), "bool_val"),
+            SelectColumn(b.lit(None), "null_val"),
+        ]
     )
-    
+
     print(pretty_print(query))
 
 

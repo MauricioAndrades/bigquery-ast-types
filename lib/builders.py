@@ -12,286 +12,38 @@ Date: 2025-07-31
 from typing import Any, List, Optional, Union, Dict
 from dataclasses import dataclass, field
 
+# Import types from types module instead of redefining them
+from .types import (
+    ASTNode,
+    Expression,
+    Identifier, 
+    Literal,
+    BinaryOp,
+    UnaryOp,
+    FunctionCall,
+    Cast,
+    Case,
+    WindowFunction,
+    ArrayLiteral as Array,
+    StructLiteral as Struct,
+    Star,
+    SelectColumn,
+    TableRef,
+    OrderByClause,
+    OrderByItem,
+    WhenClause,
+    StringLiteral,
+    IntegerLiteral,
+    FloatLiteral,
+    BooleanLiteral,
+    NullLiteral,
+    DateLiteral,
+    TimestampLiteral
+)
+
 class ValidationError(Exception):
     """Custom exception for builder validation errors in BigQuery AST."""
     pass
-
-
-# Base AST Node Types
-@dataclass
-class ASTNode:
-    """Base class for all AST nodes."""
-    _type: str = field(init=False)
-
-    def __post_init__(self):
-        self._type = self.__class__.__name__
-
-
-# Expression Nodes
-
-@dataclass
-class Expression(ASTNode):
-    """Base class for all expression nodes."""
-    pass
-
-
-@dataclass
-class Identifier(Expression):
-    """Column or table identifier."""
-    name: str
-    table: Optional[str] = None
-
-    def __post_init__(self):
-        super().__post_init__()
-
-    def __str__(self):
-        if self.table:
-            return f"{self.table}.{self.name}"
-        return self.name
-
-
-@dataclass
-class Literal(Expression):
-    """Literal value."""
-    value: Any
-    datatype: str  # 'string', 'number', 'boolean', 'null', 'date', 'timestamp'
-
-    def __str__(self):
-        if self.datatype == 'null':
-            return 'NULL'
-        elif self.datatype == 'boolean':
-            return 'TRUE' if self.value else 'FALSE'
-        elif self.datatype == 'string':
-            return f"'{self.value}'"
-        elif self.datatype == 'date':
-            return f"DATE '{self.value}'"
-        elif self.datatype == 'timestamp':
-            return f"TIMESTAMP '{self.value}'"
-        return str(self.value)
-
-
-@dataclass
-class BinaryOp(Expression):
-    """Binary operation."""
-    operator: str
-    left: 'Expression'
-    right: 'Expression'
-
-    def __str__(self):
-        return f"({self.left} {self.operator} {self.right})"
-
-
-@dataclass
-class UnaryOp(Expression):
-    """Unary operation."""
-    operator: str
-    operand: 'Expression'
-
-    def __str__(self):
-        return f"{self.operator} {self.operand}"
-
-
-@dataclass
-class FunctionCall(Expression):
-    """Function call."""
-    name: str
-    args: List['Expression']
-
-    def __str__(self):
-        args_str = ', '.join(str(arg) for arg in self.args)
-        return f"{self.name}({args_str})"
-
-
-@dataclass
-class Cast(Expression):
-    """CAST expression."""
-    expr: 'Expression'
-    target_type: str
-    safe: bool = False
-
-    def __str__(self):
-        func = "SAFE_CAST" if self.safe else "CAST"
-        return f"{func}({self.expr} AS {self.target_type})"
-
-
-@dataclass
-class Case(Expression):
-    """CASE expression."""
-    when_clauses: List['WhenClause']
-    else_clause: Optional['Expression'] = None
-
-    def __str__(self):
-        clauses = '\n  '.join(str(w) for w in self.when_clauses)
-        result = f"CASE\n  {clauses}"
-        if self.else_clause:
-            result += f"\n  ELSE {self.else_clause}"
-        result += "\n  END"
-        return result
-
-
-@dataclass
-class WhenClause(ASTNode):
-    """WHEN clause in CASE."""
-    condition: 'Expression'
-    result: 'Expression'
-
-    def __str__(self):
-        return f"WHEN {self.condition} THEN {self.result}"
-
-
-@dataclass
-class WindowFunction(Expression):
-    """Window function."""
-    name: str
-    args: List['Expression']
-    partition_by: List['Expression'] = field(default_factory=list)
-    order_by: List['OrderByClause'] = field(default_factory=list)
-
-    def __str__(self):
-        args_str = ', '.join(str(arg) for arg in self.args)
-        result = f"{self.name}({args_str}) OVER ("
-        parts = []
-        if self.partition_by:
-            partition_str = ', '.join(str(e) for e in self.partition_by)
-            parts.append(f"PARTITION BY {partition_str}")
-        if self.order_by:
-            order_str = ', '.join(str(o) for o in self.order_by)
-            parts.append(f"ORDER BY {order_str}")
-        result += ' '.join(parts) + ")"
-        return result
-
-
-@dataclass
-class OrderByClause(ASTNode):
-    """ORDER BY clause element."""
-    expr: 'Expression'
-    direction: str = 'ASC'  # 'ASC' or 'DESC'
-
-    def __str__(self):
-        return f"{self.expr} {self.direction}"
-
-
-@dataclass
-class Array(Expression):
-    """Array literal."""
-    elements: List['Expression']
-
-    def __str__(self):
-        elements_str = ', '.join(str(e) for e in self.elements)
-        return f"[{elements_str}]"
-
-
-@dataclass
-class Struct(Expression):
-    """STRUCT literal."""
-    fields: List[tuple[str, 'Expression']]
-
-    def __str__(self):
-        fields_str = ', '.join(f"{expr} AS {name}" for name, expr in self.fields)
-        return f"STRUCT({fields_str})"
-
-
-@dataclass
-class Star(Expression):
-    """SELECT * expression."""
-    except_columns: List[str] = field(default_factory=list)
-
-    def __str__(self):
-        if self.except_columns:
-            except_str = ', '.join(self.except_columns)
-            return f"* EXCEPT ({except_str})"
-        return "*"
-
-
-# Statement Nodes
-@dataclass
-class SelectColumn(ASTNode):
-    """Single column in SELECT."""
-    expr: 'Expression'
-    alias: Optional[str] = None
-
-    def __str__(self):
-        if self.alias and str(self.expr) != self.alias:
-            return f"{self.expr} AS {self.alias}"
-        return str(self.expr)
-
-
-@dataclass
-class TableRef(ASTNode):
-    """Table reference."""
-    name: str
-    alias: Optional[str] = None
-
-    def __str__(self):
-        if self.alias:
-            return f"{self.name} AS {self.alias}"
-        return self.name
-
-
-@dataclass
-class Join(ASTNode):
-    """JOIN clause."""
-    join_type: str  # 'INNER', 'LEFT', 'RIGHT', 'FULL OUTER'
-    table: TableRef
-    condition: 'Expression'
-
-    def __str__(self):
-        return f"{self.join_type} JOIN {self.table} ON {self.condition}"
-
-
-@dataclass
-class Select(ASTNode):
-    """SELECT statement."""
-    columns: List[SelectColumn]
-    from_clause: List[Union[TableRef, 'Select']]
-    joins: List[Join] = field(default_factory=list)
-    where: Optional['Expression'] = None
-    group_by: List['Expression'] = field(default_factory=list)
-    order_by: List[OrderByClause] = field(default_factory=list)
-    limit: Optional[int] = None
-
-    def __str__(self):
-        # Complex formatting logic would go here
-        return "SELECT ..."
-
-
-@dataclass
-class CTE(ASTNode):
-    """Common Table Expression."""
-    name: str
-    query: Select
-
-    def __str__(self):
-        return f"{self.name} AS (\n{self.query}\n)"
-
-
-@dataclass
-class WithClause(ASTNode):
-    """WITH clause containing CTEs."""
-    ctes: List[CTE]
-
-    def __str__(self):
-        cte_strs = ',\n'.join(str(cte) for cte in self.ctes)
-        return f"WITH\n{cte_strs}"
-
-
-@dataclass
-class Merge(ASTNode):
-    """MERGE statement."""
-    target_table: str
-    source: Union[Select, str]
-    on_condition: 'Expression'
-    when_matched: List['MergeAction'] = field(default_factory=list)
-    when_not_matched: List['MergeAction'] = field(default_factory=list)
-    when_not_matched_by_source: List['MergeAction'] = field(default_factory=list)
-
-
-@dataclass
-class MergeAction(ASTNode):
-    """Action in MERGE statement."""
-    action_type: str  # 'INSERT', 'UPDATE', 'DELETE'
-    condition: Optional[Expression] = None
-    values: Optional[Dict[str, Expression]] = None
 
 
 # Builder Functions - The fluent API
@@ -319,38 +71,38 @@ class Builders:
         """Create a literal value."""
         # TODO: Support additional literal types like BYTES, DATE, TIMESTAMP (see issue #3)
         if value is None:
-            return Literal(None, 'null')
+            return NullLiteral()
         if isinstance(value, bool):
-            return Literal(value, 'boolean')
+            return BooleanLiteral(value)
         elif isinstance(value, str):
             # Validate string size (1MB limit)
             if len(value) > 1048576:  # 1MB = 1048576 bytes
                 raise ValidationError("String literal exceeds 1MB limit")
-            return Literal(value, 'string')
+            return StringLiteral(value)
         elif isinstance(value, int):
             # Validate INT64 range
             if value < -9223372036854775808 or value > 9223372036854775807:
                 raise ValidationError(f"Integer {value} out of INT64 range")
-            return Literal(value, 'number')
+            return IntegerLiteral(value)
         elif isinstance(value, float):
-            return Literal(value, 'number')
+            return FloatLiteral(value)
         else:
             raise TypeError(f"Unsupported literal type: {type(value)}")
 
     @staticmethod
     def null() -> Literal:
         """Create a NULL literal."""
-        return Literal(None, 'null')
+        return NullLiteral()
 
     @staticmethod
     def true() -> Literal:
         """Create a TRUE literal."""
-        return Literal(True, 'boolean')
+        return BooleanLiteral(True)
 
     @staticmethod
     def false() -> Literal:
         """Create a FALSE literal."""
-        return Literal(False, 'boolean')
+        return BooleanLiteral(False)
 
     @staticmethod
     def date(value: str) -> Literal:
@@ -374,7 +126,7 @@ class Builders:
         if not (1 <= m <= 12 and 1 <= d <= 31):
             raise ValidationError(f"Invalid date values: {value}")
 
-        return Literal(value, 'date')
+        return DateLiteral(value)
 
     @staticmethod
     def timestamp(value: str) -> Literal:
@@ -412,7 +164,7 @@ class Builders:
         except ValueError:
             raise ValidationError(f"Invalid timestamp format: {value}")
 
-        return Literal(value, 'timestamp')
+        return TimestampLiteral(value)
 
     # Binary Operations
     @staticmethod
@@ -420,42 +172,42 @@ class Builders:
         """Equality comparison."""
         if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
-        return BinaryOp('=', left, right)
+        return BinaryOp(left, '=', right)
 
     @staticmethod
     def neq(left: Expression, right: Expression) -> BinaryOp:
         """Inequality comparison."""
         if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
-        return BinaryOp('!=', left, right)
+        return BinaryOp(left, '!=', right)
 
     @staticmethod
     def lt(left: Expression, right: Expression) -> BinaryOp:
         """Less than comparison."""
         if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
-        return BinaryOp('<', left, right)
+        return BinaryOp(left, '<', right)
 
     @staticmethod
     def lte(left: Expression, right: Expression) -> BinaryOp:
         """Less than or equal comparison."""
         if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
-        return BinaryOp('<=', left, right)
+        return BinaryOp(left, '<=', right)
 
     @staticmethod
     def gt(left: Expression, right: Expression) -> BinaryOp:
         """Greater than comparison."""
         if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
-        return BinaryOp('>', left, right)
+        return BinaryOp(left, '>', right)
 
     @staticmethod
     def gte(left: Expression, right: Expression) -> BinaryOp:
         """Greater than or equal comparison."""
         if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
-        return BinaryOp('>=', left, right)
+        return BinaryOp(left, '>=', right)
 
     @staticmethod
     def and_(*conditions: Expression) -> Expression:
@@ -466,7 +218,7 @@ class Builders:
             return conditions[0]
         result = conditions[0]
         for cond in conditions[1:]:
-            result = BinaryOp('AND', result, cond)
+            result = BinaryOp(result, 'AND', cond)
         return result
 
     @staticmethod
@@ -478,7 +230,7 @@ class Builders:
             return conditions[0]
         result = conditions[0]
         for cond in conditions[1:]:
-            result = BinaryOp('OR', result, cond)
+            result = BinaryOp(result, 'OR', cond)
         return result
 
     # Unary Operations
@@ -500,12 +252,12 @@ class Builders:
     @staticmethod
     def is_(expr: Expression, value: Expression) -> BinaryOp:
         """IS comparison (for TRUE/FALSE/NULL)."""
-        return BinaryOp('IS', expr, value)
+        return BinaryOp(expr, 'IS', value)
 
     @staticmethod
     def is_not(expr: Expression, value: Expression) -> BinaryOp:
         """IS NOT comparison."""
-        return BinaryOp('IS NOT', expr, value)
+        return BinaryOp(expr, 'IS NOT', value)
 
     # Functions
     @staticmethod
@@ -517,32 +269,32 @@ class Builders:
         for arg in args:
             if arg is not None and not isinstance(arg, Expression):
                 raise TypeError(f"All function arguments must be Expression instances, got {type(arg)}")
-        return FunctionCall(name, list(args))
+        return FunctionCall(function_name=name, arguments=list(args))
 
     @staticmethod
     def coalesce(*args: Expression) -> FunctionCall:
         """COALESCE function."""
-        return FunctionCall('COALESCE', list(args))
+        return FunctionCall(function_name='COALESCE', arguments=list(args))
 
     @staticmethod
     def nullif(expr: Expression, value: Expression) -> FunctionCall:
         """NULLIF function."""
-        return FunctionCall('NULLIF', [expr, value])
+        return FunctionCall(function_name='NULLIF', arguments=[expr, value])
 
     @staticmethod
     def trim(expr: Expression) -> FunctionCall:
         """TRIM function."""
-        return FunctionCall('TRIM', [expr])
+        return FunctionCall(function_name='TRIM', arguments=[expr])
 
     @staticmethod
     def concat(*args: Expression) -> FunctionCall:
         """CONCAT function."""
-        return FunctionCall('CONCAT', list(args))
+        return FunctionCall(function_name='CONCAT', arguments=list(args))
 
     @staticmethod
     def current_timestamp() -> FunctionCall:
         """CURRENT_TIMESTAMP function."""
-        return FunctionCall('CURRENT_TIMESTAMP', [])
+        return FunctionCall(function_name='CURRENT_TIMESTAMP', arguments=[])
 
     @staticmethod
     def timestamp_func(expr: Expression, timezone: Optional[Expression] = None) -> FunctionCall:
@@ -550,7 +302,7 @@ class Builders:
         args = [expr]
         if timezone:
             args.append(timezone)
-        return FunctionCall('TIMESTAMP', args)
+        return FunctionCall(function_name='TIMESTAMP', arguments=args)
 
     # Casting
     @staticmethod
@@ -583,7 +335,7 @@ class Builders:
     @staticmethod
     def case(*when_clauses, else_: Optional[Expression] = None) -> Case:
         """CASE expression."""
-        return Case(list(when_clauses), else_)
+        return Case(whens=list(when_clauses), else_result=else_)
 
     @staticmethod
     def when(condition: Expression, result: Expression) -> WhenClause:
@@ -594,39 +346,41 @@ class Builders:
     @staticmethod
     def row_number() -> WindowFunction:
         """ROW_NUMBER window function."""
-        return WindowFunction('ROW_NUMBER', [])
+        return WindowFunction(function_name='ROW_NUMBER', arguments=[])
 
     @staticmethod
     def rank() -> WindowFunction:
         """RANK window function."""
-        return WindowFunction('RANK', [])
+        return WindowFunction(function_name='RANK', arguments=[])
 
     # Arrays and Structs
     @staticmethod
     def array(*elements: Expression) -> Array:
         """Array literal."""
-        return Array(list(elements))
+        return Array(elements=list(elements))
 
     @staticmethod
     def struct(**fields: Expression) -> Struct:
         """STRUCT literal."""
-        return Struct([(name, expr) for name, expr in fields.items()])
+        return Struct(fields=[(name, expr) for name, expr in fields.items()])
 
     # SELECT components
     @staticmethod
     def star(except_columns: Optional[List[str]] = None) -> Star:
         """SELECT * or * EXCEPT(...)."""
-        return Star(except_columns or [])
+        return Star(except_columns=except_columns or [])
 
     @staticmethod
     def select_col(expr: Expression, alias: Optional[str] = None) -> SelectColumn:
         """Column in SELECT clause."""
-        return SelectColumn(expr, alias)
+        return SelectColumn(expression=expr, alias=alias)
 
     @staticmethod
     def table(name: str, alias: Optional[str] = None) -> TableRef:
         """Table reference."""
-        return TableRef(name, alias)
+        from .types import TableName
+        table_node = TableName(table=name)
+        return TableRef(table=table_node, alias=alias)
 
     # Complex helpers
     @staticmethod
