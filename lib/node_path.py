@@ -224,24 +224,30 @@ class NodePath:
         parent_node = self.parent.node
         if self.field is None:
             raise ValueError("Field name cannot be None when inserting before a node in a list")
-        getattr(parent_node, self.field).insert(self.index, new_node)
+        # Store original index before modifying
+        insertion_index = self.index
 
-        # Update indices
-        self.index += 1
+        getattr(parent_node, self.field).insert(insertion_index, new_node)
+
+        # Update sibling indices using the stored index while skipping self
         if self.parent._children:
             for child in self.parent._children:
                 if (
-                    child.field == self.field
+                    child is not self
+                    and child.field == self.field
                     and child.index is not None
-                    and child.index >= self.index
+                    and child.index >= insertion_index
                 ):
                     child.index += 1
+
+        # Update this node's index
+        self.index = insertion_index + 1
 
         # Clear parent's cache
         self.parent._children = None
 
-        # Return path for new node
-        return NodePath(new_node, self.parent, self.field, self.index - 1, self.scope)
+        # Return path for new node with original insertion index
+        return NodePath(new_node, self.parent, self.field, insertion_index, self.scope)
 
     def insert_after(self, new_node: ASTNode) -> "NodePath":
         """Insert a node after this one in parent list."""

@@ -249,6 +249,27 @@ class ASTVisitor(ABC):
     def visit_comment(self, node: "Comment") -> Any:
         pass
 
+    # Additional statement visitors from main branch
+    @abstractmethod
+    def visit_case(self, node: "Case") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_when_clause(self, node: "WhenClause") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_insert(self, node: "Insert") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_update(self, node: "Update") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_create_table(self, node: "CreateTable") -> Any:
+        pass
+
     # Specific comment style visitors
     def visit_hash_comment(self, node: "HashComment") -> Any:
         return self.visit_comment(node)
@@ -573,7 +594,6 @@ class Comment(ASTNode):
         }.get(self.style, "visit_comment")
         return getattr(visitor, method)(self)
 
-
 @dataclass
 class HashComment(Comment):
     """Single-line comment using #."""
@@ -581,14 +601,12 @@ class HashComment(Comment):
     def __init__(self, text: str):
         super().__init__(text=text, style="#", is_multiline=False)
 
-
 @dataclass
 class DashComment(Comment):
     """Single-line comment using --."""
 
     def __init__(self, text: str):
         super().__init__(text=text, style="--", is_multiline=False)
-
 
 @dataclass
 class BlockComment(Comment):
@@ -601,13 +619,12 @@ class BlockComment(Comment):
 @dataclass
 class BinaryOp(Expression):
     """Binary operation."""
-    operator: str
     left: Expression
+    operator: str
     right: Expression
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_binary_op(self)
-
 
 @dataclass
 class UnaryOp(Expression):
@@ -618,7 +635,6 @@ class UnaryOp(Expression):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_unary_op(self)
 
-
 @dataclass
 class FunctionCall(Expression):
     """Function call expression."""
@@ -627,7 +643,6 @@ class FunctionCall(Expression):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_function_call(self)
-
 
 # Statement and Clause Types
 @dataclass
@@ -639,7 +654,6 @@ class TableRef(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_table_ref(self)
 
-
 @dataclass
 class SelectColumn(ASTNode):
     """Column selected in a SELECT list."""
@@ -649,7 +663,6 @@ class SelectColumn(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_select_column(self)
 
-
 @dataclass
 class WhereClause(ASTNode):
     """WHERE clause."""
@@ -657,7 +670,6 @@ class WhereClause(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_where_clause(self)
-
 
 @dataclass
 class GroupByClause(ASTNode):
@@ -667,7 +679,6 @@ class GroupByClause(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_group_by_clause(self)
 
-
 @dataclass
 class HavingClause(ASTNode):
     """HAVING clause."""
@@ -675,7 +686,6 @@ class HavingClause(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_having_clause(self)
-
 
 @dataclass
 class OrderByItem(ASTNode):
@@ -686,7 +696,6 @@ class OrderByItem(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_order_by_item(self)
 
-
 @dataclass
 class OrderByClause(ASTNode):
     """ORDER BY clause."""
@@ -694,7 +703,6 @@ class OrderByClause(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_order_by_clause(self)
-
 
 @dataclass
 class LimitClause(ASTNode):
@@ -705,7 +713,6 @@ class LimitClause(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_limit_clause(self)
 
-
 @dataclass
 class Join(ASTNode):
     """JOIN clause."""
@@ -715,7 +722,6 @@ class Join(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_join(self)
-
 
 @dataclass
 class Select(Statement):
@@ -733,15 +739,14 @@ class Select(Statement):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_select(self)
 
-
 @dataclass
 class Subquery(Expression):
     """Subquery expression."""
     query: Select
+    alias: Optional[str] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_subquery(self)
-
 
 @dataclass
 class CTE(ASTNode):
@@ -753,7 +758,6 @@ class CTE(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_cte(self)
 
-
 @dataclass
 class WithClause(ASTNode):
     """WITH clause containing CTEs."""
@@ -761,7 +765,6 @@ class WithClause(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_with_clause(self)
-
 
 @dataclass
 class MergeInsert(ASTNode):
@@ -772,7 +775,6 @@ class MergeInsert(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge_insert(self)
 
-
 @dataclass
 class MergeUpdate(ASTNode):
     """UPDATE action in MERGE statement."""
@@ -781,14 +783,12 @@ class MergeUpdate(ASTNode):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge_update(self)
 
-
 @dataclass
 class MergeDelete(ASTNode):
     """DELETE action in MERGE statement."""
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge_delete(self)
-
 
 @dataclass
 class MergeAction(ASTNode):
@@ -798,7 +798,6 @@ class MergeAction(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge_action(self)
-
 
 @dataclass
 class Merge(Statement):
@@ -811,7 +810,6 @@ class Merge(Statement):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_merge(self)
 
-
 @dataclass
 class WindowSpecification(ASTNode):
     """Window specification for window functions."""
@@ -820,7 +818,6 @@ class WindowSpecification(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_window_specification(self)
-
 
 @dataclass
 class WindowFunction(Expression):
@@ -831,3 +828,51 @@ class WindowFunction(Expression):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_window_function(self)
+
+# Additional Statement Types from main branch
+@dataclass
+class WhenClause(ASTNode):
+    """WHEN clause in CASE expression."""
+    condition: Expression
+    result: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_when_clause(self)
+
+@dataclass
+class Case(Expression):
+    """CASE expression."""
+    whens: List[WhenClause]
+    else_result: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_case(self)
+
+@dataclass
+class Insert(Statement):
+    """INSERT statement supporting VALUES or SELECT."""
+    table: TableRef
+    columns: List[Identifier] = field(default_factory=list)
+    values: List[List[Expression]] = field(default_factory=list)
+    query: Optional[Select] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_insert(self)
+
+@dataclass
+class Update(Statement):
+    """UPDATE statement."""
+    table: TableRef
+    assignments: Dict[str, Expression]
+    where: Optional[WhereClause] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_update(self)
+
+@dataclass
+class CreateTable(Statement):
+    """CREATE TABLE statement."""
+    table: TableName
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_create_table(self)
