@@ -314,6 +314,10 @@ class Builders:
     @staticmethod
     def col(name: str, table: Optional[str] = None) -> Identifier:
         """Create a column reference."""
+        if name is None:
+            raise ValidationError("Column name cannot be None")
+        if not name or not str(name).strip():
+            raise ValidationError("Column name cannot be empty")
         return Identifier(name, table)
 
     @staticmethod
@@ -325,18 +329,25 @@ class Builders:
     @staticmethod
     def lit(value: Any) -> Literal:
         """Create a literal value."""
-        # TODO: Add validation for BigQuery-specific literal constraints (max string length, numeric precision)
         # TODO: Support additional literal types like BYTES, DATE, TIMESTAMP (see issue #3)
         if value is None:
             return Literal(None, 'null')
         if isinstance(value, bool):
             return Literal(value, 'boolean')
         elif isinstance(value, str):
+            # Validate string size (1MB limit)
+            if len(value) > 1048576:  # 1MB = 1048576 bytes
+                raise ValidationError("String literal exceeds 1MB limit")
             return Literal(value, 'string')
-        elif isinstance(value, (int, float)):
+        elif isinstance(value, int):
+            # Validate INT64 range
+            if value < -9223372036854775808 or value > 9223372036854775807:
+                raise ValidationError(f"Integer {value} out of INT64 range")
+            return Literal(value, 'number')
+        elif isinstance(value, float):
             return Literal(value, 'number')
         else:
-            raise ValueError(f"Unsupported literal type: {type(value)}")
+            raise TypeError(f"Unsupported literal type: {type(value)}")
 
     @staticmethod
     def null() -> Literal:
@@ -428,6 +439,8 @@ class Builders:
     @staticmethod
     def eq(left: Expression, right: Expression) -> BinaryOp:
         """Equality comparison."""
+        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+            raise TypeError("Both operands must be Expression instances")
         return BinaryOp('=', left, right)
 
     @staticmethod
@@ -519,6 +532,12 @@ class Builders:
     @staticmethod
     def func(name: str, *args: Expression) -> FunctionCall:
         """Generic function call."""
+        if not name or not str(name).strip():
+            raise ValidationError("Function name cannot be empty")
+        # Validate args are proper expressions
+        for arg in args:
+            if arg is not None and not isinstance(arg, ExpressionTypes):
+                raise TypeError(f"All function arguments must be Expression instances, got {type(arg)}")
         return FunctionCall(name, list(args))
 
     @staticmethod
