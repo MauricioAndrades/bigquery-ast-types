@@ -23,10 +23,15 @@ from lib.types import (
     Subquery, Case, WhenClause, Insert, Update, CreateTable,
     QuotedIdentifier, UnquotedIdentifier, ColumnName,
     StringLiteral, BytesLiteral, IntegerLiteral, NumericLiteral, BigNumericLiteral,
-    FloatLiteral, BooleanLiteral, NullLiteral, DateLiteral, TimeLiteral, DatetimeLiteral,
-    TimestampLiteral, IntervalLiteral, JSONLiteral, ArrayLiteral,
-    NamedParameter, PositionalParameter
+    FloatLiteral, BooleanLiteral, NullLiteral, DateLiteral, TimeLiteral, TimestampLiteral, IntervalLiteral, JSONLiteral, ArrayLiteral,
+    NamedParameter, PositionalParameter, Literal,  # Ensure Literal is imported
 )
+
+# Ensure DatetimeLiteral inherits from Literal
+class DatetimeLiteral(Literal):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value = value
 
 # Handle imports for both package and direct usage
 try:
@@ -377,7 +382,7 @@ class SQLGlotParser:
         # Handle array literals
         elif isinstance(lit, exp.Array):
             elements = [self._transform_expression(elem) for elem in lit.expressions]
-            return ArrayLiteral(elements=elements)
+            return ArrayLiteral(value=elements)
 
         else:
             # Default fallback
