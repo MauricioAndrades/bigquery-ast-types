@@ -4,8 +4,8 @@ SQLGlot Parser for BigQuery AST Types
 Wraps SQLGlot to parse BigQuery SQL into our AST representation.
 """
 
-from typing import Any, Optional, Dict, List
-
+from typing import Any, Optional, Dict, List, Union
+from dataclasses import dataclass
 import sqlglot
 try:
     from sqlglot import exp
@@ -13,10 +13,8 @@ except ImportError:
     from sqlglot import expressions as exp
 from sqlglot.dialects import BigQuery
 
-from dataclasses import dataclass
-
 # Import AST node types and builders
-from lib.builders import SelectColumn
+from lib.builders import SelectColumn, b, Merge
 from lib.types import (
     Select, WhereClause, Identifier, TableName, TableRef, EnhancedGeneralIdentifier,
     Join, JoinType, BinaryOp, Expression, FunctionCall, PathExpression, PathPart,
@@ -24,46 +22,12 @@ from lib.types import (
     QuotedIdentifier, UnquotedIdentifier, ColumnName,
     StringLiteral, BytesLiteral, IntegerLiteral, NumericLiteral, BigNumericLiteral,
     FloatLiteral, BooleanLiteral, NullLiteral, DateLiteral, TimeLiteral, TimestampLiteral, IntervalLiteral, JSONLiteral, ArrayLiteral,
-    NamedParameter, PositionalParameter, Literal,  # Ensure Literal is imported
+    NamedParameter, PositionalParameter, Literal,
+    DatetimeLiteral
 )
 
-# Ensure DatetimeLiteral inherits from Literal
-class DatetimeLiteral(Literal):
-    def __init__(self, value):
-        super().__init__(value)
-        self.value = value
-
-# Handle imports for both package and direct usage
-try:
-    from lib.types import *
-    from lib.builders import b
-except ImportError:
-    # Direct import when running as script
-    import sys
-    import os
-    import importlib.util
-
-    # Import types module
-    types_path = os.path.join(os.path.dirname(__file__), '../lib/types.py')
-    spec = importlib.util.spec_from_file_location('types', types_path)
-    if spec:
-        types_module = importlib.util.module_from_spec(spec)
-        if spec is not None and spec.loader is not None:
-            spec.loader.exec_module(types_module)
-
-    # Import all types
-    globals().update({name: getattr(types_module, name) for name in dir(types_module)
-                     if not name.startswith('_')})
-
-    # Remove local WhereClause definition to avoid shadowing
-    # Mock builders for now
-    class MockBuilders:
-        def col(self, name): return UnquotedIdentifier(name)
-        def lit(self, value): return StringLiteral(str(value))
-        def select(self, *args): return Select(select_list=list(args))
-        def eq(self, left, right): return BinaryOp(left=left, operator="=", right=right)
-
-    b = MockBuilders()
+# Define a generic Statement type for AST root nodes
+Statement = Union[Select, Insert, Update, CreateTable, Merge]
 
 
 class SQLGlotParser:
@@ -72,7 +36,7 @@ class SQLGlotParser:
     def __init__(self, dialect: str = "bigquery"):
         self.dialect = dialect
 
-    def parse(self, sql: str) -> "Statement":
+    def parse(self, sql: str) -> Statement:
         """Parse SQL string into our AST representation."""
         try:
             # Parse with SQLGlot
@@ -98,8 +62,26 @@ class SQLGlotParser:
         else:
             raise NotImplementedError(f"Unsupported expression type: {type(node).__name__}")
 
+    def _transform_merge(self, merge: exp.Merge) -> Merge:
+        """Transform SQLGlot Merge to our Merge."""
+        # Placeholder implementation
+        target = TableRef(table=TableName(table="target"))
+        source = TableRef(table=TableName(table="source"))
+        condition = b.eq(b.col("id"), b.col("id"))
+
+        return Merge(
+            target=target,
+            source=source,
+            on_condition=condition
+        )
+
+    def _transform_subquery(self, sub: exp.Subquery) -> Subquery:
+        """Transform SQLGlot subquery to our Subquery."""
+        select = self._transform_select(sub.this)
+        return Subquery(query=select, alias=sub.alias)
+
     def _transform_select(self, select: exp.Select) -> Select:
-        """Transform SQLGlot Select to our Select."""
+        """Transform SQLGlot Select to our Select using builder API for columns."""
         # Extract select columns
         select_list = []
         for projection in select.expressions:
@@ -142,54 +124,39 @@ class SQLGlotParser:
         kind = join.args.get("kind") or "INNER"
         return Join(join_type=JoinType[kind.upper()], table=table, condition=condition)
 
-    def _transform_merge(self, merge: exp.Merge) -> "Merge":
-        """Transform SQLGlot Merge to our Merge."""
-        # Placeholder implementation
-        target = TableRef(table=TableName(table="target"))
-        source = TableRef(table=TableName(table="source"))
-        condition = b.eq(b.col("id"), b.col("id"))
-
-        return Merge(
-            target_table=target,
-            source_table=source,
-            merge_condition=condition,
-            actions=[]
-        )
-
     def _transform_expression(self, expr: exp.Expression) -> Expression:
-        """Transform SQLGlot expression to our Expression."""
+        """Transform SQLGlot expression to our Expression using builder API."""
         if isinstance(expr, exp.Column):
-            # Handle identifier types
-            return self._transform_identifier(expr)
+            # Use builder for columns
+            return b.col(expr.name)
         elif isinstance(expr, exp.Literal):
-            return self._transform_literal(expr)
+            return b.lit(expr.this)
         elif isinstance(expr, exp.Binary):
-            return BinaryOp(
-                left=self._transform_expression(expr.left),
-                operator=expr.key.upper(),
-                right=self._transform_expression(expr.right)
-            )
+            left = self._transform_expression(expr.left)
+            right = self._transform_expression(expr.right)
+            return b.eq(left, right)
         elif isinstance(expr, exp.Case):
-            return self._transform_case(expr)
+            # Use builder for CASE if available, else fallback
+            whens = []
+            for w in expr.args.get("ifs") or []:
+                condition = self._transform_expression(w.this)
+                result = self._transform_expression(w.args.get("true"))
+                whens.append(WhenClause(condition=condition, result=result))
+            default = None
+            if expr.args.get("default"):
+                default = self._transform_expression(expr.args["default"])
+            return Case(whens=whens, else_result=default)
         elif isinstance(expr, exp.Subquery):
             return self._transform_subquery(expr)
         elif isinstance(expr, exp.Func):
             args = [self._transform_expression(arg) for arg in expr.args.values() if arg]
             return FunctionCall(function_name=expr.name, arguments=args)
         elif isinstance(expr, exp.Dot):
-            # Handle path expressions like table.column or field access
             return self._transform_path_expression(expr)
         elif isinstance(expr, exp.Placeholder):
-            # Handle query parameters
             return self._transform_parameter(expr)
         else:
-            # Default: return column placeholder
-            return Identifier(name=str(expr))
-
-    def _transform_subquery(self, sub: exp.Subquery) -> Subquery:
-        """Transform SQLGlot subquery to our Subquery."""
-        select = self._transform_select(sub.this)
-        return Subquery(select=select, alias=sub.alias)
+            return b.col(str(expr))
 
     def _transform_case(self, case: exp.Case) -> Case:
         """Transform SQLGlot CASE expression."""
@@ -256,7 +223,7 @@ class SQLGlotParser:
                 return UnquotedIdentifier(name=name)
         else:
             # Enhanced general identifier for complex cases
-            parts = name.split('.')
+            parts = [int(p) if p.isdigit() else p for p in name.split('.')]
             separators = ['.'] * (len(parts) - 1)
             return EnhancedGeneralIdentifier(name=name, parts=parts, separators=separators)
 
@@ -425,7 +392,7 @@ class SQLGlotParser:
 
 
 # Convenience function
-def parse(sql: str, dialect: str = "bigquery") -> "Statement":
+def parse(sql: str, dialect: str = "bigquery") -> Statement:
     """Parse SQL string into AST using SQLGlot."""
     parser = SQLGlotParser(dialect)
     return parser.parse(sql)

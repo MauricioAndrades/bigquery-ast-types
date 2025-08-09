@@ -12,8 +12,7 @@ spec.loader.exec_module(sqlglot_manual)  # type: ignore
 # Now you can use sqlglot_manual.<something>
 
 # Now you can use sql.<something>
-
-from lib.collection import OrderMergeBuilder, QueryAnalyzer, RetailerPatterns
+from ..utils import OrderMergeBuilder, QueryAnalyzer, RetailerPatterns
 from lib.bsql import j, extract_table_references
 import sqlglot
 from sqlglot import expressions as exp

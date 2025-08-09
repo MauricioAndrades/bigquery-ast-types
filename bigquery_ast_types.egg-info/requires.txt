@@ -1,7 +1,0 @@
-sqlglot>=25.0.0
-
-[dev]
-black>=22.0
-mypy>=1.0
-pytest>=7.0
-ruff>=0.0.261

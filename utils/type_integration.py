@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from sqlglot import exp, parse_one
 from sqlglot.expressions import DataType as SQLGlotDataType
 
-from utils import (
+from ..lib.types import (
     BQDataType, BigQueryType, TypeParser, TypeValidator,
     TypeCaster, TYPE_ALIASES
 )
