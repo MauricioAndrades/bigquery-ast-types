@@ -28,8 +28,15 @@ class ASTNode:
 
 
 # Expression Nodes
+
 @dataclass
-class Identifier(ASTNode):
+class Expression(ASTNode):
+    """Base class for all expression nodes."""
+    pass
+
+
+@dataclass
+class Identifier(Expression):
     """Column or table identifier."""
     name: str
     table: Optional[str] = None
@@ -44,7 +51,7 @@ class Identifier(ASTNode):
 
 
 @dataclass
-class Literal(ASTNode):
+class Literal(Expression):
     """Literal value."""
     value: Any
     datatype: str  # 'string', 'number', 'boolean', 'null', 'date', 'timestamp'
@@ -64,7 +71,7 @@ class Literal(ASTNode):
 
 
 @dataclass
-class BinaryOp(ASTNode):
+class BinaryOp(Expression):
     """Binary operation."""
     operator: str
     left: 'Expression'
@@ -75,7 +82,7 @@ class BinaryOp(ASTNode):
 
 
 @dataclass
-class UnaryOp(ASTNode):
+class UnaryOp(Expression):
     """Unary operation."""
     operator: str
     operand: 'Expression'
@@ -85,7 +92,7 @@ class UnaryOp(ASTNode):
 
 
 @dataclass
-class FunctionCall(ASTNode):
+class FunctionCall(Expression):
     """Function call."""
     name: str
     args: List['Expression']
@@ -96,7 +103,7 @@ class FunctionCall(ASTNode):
 
 
 @dataclass
-class Cast(ASTNode):
+class Cast(Expression):
     """CAST expression."""
     expr: 'Expression'
     target_type: str
@@ -108,7 +115,7 @@ class Cast(ASTNode):
 
 
 @dataclass
-class Case(ASTNode):
+class Case(Expression):
     """CASE expression."""
     when_clauses: List['WhenClause']
     else_clause: Optional['Expression'] = None
@@ -133,7 +140,7 @@ class WhenClause(ASTNode):
 
 
 @dataclass
-class WindowFunction(ASTNode):
+class WindowFunction(Expression):
     """Window function."""
     name: str
     args: List['Expression']
@@ -165,7 +172,7 @@ class OrderByClause(ASTNode):
 
 
 @dataclass
-class Array(ASTNode):
+class Array(Expression):
     """Array literal."""
     elements: List['Expression']
 
@@ -175,7 +182,7 @@ class Array(ASTNode):
 
 
 @dataclass
-class Struct(ASTNode):
+class Struct(Expression):
     """STRUCT literal."""
     fields: List[tuple[str, 'Expression']]
 
@@ -185,7 +192,7 @@ class Struct(ASTNode):
 
 
 @dataclass
-class Star(ASTNode):
+class Star(Expression):
     """SELECT * expression."""
     except_columns: List[str] = field(default_factory=list)
 
@@ -283,27 +290,8 @@ class Merge(ASTNode):
 class MergeAction(ASTNode):
     """Action in MERGE statement."""
     action_type: str  # 'INSERT', 'UPDATE', 'DELETE'
-    condition: Optional['Expression'] = None
-    values: Optional[Dict[str, 'Expression']] = None
-
-
-# Type alias for any expression
-Expression = Union[Identifier, Literal, BinaryOp, UnaryOp, FunctionCall,
-                  Cast, Case, WindowFunction, Array, Struct, Star]
-
-ExpressionTypes = (
-    Identifier,
-    Literal,
-    BinaryOp,
-    UnaryOp,
-    FunctionCall,
-    Cast,
-    Case,
-    WindowFunction,
-    Array,
-    Struct,
-    Star,
-)
+    condition: Optional[Expression] = None
+    values: Optional[Dict[str, Expression]] = None
 
 
 # Builder Functions - The fluent API
@@ -428,53 +416,44 @@ class Builders:
 
     # Binary Operations
     @staticmethod
-    def _validate_binary_operands(left: Any, right: Any) -> None:
-        """Validate that both operands are Expression instances."""
-        valid_types = (Identifier, Literal, BinaryOp, UnaryOp, FunctionCall, Cast, Case, WindowFunction, Array, Struct, Star)
-        if not isinstance(left, valid_types):
-            raise TypeError(f"Both operands must be Expression instances, got {type(left)} for left operand")
-        if not isinstance(right, valid_types):
-            raise TypeError(f"Both operands must be Expression instances, got {type(right)} for right operand")
-
-    @staticmethod
     def eq(left: Expression, right: Expression) -> BinaryOp:
         """Equality comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp('=', left, right)
 
     @staticmethod
     def neq(left: Expression, right: Expression) -> BinaryOp:
         """Inequality comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp('!=', left, right)
 
     @staticmethod
     def lt(left: Expression, right: Expression) -> BinaryOp:
         """Less than comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp('<', left, right)
 
     @staticmethod
     def lte(left: Expression, right: Expression) -> BinaryOp:
         """Less than or equal comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp('<=', left, right)
 
     @staticmethod
     def gt(left: Expression, right: Expression) -> BinaryOp:
         """Greater than comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp('>', left, right)
 
     @staticmethod
     def gte(left: Expression, right: Expression) -> BinaryOp:
         """Greater than or equal comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp('>=', left, right)
 
@@ -536,7 +515,7 @@ class Builders:
             raise ValidationError("Function name cannot be empty")
         # Validate args are proper expressions
         for arg in args:
-            if arg is not None and not isinstance(arg, ExpressionTypes):
+            if arg is not None and not isinstance(arg, Expression):
                 raise TypeError(f"All function arguments must be Expression instances, got {type(arg)}")
         return FunctionCall(name, list(args))
 
