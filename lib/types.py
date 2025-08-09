@@ -334,7 +334,7 @@ class QuotedIdentifier(Identifier):
 @dataclass
 class EnhancedGeneralIdentifier(Identifier):
     """Enhanced general identifier supporting complex path expressions."""
-    parts: List[Union[str, int]]
+    parts: List[Union[str, int]] = field(default_factory=list)
     separators: List[str] = field(default_factory=list)  # ., /, :, -
 
     def accept(self, visitor: "ASTVisitor") -> Any:
@@ -398,6 +398,27 @@ class Literal(Expression):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_literal(self)
+
+
+@dataclass
+class BinaryOp(Expression):
+    """Binary operation expression."""
+    left: Expression
+    operator: str
+    right: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_binary_op(self)
+
+
+@dataclass
+class FunctionCall(Expression):
+    """Function call expression."""
+    function_name: str
+    arguments: List[Expression]
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_function_call(self)
 
 @dataclass
 class StringLiteral(Literal):
@@ -553,3 +574,115 @@ class Comment(ASTNode):
     """Comment node to preserve comments in AST."""
     text: str
     style: str  #
+
+# Simplified statement and expression nodes used by the SQLGlot parser
+@dataclass
+class SelectColumn(ASTNode):
+    """Column in a SELECT list."""
+    expression: Expression
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+
+@dataclass
+class WhereClause(ASTNode):
+    """WHERE clause wrapper."""
+    condition: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_where_clause(self)
+
+
+@dataclass
+class TableRef(ASTNode):
+    """Reference to a table with optional alias."""
+    table: TableName
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_table_ref(self)
+
+
+@dataclass
+class Join(ASTNode):
+    """JOIN between two tables or subqueries."""
+    join_type: JoinType
+    table: TableRef
+    condition: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_join(self)
+
+
+@dataclass
+class Select(Statement):
+    """SELECT statement."""
+    select_list: List[SelectColumn]
+    from_clause: Optional[TableRef] = None
+    where_clause: Optional[WhereClause] = None
+    joins: List[Join] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_select(self)
+
+
+@dataclass
+class Subquery(Expression):
+    """Subquery used as expression or table."""
+    select: Select
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_subquery(self)
+
+
+@dataclass
+class WhenClause(ASTNode):
+    condition: Expression
+    result: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+
+@dataclass
+class Case(Expression):
+    whens: List[WhenClause]
+    else_result: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_case(self)
+
+
+@dataclass
+class Insert(Statement):
+    """INSERT statement supporting VALUES or SELECT."""
+    table: TableRef
+    columns: List[Identifier] = field(default_factory=list)
+    values: List[List[Expression]] = field(default_factory=list)
+    query: Optional[Select] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+
+@dataclass
+class Update(Statement):
+    """UPDATE statement."""
+    table: TableRef
+    assignments: Dict[str, Expression]
+    where: Optional[WhereClause] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+
+@dataclass
+class CreateTable(Statement):
+    """CREATE TABLE statement."""
+    table: TableName
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)

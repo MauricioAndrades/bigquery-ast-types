@@ -4,7 +4,7 @@ SQLGlot Parser for BigQuery AST Types
 Wraps SQLGlot to parse BigQuery SQL into our AST representation.
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
 import sqlglot
 from sqlglot import exp
 from sqlglot.dialects import BigQuery
@@ -60,11 +60,16 @@ class SQLGlotParser:
         """Transform SQLGlot AST to our AST."""
         if isinstance(node, exp.Select):
             return self._transform_select(node)
+        elif isinstance(node, exp.Insert):
+            return self._transform_insert(node)
+        elif isinstance(node, exp.Update):
+            return self._transform_update(node)
+        elif isinstance(node, exp.Create):
+            return self._transform_create(node)
         elif isinstance(node, exp.Merge):
             return self._transform_merge(node)
         else:
-            # For now, return a placeholder
-            return b.select(b.col("*"))
+            raise NotImplementedError(f"Unsupported expression type: {type(node).__name__}")
     
     def _transform_select(self, select: exp.Select) -> Select:
         """Transform SQLGlot Select to our Select."""
@@ -89,15 +94,28 @@ class SQLGlotParser:
             if isinstance(from_expr, exp.Table):
                 table_ref = self._transform_table_reference(from_expr)
                 result.from_clause = table_ref
+
+        # Handle JOINs
+        for join_expr in select.args.get("joins") or []:
+            result.joins.append(self._transform_join(join_expr))
         
         # Add WHERE clause if present
         if select.args.get("where"):
             condition = self._transform_expression(select.args["where"].this)
             result.where_clause = WhereClause(condition=condition)
-        
+
         return result
+
+    def _transform_join(self, join: exp.Join) -> Join:
+        """Transform SQLGlot Join to our Join node."""
+        table = self._transform_table_reference(join.this)
+        condition = None
+        if join.args.get("on"):
+            condition = self._transform_expression(join.args["on"])
+        kind = join.args.get("kind") or "INNER"
+        return Join(join_type=JoinType[kind.upper()], table=table, condition=condition)
     
-    def _transform_merge(self, merge: exp.Merge) -> Merge:
+    def _transform_merge(self, merge: exp.Merge) -> "Merge":
         """Transform SQLGlot Merge to our Merge."""
         # Placeholder implementation
         target = TableRef(table=TableName(table=Identifier(name="target")))
@@ -124,6 +142,10 @@ class SQLGlotParser:
                 operator=expr.key.upper(),
                 right=self._transform_expression(expr.right)
             )
+        elif isinstance(expr, exp.Case):
+            return self._transform_case(expr)
+        elif isinstance(expr, exp.Subquery):
+            return self._transform_subquery(expr)
         elif isinstance(expr, exp.Func):
             args = [self._transform_expression(arg) for arg in expr.args.values() if arg]
             return FunctionCall(function_name=expr.name, arguments=args)
@@ -136,6 +158,58 @@ class SQLGlotParser:
         else:
             # Default: return column placeholder
             return Identifier(name=str(expr))
+
+    def _transform_subquery(self, sub: exp.Subquery) -> Subquery:
+        """Transform SQLGlot subquery to our Subquery."""
+        select = self._transform_select(sub.this)
+        return Subquery(select=select, alias=sub.alias)
+
+    def _transform_case(self, case: exp.Case) -> Case:
+        """Transform SQLGlot CASE expression."""
+        whens = []
+        for w in case.args.get("ifs") or []:
+            condition = self._transform_expression(w.this)
+            result = self._transform_expression(w.args.get("true"))
+            whens.append(WhenClause(condition=condition, result=result))
+        default = None
+        if case.args.get("default"):
+            default = self._transform_expression(case.args["default"])
+        return Case(whens=whens, else_result=default)
+
+    def _transform_insert(self, insert: exp.Insert) -> Insert:
+        """Transform SQLGlot Insert to our Insert statement."""
+        schema = insert.this  # exp.Schema
+        table = self._transform_table_reference(schema.this)
+        columns = []
+        for col in schema.expressions or []:
+            columns.append(Identifier(name=col.name))
+        expr = insert.args.get("expression")
+        values = []
+        query = None
+        if isinstance(expr, exp.Values):
+            for row in expr.expressions:
+                values.append([self._transform_expression(e) for e in row.expressions])
+        elif isinstance(expr, exp.Select):
+            query = self._transform_select(expr)
+        return Insert(table=table, columns=columns, values=values, query=query)
+
+    def _transform_update(self, update: exp.Update) -> Update:
+        """Transform SQLGlot Update to our Update statement."""
+        table = self._transform_table_reference(update.this)
+        assignments: Dict[str, Expression] = {}
+        for assignment in update.args.get("expressions") or []:
+            col = assignment.this.name
+            assignments[col] = self._transform_expression(assignment.expression)
+        where = None
+        if update.args.get("where"):
+            where = WhereClause(condition=self._transform_expression(update.args["where"].this))
+        return Update(table=table, assignments=assignments, where=where)
+
+    def _transform_create(self, create: exp.Create) -> CreateTable:
+        """Transform SQLGlot Create to our CreateTable statement."""
+        schema = create.this  # exp.Schema
+        table_ref = self._transform_table_reference(schema.this)
+        return CreateTable(table=table_ref.table)
     
     def _transform_identifier(self, expr: exp.Column) -> Expression:
         """Transform column/identifier with proper BigQuery identifier type detection."""
