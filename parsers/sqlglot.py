@@ -6,7 +6,10 @@ Wraps SQLGlot to parse BigQuery SQL into our AST representation.
 
 from typing import Any, Optional, Dict, List
 import sqlglot
-from sqlglot import exp
+try:
+    from sqlglot import exp
+except ImportError:
+    from sqlglot import expressions as exp
 from sqlglot.dialects import BigQuery
 
 # Handle imports for both package and direct usage
