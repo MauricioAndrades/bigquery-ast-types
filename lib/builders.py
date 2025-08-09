@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 # Import types from types module instead of redefining them
 from .types import (
     ASTNode,
+    Expression,
     Identifier, 
     Literal,
     BinaryOp,
@@ -30,29 +31,19 @@ from .types import (
     TableRef,
     OrderByClause,
     OrderByItem,
-    Expression,
-    WhenClause
+    WhenClause,
+    StringLiteral,
+    IntegerLiteral,
+    FloatLiteral,
+    BooleanLiteral,
+    NullLiteral,
+    DateLiteral,
+    TimestampLiteral
 )
 
 class ValidationError(Exception):
     """Custom exception for builder validation errors in BigQuery AST."""
     pass
-
-
-# Tuple of expression types for isinstance checks
-ExpressionTypes = (
-    Identifier,
-    Literal,
-    BinaryOp,
-    UnaryOp,
-    FunctionCall,
-    Cast,
-    Case,
-    WindowFunction,
-    Array,
-    Struct,
-    Star,
-)
 
 
 # Builder Functions - The fluent API
@@ -78,15 +69,6 @@ class Builders:
     @staticmethod
     def lit(value: Any) -> Literal:
         """Create a literal value."""
-        # Import specific literal types
-        from .types import (
-            StringLiteral,
-            IntegerLiteral,
-            FloatLiteral,
-            BooleanLiteral,
-            NullLiteral
-        )
-        
         # TODO: Support additional literal types like BYTES, DATE, TIMESTAMP (see issue #3)
         if value is None:
             return NullLiteral()
@@ -110,19 +92,16 @@ class Builders:
     @staticmethod
     def null() -> Literal:
         """Create a NULL literal."""
-        from .types import NullLiteral
         return NullLiteral()
 
     @staticmethod
     def true() -> Literal:
         """Create a TRUE literal."""
-        from .types import BooleanLiteral
         return BooleanLiteral(True)
 
     @staticmethod
     def false() -> Literal:
         """Create a FALSE literal."""
-        from .types import BooleanLiteral
         return BooleanLiteral(False)
 
     @staticmethod
@@ -147,7 +126,6 @@ class Builders:
         if not (1 <= m <= 12 and 1 <= d <= 31):
             raise ValidationError(f"Invalid date values: {value}")
 
-        from .types import DateLiteral
         return DateLiteral(value)
 
     @staticmethod
@@ -186,58 +164,48 @@ class Builders:
         except ValueError:
             raise ValidationError(f"Invalid timestamp format: {value}")
 
-        from .types import TimestampLiteral
         return TimestampLiteral(value)
 
     # Binary Operations
     @staticmethod
-    def _validate_binary_operands(left: Any, right: Any) -> None:
-        """Validate that both operands are Expression instances."""
-        valid_types = (Identifier, Literal, BinaryOp, UnaryOp, FunctionCall, Cast, Case, WindowFunction, Array, Struct, Star)
-        if not isinstance(left, valid_types):
-            raise TypeError(f"Both operands must be Expression instances, got {type(left)} for left operand")
-        if not isinstance(right, valid_types):
-            raise TypeError(f"Both operands must be Expression instances, got {type(right)} for right operand")
-
-    @staticmethod
     def eq(left: Expression, right: Expression) -> BinaryOp:
         """Equality comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp(left, '=', right)
 
     @staticmethod
     def neq(left: Expression, right: Expression) -> BinaryOp:
         """Inequality comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp(left, '!=', right)
 
     @staticmethod
     def lt(left: Expression, right: Expression) -> BinaryOp:
         """Less than comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp(left, '<', right)
 
     @staticmethod
     def lte(left: Expression, right: Expression) -> BinaryOp:
         """Less than or equal comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp(left, '<=', right)
 
     @staticmethod
     def gt(left: Expression, right: Expression) -> BinaryOp:
         """Greater than comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp(left, '>', right)
 
     @staticmethod
     def gte(left: Expression, right: Expression) -> BinaryOp:
         """Greater than or equal comparison."""
-        if not isinstance(left, ExpressionTypes) or not isinstance(right, ExpressionTypes):
+        if not isinstance(left, Expression) or not isinstance(right, Expression):
             raise TypeError("Both operands must be Expression instances")
         return BinaryOp(left, '>=', right)
 
@@ -299,7 +267,7 @@ class Builders:
             raise ValidationError("Function name cannot be empty")
         # Validate args are proper expressions
         for arg in args:
-            if arg is not None and not isinstance(arg, ExpressionTypes):
+            if arg is not None and not isinstance(arg, Expression):
                 raise TypeError(f"All function arguments must be Expression instances, got {type(arg)}")
         return FunctionCall(function_name=name, arguments=list(args))
 
@@ -311,22 +279,22 @@ class Builders:
     @staticmethod
     def nullif(expr: Expression, value: Expression) -> FunctionCall:
         """NULLIF function."""
-        return FunctionCall('NULLIF', [expr, value])
+        return FunctionCall(function_name='NULLIF', arguments=[expr, value])
 
     @staticmethod
     def trim(expr: Expression) -> FunctionCall:
         """TRIM function."""
-        return FunctionCall('TRIM', [expr])
+        return FunctionCall(function_name='TRIM', arguments=[expr])
 
     @staticmethod
     def concat(*args: Expression) -> FunctionCall:
         """CONCAT function."""
-        return FunctionCall('CONCAT', list(args))
+        return FunctionCall(function_name='CONCAT', arguments=list(args))
 
     @staticmethod
     def current_timestamp() -> FunctionCall:
         """CURRENT_TIMESTAMP function."""
-        return FunctionCall('CURRENT_TIMESTAMP', [])
+        return FunctionCall(function_name='CURRENT_TIMESTAMP', arguments=[])
 
     @staticmethod
     def timestamp_func(expr: Expression, timezone: Optional[Expression] = None) -> FunctionCall:
@@ -334,7 +302,7 @@ class Builders:
         args = [expr]
         if timezone:
             args.append(timezone)
-        return FunctionCall('TIMESTAMP', args)
+        return FunctionCall(function_name='TIMESTAMP', arguments=args)
 
     # Casting
     @staticmethod
@@ -367,7 +335,7 @@ class Builders:
     @staticmethod
     def case(*when_clauses, else_: Optional[Expression] = None) -> Case:
         """CASE expression."""
-        return Case(list(when_clauses), else_)
+        return Case(whens=list(when_clauses), else_result=else_)
 
     @staticmethod
     def when(condition: Expression, result: Expression) -> WhenClause:
@@ -378,39 +346,41 @@ class Builders:
     @staticmethod
     def row_number() -> WindowFunction:
         """ROW_NUMBER window function."""
-        return WindowFunction('ROW_NUMBER', [])
+        return WindowFunction(function_name='ROW_NUMBER', arguments=[])
 
     @staticmethod
     def rank() -> WindowFunction:
         """RANK window function."""
-        return WindowFunction('RANK', [])
+        return WindowFunction(function_name='RANK', arguments=[])
 
     # Arrays and Structs
     @staticmethod
     def array(*elements: Expression) -> Array:
         """Array literal."""
-        return Array(list(elements))
+        return Array(elements=list(elements))
 
     @staticmethod
     def struct(**fields: Expression) -> Struct:
         """STRUCT literal."""
-        return Struct([(name, expr) for name, expr in fields.items()])
+        return Struct(fields=[(name, expr) for name, expr in fields.items()])
 
     # SELECT components
     @staticmethod
     def star(except_columns: Optional[List[str]] = None) -> Star:
         """SELECT * or * EXCEPT(...)."""
-        return Star(except_columns or [])
+        return Star(except_columns=except_columns or [])
 
     @staticmethod
     def select_col(expr: Expression, alias: Optional[str] = None) -> SelectColumn:
         """Column in SELECT clause."""
-        return SelectColumn(expr, alias)
+        return SelectColumn(expression=expr, alias=alias)
 
     @staticmethod
     def table(name: str, alias: Optional[str] = None) -> TableRef:
         """Table reference."""
-        return TableRef(name, alias)
+        from .types import TableName
+        table_node = TableName(table=name)
+        return TableRef(table=table_node, alias=alias)
 
     # Complex helpers
     @staticmethod
