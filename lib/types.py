@@ -503,6 +503,10 @@ class ArrayLiteral(Literal):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_array_literal(self)
 
+    def __str__(self) -> str:
+        elements_str = ", ".join(str(e) for e in self.elements)
+        return f"[{elements_str}]"
+
 @dataclass
 class StructLiteral(Literal):
     """Struct literal."""
@@ -511,6 +515,10 @@ class StructLiteral(Literal):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_struct_literal(self)
+
+    def __str__(self) -> str:
+        fields_str = ", ".join(f"{expr} AS {name}" for name, expr in self.fields)
+        return f"STRUCT({fields_str})"
 
 @dataclass
 class RangeLiteral(Literal):
@@ -553,3 +561,154 @@ class Comment(ASTNode):
     """Comment node to preserve comments in AST."""
     text: str
     style: str  #
+
+
+# ---------------------------------------------------------------------------
+# Additional core node types used by the builder utilities.
+
+
+@dataclass
+class BinaryOp(Expression):
+    """Binary operation."""
+    operator: str
+    left: Expression
+    right: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        if hasattr(visitor, "visit_binary_op"):
+            return visitor.visit_binary_op(self)
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        return f"({self.left} {self.operator} {self.right})"
+
+
+@dataclass
+class UnaryOp(Expression):
+    """Unary operation."""
+    operator: str
+    operand: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        if hasattr(visitor, "visit_unary_op"):
+            return visitor.visit_unary_op(self)
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        return f"{self.operator} {self.operand}"
+
+
+@dataclass
+class FunctionCall(Expression):
+    """Function call."""
+    name: str
+    args: List[Expression]
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        if hasattr(visitor, "visit_function_call"):
+            return visitor.visit_function_call(self)
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        args_str = ", ".join(str(a) for a in self.args)
+        return f"{self.name}({args_str})"
+
+
+@dataclass
+class Cast(Expression):
+    """CAST expression."""
+    expr: Expression
+    target_type: str
+    safe: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        func = "SAFE_CAST" if self.safe else "CAST"
+        return f"{func}({self.expr} AS {self.target_type})"
+
+
+@dataclass
+class WhenClause(ASTNode):
+    """WHEN clause in CASE."""
+    condition: Expression
+    result: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        return f"WHEN {self.condition} THEN {self.result}"
+
+
+@dataclass
+class Case(Expression):
+    """CASE expression."""
+    when_clauses: List[WhenClause]
+    else_clause: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        clauses = "\n  ".join(str(w) for w in self.when_clauses)
+        result = f"CASE\n  {clauses}"
+        if self.else_clause:
+            result += f"\n  ELSE {self.else_clause}"
+        result += "\n  END"
+        return result
+
+
+@dataclass
+class OrderByClause(ASTNode):
+    """ORDER BY clause element."""
+    expr: Expression
+    direction: str = "ASC"  # 'ASC' or 'DESC'
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        return f"{self.expr} {self.direction}"
+
+
+@dataclass
+class WindowFunction(Expression):
+    """Window function."""
+    name: str
+    args: List[Expression]
+    partition_by: List[Expression] = field(default_factory=list)
+    order_by: List[OrderByClause] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        if hasattr(visitor, "visit_window_function"):
+            return visitor.visit_window_function(self)
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        args_str = ", ".join(str(a) for a in self.args)
+        parts = []
+        if self.partition_by:
+            partition_str = ", ".join(str(e) for e in self.partition_by)
+            parts.append(f"PARTITION BY {partition_str}")
+        if self.order_by:
+            order_str = ", ".join(str(o) for o in self.order_by)
+            parts.append(f"ORDER BY {order_str}")
+        over = " ".join(parts)
+        return f"{self.name}({args_str}) OVER ({over})"
+
+
+@dataclass
+class Star(Expression):
+    """SELECT * expression."""
+    except_columns: List[str] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        if self.except_columns:
+            cols = ", ".join(self.except_columns)
+            return f"* EXCEPT ({cols})"
+        return "*"
