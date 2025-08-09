@@ -63,20 +63,20 @@ def test_order_by():
     print("\nTesting ORDER BY builders...")
     
     # Simple ORDER BY
-    ob = b.order_by(b.col("name"))
+    ob = b.order_by_clause(b.col("name"))
     assert len(ob.items) == 1
     assert ob.items[0].direction == OrderDirection.ASC
     sql = to_sql(ob)
     print(f"  Simple ORDER BY: {sql}")
     
     # With direction
-    ob = b.order_by((b.col("age"), "DESC"))
+    ob = b.order_by_clause((b.col("age"), "DESC"))
     assert ob.items[0].direction == OrderDirection.DESC
     sql = to_sql(ob)
     print(f"  ORDER BY DESC: {sql}")
     
     # With NULLS ordering
-    ob = b.order_by((b.col("salary"), "DESC", "NULLS LAST"))
+    ob = b.order_by_clause((b.col("salary"), "DESC", "NULLS LAST"))
     assert ob.items[0].nulls_order == NullsOrder.LAST
     sql = to_sql(ob)
     print(f"  ORDER BY with NULLS: {sql}")
