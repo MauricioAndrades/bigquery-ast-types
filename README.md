@@ -1,3 +1,403 @@
+# Building a BigQuery Python Version of jscodeshift
+
+## The Translation: JavaScript AST → SQL AST in Python
+
+You're building the SQL equivalent of what jscodeshift does for JavaScript, but with Python as the implementation language. This is a three-way translation:
+
+| Aspect | jscodeshift | Your BigQuery Version |
+|--------|------------|---------------------|
+| **Target Language** | JavaScript/JSX | BigQuery SQL |
+| **Implementation Language** | JavaScript | Python |
+| **AST Types** | ESTree nodes | BigQuery SQL nodes |
+| **Builder Pattern** | `j.identifier('x')` | `b.col('x')` |
+| **Collection Type** | jscodeshift Collection | Python Collection with generics |
+
+## Core Architecture Translation
+
+### 1. **Node System: ESTree → BigQuery SQL Types**
+
+**jscodeshift (JavaScript AST):**
+```javascript
+// JavaScript AST nodes
+Identifier      // variable names
+CallExpression  // function calls
+BinaryExpression // a + b
+VariableDeclaration // const x = 1
+```
+
+**Your BigQuery Version:**
+```python
+# SQL AST nodes (types.py)
+Identifier      # column/table names
+FunctionCall    # SQL functions (COUNT, SUM)
+BinaryOp        # WHERE conditions (a = b)
+Select          # SELECT statements
+Merge           # MERGE statements
+```
+
+The key insight: SQL's declarative nature maps surprisingly well to AST patterns.
+
+### 2. **Builder API: Constructing Nodes**
+
+**jscodeshift:**
+```javascript
+// Building JavaScript AST
+j.callExpression(
+  j.identifier('console.log'),
+  [j.literal('Hello')]
+)
+```
+
+**Your BigQuery Version:**
+```python
+# Building SQL AST (builders.py)
+b.func(
+  'COUNT',
+  b.col('user_id')
+)
+```
+
+You've translated JavaScript's builder patterns to SQL concepts:
+- `j.identifier()` → `b.col()` (columns are SQL's identifiers)
+- `j.literal()` → `b.lit()` (SQL literals)
+- `j.callExpression()` → `b.func()` (SQL functions)
+- `j.binaryExpression()` → `b.eq()`, `b.gt()` (SQL operators)
+
+### 3. **Collection API: The jQuery Pattern**
+
+Both implement the same chainable pattern, but adapted to their domains:
+
+**jscodeshift:**
+```javascript
+root.find(j.CallExpression, {
+  callee: { name: 'require' }
+})
+.replaceWith(p => j.importDeclaration(...))
+```
+
+**Your BigQuery Version:**
+```python
+root.find(FunctionCall, 
+  lambda p: p.node.function_name == 'COALESCE'
+)
+.replaceWith(lambda p, i: b.func('IFNULL', *p.node.arguments))
+```
+
+### 4. **Path System: Context Awareness**
+
+**jscodeshift uses NodePath (from ast-types):**
+```javascript
+path.parent      // Parent node
+path.scope       // Variable scope
+path.replace()   // Replace this node
+```
+
+**Your NodePath (more sophisticated!):**
+```python
+path.parent      # Parent node
+path.scope       # Table/CTE scope (SQL-specific!)
+path.field       # Which field in parent
+path.index       # Position in list
+path.replace()   # Replace this node
+path.insert_before()  # SQL-specific operations
+```
+
+Your version actually improves on jscodeshift by tracking field names and indices explicitly!
+
+## SQL-Specific Adaptations
+
+### 1. **Scope = Table/CTE Resolution (not Variable Scope)**
+
+JavaScript needs variable scope:
+```javascript
+function outer() {
+  const x = 1;  // x scoped to outer
+  function inner() {
+    const y = 2;  // y scoped to inner
+  }
+}
+```
+
+SQL needs table/CTE scope:
+```sql
+WITH users_cte AS (  -- users_cte scoped to query
+  SELECT * FROM users
+)
+SELECT * FROM users_cte  -- resolves to CTE
+```
+
+Your `Scope` class handles SQL's scoping rules:
+```python
+# scope.py adapted for SQL
+scope.declare("users_cte", cte_node)
+scope.lookup("users_cte")  # Finds CTE, not JavaScript variable
+```
+
+### 2. **Two Implementation Strategies**
+
+You provide two parallel approaches, which jscodeshift doesn't:
+
+**Native AST (Pure Python):**
+```python
+# types.py + builders.py
+ast = b.select(
+    columns=[b.col("name")],
+    from_clause=b.table("users")
+)
+```
+
+**SQLGlot Wrapper (Leverage Existing Parser):**
+```python
+# bsql.py
+ast = j.parse("SELECT name FROM users")
+```
+
+This is brilliant because:
+- Native AST gives type safety and control
+- SQLGlot wrapper provides instant parsing and SQL generation
+- Users can mix approaches as needed
+
+### 3. **SQL-Specific Transformations**
+
+Your library handles SQL-specific patterns that don't exist in JavaScript:
+
+**Null-Safe Equality:**
+```python
+# SQL pattern: (a = b OR (a IS NULL AND b IS NULL))
+b.null_safe_eq(left, right)
+```
+
+**Window Functions:**
+```python
+# SQL-specific: ROW_NUMBER() OVER (PARTITION BY ...)
+window = b.row_number()
+window.partition_by = [b.col("department")]
+```
+
+**MERGE Statements:**
+```python
+# No JavaScript equivalent!
+merge = Merge(
+    target_table=b.table("target"),
+    source_table=b.table("source"),
+    merge_condition=b.eq(b.col("id"), b.col("id"))
+)
+```
+
+## Python-Specific Enhancements
+
+### 1. **Type Hints and Generics**
+
+Your Python version has better type safety than jscodeshift:
+
+```python
+class Collection(Generic[T]):
+    def find(self, node_type: Type[T]) -> "Collection[T]":
+        # Type-safe returns!
+```
+
+### 2. **Dataclasses for Nodes**
+
+Using Python dataclasses is cleaner than JavaScript classes:
+
+```python
+@dataclass
+class BinaryOp(Expression):
+    left: Expression
+    operator: str  
+    right: Expression
+    # Auto-generated __init__, __repr__, __eq__!
+```
+
+### 3. **Property Decorators for Compatibility**
+
+Smart use of Python properties for backward compatibility:
+
+```python
+class FunctionCall:
+    function_name: str
+    
+    @property
+    def name(self) -> str:
+        """Alias for compatibility."""
+        return self.function_name
+```
+
+## The Translation Map
+
+Here's how jscodeshift concepts translate to your BigQuery version:
+
+| jscodeshift Concept | Your BigQuery Equivalent | Why Different |
+|-------------------|------------------------|--------------|
+| `j.identifier('x')` | `b.col('x')` | SQL uses columns, not variables |
+| `j.memberExpression` | `b.col('x', table='t')` | SQL has table.column |
+| `j.variableDeclaration` | `CTE` | CTEs are SQL's "variables" |
+| `j.functionExpression` | `Subquery` | Subqueries are SQL's "functions" |
+| `j.ifStatement` | `Case` | CASE is SQL's conditional |
+| `j.forStatement` | Window functions | SQL iteration via windows |
+| `j.importDeclaration` | `WITH` clause | CTEs are SQL's imports |
+| `path.scope.lookup()` | `scope.lookup()` | Looks up tables, not variables |
+
+## Example: Complex Transformation
+
+Let's see how a complex transformation looks in both:
+
+**jscodeshift (Converting requires to imports):**
+```javascript
+// Transform: const x = require('lodash') → import x from 'lodash'
+root.find(j.VariableDeclaration, {
+  declarations: [{
+    init: {
+      type: 'CallExpression',
+      callee: { name: 'require' }
+    }
+  }]
+})
+.replaceWith(path => {
+  const source = path.node.declarations[0].init.arguments[0];
+  const specifier = path.node.declarations[0].id;
+  return j.importDeclaration(
+    [j.importDefaultSpecifier(specifier)],
+    source
+  );
+});
+```
+
+**Your BigQuery Version (Converting COUNT(*) to COUNT(1)):**
+```python
+# Transform: COUNT(*) → COUNT(1) for performance
+root.find(FunctionCall,
+  lambda p: p.node.function_name == 'COUNT'
+).filter(
+  lambda p: (len(p.node.arguments) == 1 and 
+            isinstance(p.node.arguments[0], Star))
+).replaceWith(
+  lambda p, i: b.func('COUNT', b.lit(1))
+)
+```
+
+## Unique Features of Your Implementation
+
+### 1. **Dual-Mode Operation**
+- Native AST for control
+- SQLGlot for convenience
+- Can switch between them!
+
+### 2. **BigQuery-Specific Types**
+```python
+# BigQuery type system (types.py)
+TypeParser.parse("ARRAY<STRUCT<name STRING, age INT64>>")
+TypeValidator.validate_type(type_)
+TypeCaster.can_cast(from_type, to_type)
+```
+
+### 3. **Serialization with Formatting**
+```python
+# Configurable SQL output (serializer.py)
+options = SerializerOptions(
+    indent="  ",
+    uppercase_keywords=True,
+    format_style="expanded"
+)
+sql = to_sql(ast, options)
+```
+
+### 4. **Index-Safe Operations**
+Your `insert_before` handles the tricky index updating that jscodeshift struggles with:
+```python
+# Process in reverse to avoid index shifting
+for i, path in enumerate(reversed(self.paths)):
+    new_path = path.insert_before(new_node)
+```
+
+## The Power of This Approach
+
+### For SQL Developers
+Instead of string manipulation:
+```python
+# Old way: Regex nightmare
+sql = re.sub(r'COUNT\(\*\)', 'COUNT(1)', sql)
+```
+
+You get structured transformations:
+```python
+# New way: Type-safe AST transformation
+col.find(FunctionCall, is_count_star).replaceWith(
+    lambda p, i: b.func('COUNT', b.lit(1))
+)
+```
+
+### For Data Engineers
+Transform entire data pipelines programmatically:
+```python
+# Add partition filters to all queries
+def add_partition_filter(query):
+    return astCollection(query).find(Select).forEach(
+        lambda p, i: add_where_clause(p, 
+            b.gte(b.col('_PARTITIONDATE'), b.date('2024-01-01'))
+        )
+    )
+```
+
+### For Query Optimizers
+Implement optimization passes:
+```python
+# Convert NOT IN to NOT EXISTS for better performance
+def optimize_not_in(query):
+    return astCollection(query).find(BinaryOp,
+        lambda p: p.node.operator == 'NOT IN'
+    ).replaceWith(convert_to_not_exists)
+```
+
+## Future Possibilities
+
+Your foundation enables:
+
+1. **Codemod Library for SQL**
+   ```python
+   # Library of common SQL transformations
+   from bigquery_codemods import modernize_syntax, add_partition_filters
+   ```
+
+2. **SQL Linting as Transformations**
+   ```python
+   # Lint by attempting fixes
+   def lint_no_select_star(query):
+       stars = col.find(Star)
+       if stars.size() > 0:
+           return "Warning: SELECT * found"
+   ```
+
+3. **Schema Evolution Tools**
+   ```python
+   # Automatically update queries for schema changes
+   def migrate_column_rename(query, old_name, new_name):
+       col.find(Identifier, 
+           lambda p: p.node.name == old_name
+       ).replaceWith(b.col(new_name))
+   ```
+
+4. **Query Performance Analyzer**
+   ```python
+   # Identify performance issues
+   def find_missing_partition_filters(query):
+       return col.find(Select).filter(
+           lambda p: not has_partition_filter(p)
+       )
+   ```
+
+## Conclusion
+
+You've successfully translated jscodeshift's revolutionary approach from JavaScript ASTs to BigQuery SQL ASTs in Python. The translation required:
+
+1. **Adapting node types** from JavaScript constructs to SQL constructs
+2. **Reinterpreting scope** from variable scope to table/CTE scope  
+3. **Adding SQL-specific operations** like null-safe equality and window functions
+4. **Leveraging Python features** like type hints and dataclasses
+5. **Providing dual implementations** for flexibility
+
+The result is a powerful toolkit that makes SQL transformations as easy as DOM manipulation with jQuery. It's not just a port—it's an evolution that adds SQL-specific intelligence while maintaining the elegant jscodeshift pattern.
+
 # The jscodeshift Pattern in BigQuery AST Collection
 
 ## What is jscodeshift?
