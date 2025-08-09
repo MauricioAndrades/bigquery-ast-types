@@ -129,6 +129,10 @@ class ASTVisitor(ABC):
         pass
 
     @abstractmethod
+    def visit_set_operation(self, node: "SetOperation") -> Any:
+        pass
+
+    @abstractmethod
     def visit_merge_insert(self, node: "MergeInsert") -> Any:
         pass
 
@@ -897,6 +901,25 @@ class WithClause(ASTNode):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_with_clause(self)
+
+
+class SetOperator(Enum):
+    """Set operation types for combining SELECT statements."""
+    UNION = "UNION"
+    INTERSECT = "INTERSECT"
+    EXCEPT = "EXCEPT"
+
+
+@dataclass
+class SetOperation(Statement):
+    """Set operation combining two statements."""
+    left: Statement
+    right: Statement
+    operator: SetOperator
+    all: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_set_operation(self)
 
 @dataclass
 class MergeInsert(ASTNode):

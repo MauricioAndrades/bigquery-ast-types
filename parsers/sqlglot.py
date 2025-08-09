@@ -14,8 +14,8 @@ except ImportError:
 from sqlglot.dialects import BigQuery
 
 # Import AST node types and builders
-from ..lib.builders import b
-from ..lib.types import (
+from lib.builders import b
+from lib.types import (
     Select, SelectColumn, Merge, WhereClause, Identifier, TableName, TableRef, EnhancedGeneralIdentifier,
     Join, JoinType, BinaryOp, Expression, FunctionCall, PathExpression, PathPart,
     Subquery, Case, WhenClause, Insert, Update, CreateTable,
@@ -25,11 +25,11 @@ from ..lib.types import (
     NamedParameter, PositionalParameter, Literal,
     DatetimeLiteral,
     GroupByClause, HavingClause, OrderByClause, OrderByItem, LimitClause,
-    CTE, WithClause, OrderDirection
+    CTE, WithClause, OrderDirection, SetOperation, SetOperator
 )
 
 # Define a generic Statement type for AST root nodes
-Statement = Union[Select, Insert, Update, CreateTable, Merge]
+Statement = Union[Select, Insert, Update, CreateTable, Merge, SetOperation]
 
 
 class SQLGlotParser:
@@ -67,6 +67,8 @@ class SQLGlotParser:
             return self._transform_create(node)
         elif isinstance(node, exp.Merge):
             return self._transform_merge(node)
+        elif isinstance(node, (exp.Union, exp.Intersect, exp.Except)):
+            return self._transform_set_operation(node)
         else:
             raise NotImplementedError(f"Unsupported expression type: {type(node).__name__}")
 
@@ -97,6 +99,19 @@ class SQLGlotParser:
             columns = [col.name for col in cte_exp.args.get("columns") or []]
             ctes.append(CTE(name=name, query=query, columns=columns or None))
         return WithClause(ctes=ctes)
+
+    def _transform_set_operation(self, node: exp.Expression) -> SetOperation:
+        """Transform SQLGlot set operation expressions."""
+        left = self._transform(node.this)
+        right = self._transform(node.expression)
+        op_map = {
+            exp.Union: SetOperator.UNION,
+            exp.Intersect: SetOperator.INTERSECT,
+            exp.Except: SetOperator.EXCEPT,
+        }
+        operator = op_map[type(node)]
+        all_flag = not node.args.get("distinct", True)
+        return SetOperation(left=left, right=right, operator=operator, all=all_flag)
 
     def _transform_select(self, select: exp.Select) -> Select:
         """Transform SQLGlot Select to our Select using builder API for columns."""

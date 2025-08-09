@@ -38,7 +38,10 @@ from .types import (
     BooleanLiteral,
     NullLiteral,
     DateLiteral,
-    TimestampLiteral
+    TimestampLiteral,
+    SetOperation,
+    SetOperator,
+    Select
 )
 
 class ValidationError(Exception):
@@ -393,6 +396,27 @@ class Builders:
                 Builders.is_null(right)
             )
         )
+
+    # Set operations
+    @staticmethod
+    def set_op(left: Select, right: Select, operator: SetOperator, all: bool = False) -> SetOperation:
+        """Generic set operation between two SELECT statements."""
+        return SetOperation(left=left, right=right, operator=operator, all=all)
+
+    @staticmethod
+    def union(left: Select, right: Select, all: bool = False) -> SetOperation:
+        """UNION or UNION ALL."""
+        return Builders.set_op(left, right, SetOperator.UNION, all)
+
+    @staticmethod
+    def intersect(left: Select, right: Select, all: bool = False) -> SetOperation:
+        """INTERSECT or INTERSECT ALL."""
+        return Builders.set_op(left, right, SetOperator.INTERSECT, all)
+
+    @staticmethod
+    def except_(left: Select, right: Select, all: bool = False) -> SetOperation:
+        """EXCEPT or EXCEPT ALL."""
+        return Builders.set_op(left, right, SetOperator.EXCEPT, all)
 
 
 # Export builder instance
