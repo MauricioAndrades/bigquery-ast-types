@@ -792,6 +792,8 @@ class WhereClause(ASTNode):
 class GroupByClause(ASTNode):
     """GROUP BY clause."""
     expressions: List[Expression] = field(default_factory=list)
+    rollup: bool = False
+    cube: bool = False
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_group_by_clause(self)
@@ -809,12 +811,18 @@ class OrderByItem(ASTNode):
     """Single ORDER BY item."""
     expression: Expression
     direction: OrderDirection = OrderDirection.ASC
+    nulls_first: Optional[bool] = None
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_order_by_item(self)
 
     def __str__(self) -> str:
-        return f"{self.expression} {self.direction.value}"
+        parts = [str(self.expression)]
+        if self.direction:
+            parts.append(self.direction.value)
+        if self.nulls_first is not None:
+            parts.append("NULLS FIRST" if self.nulls_first else "NULLS LAST")
+        return " ".join(parts)
 
 @dataclass
 class OrderByClause(ASTNode):

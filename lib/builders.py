@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from .types import (
     ASTNode,
     Expression,
-    Identifier, 
+    Identifier,
     Literal,
     BinaryOp,
     UnaryOp,
@@ -29,8 +29,15 @@ from .types import (
     Star,
     SelectColumn,
     TableRef,
+    GroupByClause,
+    HavingClause,
     OrderByClause,
     OrderByItem,
+    OrderDirection,
+    LimitClause,
+    IntervalLiteral,
+    JSONLiteral,
+    NamedParameter,
     WhenClause,
     StringLiteral,
     IntegerLiteral,
@@ -384,6 +391,60 @@ class Builders:
         from .types import TableName
         table_node = TableName(table=name)
         return TableRef(table=table_node, alias=alias)
+
+    # Clauses
+    @staticmethod
+    def group_by(*expressions: Expression, rollup: bool = False, cube: bool = False) -> GroupByClause:
+        """GROUP BY builder with ROLLUP/CUBE support."""
+        if rollup and cube:
+            raise ValidationError("GROUP BY cannot have both rollup and cube")
+        exprs: List[Expression] = []
+        for expr in expressions:
+            if not isinstance(expr, Expression):
+                raise TypeError("All group by expressions must be Expression instances")
+            exprs.append(expr)
+        return GroupByClause(expressions=exprs, rollup=rollup, cube=cube)
+
+    @staticmethod
+    def having(condition: Expression) -> HavingClause:
+        """HAVING clause builder."""
+        if not isinstance(condition, Expression):
+            raise TypeError("condition must be an Expression")
+        return HavingClause(condition)
+
+    @staticmethod
+    def order_by(expr: Expression, desc: bool = False, nulls_first: Optional[bool] = None) -> OrderByItem:
+        """ORDER BY builder with NULLS FIRST/LAST."""
+        if not isinstance(expr, Expression):
+            raise TypeError("expr must be an Expression")
+        direction = OrderDirection.DESC if desc else OrderDirection.ASC
+        return OrderByItem(expression=expr, direction=direction, nulls_first=nulls_first)
+
+    @staticmethod
+    def limit(limit: int, offset: Optional[int] = None) -> LimitClause:
+        """LIMIT/OFFSET builder."""
+        limit_expr = Builders.lit(limit)
+        offset_expr = Builders.lit(offset) if offset is not None else None
+        return LimitClause(limit=limit_expr, offset=offset_expr)
+
+    @staticmethod
+    def interval(value: int, unit: str) -> IntervalLiteral:
+        """INTERVAL literal builder."""
+        return IntervalLiteral(value=f"{value} {unit}")
+
+    @staticmethod
+    def json(value: Union[dict, list, str]) -> JSONLiteral:
+        """JSON literal builder."""
+        import json as _json
+        json_str = _json.dumps(value) if not isinstance(value, str) else value
+        return JSONLiteral(value=json_str)
+
+    @staticmethod
+    def param(name: str) -> NamedParameter:
+        """Named parameter builder."""
+        if not name:
+            raise ValidationError("Parameter name cannot be empty")
+        return NamedParameter(name)
 
     # Complex helpers
     @staticmethod

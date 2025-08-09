@@ -242,6 +242,10 @@ class SQLSerializer(ASTVisitor):
             if i > 0:
                 self._write(", ")
             expr.accept(self)
+        if node.rollup:
+            self._write(" WITH ROLLUP")
+        elif node.cube:
+            self._write(" WITH CUBE")
 
     def visit_having_clause(self, node: HavingClause) -> Any:
         """
@@ -263,6 +267,8 @@ class SQLSerializer(ASTVisitor):
         node.expression.accept(self)
         if node.direction:
             self._write(f" {node.direction.value}")
+        if node.nulls_first is not None:
+            self._write(" NULLS FIRST" if node.nulls_first else " NULLS LAST")
 
     def visit_order_by_clause(self, node: OrderByClause) -> Any:
         """
