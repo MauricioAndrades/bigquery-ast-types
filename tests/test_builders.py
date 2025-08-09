@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 from lib import b, ValidationError, Identifier, Literal, BinaryOp
-from lib import OrderByClause
+from lib.builders import OrderByClause
 
 
 class TestIdentifierBuilder:
@@ -40,7 +40,7 @@ class TestIdentifierBuilder:
 
     def test_none_identifier_fails(self):
         with pytest.raises(ValidationError):
-            b.col(None)
+            b.col(None) # pyright: ignore[reportArgumentType]
 
 
 class TestLiteralBuilder:
@@ -153,7 +153,7 @@ class TestBinaryOperations:
         with pytest.raises(
             TypeError, match="Both operands must be Expression instances"
         ):
-            b.eq("not_an_expression", b.lit(1))
+            b.eq("not_an_expression", b.lit(1)) # pyright: ignore[reportArgumentType]
 
     def test_logical_operations(self):
         a = b.eq(b.col("a"), b.lit(1))
@@ -208,7 +208,7 @@ class TestFunctions:
         with pytest.raises(
             TypeError, match="All function arguments must be Expression instances"
         ):
-            b.func("UPPER", "not_an_expression")
+            b.func("UPPER", "not_an_expression") # pyright: ignore[reportArgumentType]
 
     def test_builtin_functions(self):
         # COALESCE
@@ -306,7 +306,7 @@ class TestComplexBuilders:
         assert len(row_num.args) == 0
 
         row_num.partition_by = [b.col("customer_id")]
-        row_num.order_by = [OrderByClause(b.col("order_date"), "DESC")]
+        row_num.order_by = [OrderByClause(expr=b.col("order_date"), direction="DESC")]
 
         win_str = str(row_num)
         assert "ROW_NUMBER()" in win_str

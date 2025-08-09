@@ -1,5 +1,5 @@
-from zsql_ast_transformer import parse_sql, NodePath, BaseVisitor, visit
-
+from ..sqlglot.sqlglot import parse
+from lib.visitor import BaseVisitor, visit
 
 class FindTablesVisitor(BaseVisitor):
     def __init__(self):
@@ -13,8 +13,7 @@ class FindTablesVisitor(BaseVisitor):
 
 if __name__ == "__main__":
     sql = "SELECT * FROM my_dataset.my_table"
-    ast = parse_sql(sql)
-    path = NodePath(ast)
+    ast = parse(sql)
     visitor = FindTablesVisitor()
-    visit(path, visitor)
+    visit(ast, visitor)
     print("Tables found:", visitor.tables)

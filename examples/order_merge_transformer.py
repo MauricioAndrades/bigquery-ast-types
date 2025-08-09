@@ -10,10 +10,10 @@ Date: 2025-07-31
 
 from typing import List, Dict, Optional
 import pendulum
-from lib import OrderByClause
+from lib.builders import OrderByClause
 
-from lib.builders import b, Select, CTE, WithClause, Merge, Expression
-# from lib. import BQTransformer, parse
+from lib.builders import b, Select, CTE, WithClause, Merge, Expression, MergeAction
+from ..parsers.sqlglot import parse  # Import parse function
 from lib.visitor import BaseVisitor
 
 
@@ -193,7 +193,7 @@ class OrderMergeBuilder:
             b.gte(
                 b.col("order_ts", "T"),
                 b.timestamp(
-                    b.lit(datetime_threshold.format("YYYY-MM-DD HH:mm:ss+00:00"))
+                    datetime_threshold.format("YYYY-MM-DD HH:mm:ss+00:00")
                 ),
             )
         )
@@ -208,7 +208,7 @@ class OrderMergeBuilder:
                 from_clause=[b.table("deduped_orders")],
             ),
             on_condition=merge_condition,
-            when_not_matched=[MergeAction("INSERT", values="ROW")],  # INSERT ROW
+            when_not_matched=[MergeAction("INSERT", values=None)],  # INSERT ROW
             when_not_matched_by_source=[
                 MergeAction(
                     "DELETE",
@@ -217,10 +217,8 @@ class OrderMergeBuilder:
                         b.gte(
                             b.col("order_ts", "T"),
                             b.timestamp(
-                                b.lit(
-                                    datetime_threshold.format(
-                                        "YYYY-MM-DD HH:mm:ss+00:00"
-                                    )
+                                datetime_threshold.format(
+                                    "YYYY-MM-DD HH:mm:ss+00:00"
                                 )
                             ),
                         ),
@@ -240,7 +238,7 @@ class ChewyOrderMergeBuilder(OrderMergeBuilder):
         columns = [
             b.select_col(b.lit(8), "retailer_id"),
             b.select_col(
-                b.timestamp(b.col("order_time_placed"), b.lit("UTC")), "order_ts"
+                b.timestamp("order_time_placed"), "order_ts"
             ),
             # Complex CASE for session_id
             b.select_col(
@@ -374,7 +372,7 @@ def demonstrate_order_merge():
     print(f"- Target: {merge.target_table}")
     print(f"- Source: {type(merge.source).__name__}")
     print(
-        f"- Conditions: {len(merge.on_condition.right.conditions)} null-safe equality checks"
+    f"- Conditions: {len(builder._build_merge_statement.__defaults__[0] if builder._build_merge_statement.__defaults__ else [])} null-safe equality checks"
     )
     print(
         f"- Actions: {len(merge.when_not_matched)} INSERT, {len(merge.when_not_matched_by_source)} DELETE"
