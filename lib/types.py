@@ -304,6 +304,92 @@ class ASTVisitor(ABC):
     def visit_unpivot(self, node: "Unpivot") -> Any:
         pass
 
+    # DDL Statement visitors (Task 1)
+    @abstractmethod
+    def visit_create_view(self, node: "CreateView") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_create_function(self, node: "CreateFunction") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_alter_table(self, node: "AlterTable") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_add_column(self, node: "AddColumn") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_drop_column(self, node: "DropColumn") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_rename_column(self, node: "RenameColumn") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_alter_column(self, node: "AlterColumn") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_set_table_options(self, node: "SetTableOptions") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_drop_statement(self, node: "DropStatement") -> Any:
+        pass
+
+    # Scripting Statement visitors (Task 3)
+    @abstractmethod
+    def visit_declare_statement(self, node: "DeclareStatement") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_variable_declaration(self, node: "VariableDeclaration") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_set_statement(self, node: "SetStatement") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_if_statement(self, node: "IfStatement") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_elseif_clause(self, node: "ElseIfClause") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_while_loop(self, node: "WhileLoop") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_for_loop(self, node: "ForLoop") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_begin_end_block(self, node: "BeginEndBlock") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_exception_handler(self, node: "ExceptionHandler") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_break_statement(self, node: "BreakStatement") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_continue_statement(self, node: "ContinueStatement") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_call_statement(self, node: "CallStatement") -> Any:
+        pass
+
     # Specific comment style visitors
     def visit_hash_comment(self, node: "HashComment") -> Any:
         return self.visit_comment(node)
@@ -1319,6 +1405,233 @@ class CreateTable(Statement):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_create_table(self)
+
+# Additional DDL Statements (Task 1)
+
+@dataclass
+class CreateView(Statement):
+    """CREATE VIEW statement."""
+    view: TableName
+    query: Select
+    or_replace: bool = False
+    materialized: bool = False
+    if_not_exists: bool = False
+    columns: Optional[List[str]] = None
+    partition_by: Optional[Expression] = None
+    cluster_by: Optional[List[Expression]] = None
+    options: Optional[Dict[str, Any]] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_create_view(self)
+
+@dataclass  
+class CreateFunction(Statement):
+    """CREATE FUNCTION statement."""
+    function_name: str
+    parameters: List[Tuple[str, str]] = field(default_factory=list)  # [(param_name, param_type), ...]
+    return_type: Optional[str] = None
+    language: str = "SQL"  # SQL, JAVASCRIPT, etc.
+    body: Optional[str] = None  # Function body
+    query: Optional[Select] = None  # For SQL functions
+    or_replace: bool = False
+    if_not_exists: bool = False
+    temp: bool = False
+    deterministic: bool = False
+    options: Optional[Dict[str, Any]] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_create_function(self)
+
+@dataclass
+class AlterTable(Statement):
+    """ALTER TABLE statement."""
+    table: TableName
+    actions: List["AlterAction"] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_alter_table(self)
+
+# AlterAction base class and subclasses
+@dataclass
+class AlterAction(ASTNode):
+    """Base class for ALTER TABLE actions."""
+    pass
+
+@dataclass
+class AddColumn(AlterAction):
+    """ADD COLUMN action."""
+    column_name: str
+    column_type: str
+    if_not_exists: bool = False
+    default_value: Optional[Expression] = None
+    not_null: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_add_column(self)
+
+@dataclass
+class DropColumn(AlterAction):
+    """DROP COLUMN action."""
+    column_name: str
+    if_exists: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_drop_column(self)
+
+@dataclass
+class RenameColumn(AlterAction):
+    """RENAME COLUMN action."""
+    old_name: str
+    new_name: str
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_rename_column(self)
+
+@dataclass
+class AlterColumn(AlterAction):
+    """ALTER COLUMN action."""
+    column_name: str
+    set_data_type: Optional[str] = None
+    set_default: Optional[Expression] = None
+    drop_default: bool = False
+    set_not_null: bool = False
+    drop_not_null: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_alter_column(self)
+
+@dataclass
+class SetTableOptions(AlterAction):
+    """SET OPTIONS action."""
+    options: Dict[str, Any]
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_set_table_options(self)
+
+@dataclass
+class DropStatement(Statement):
+    """DROP statement for tables, views, functions, etc."""
+    object_type: str  # TABLE, VIEW, FUNCTION, etc.
+    object_name: Union[TableName, str]
+    if_exists: bool = False
+    cascade: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_drop_statement(self)
+
+# BigQuery Scripting Constructs (Task 3)
+
+@dataclass
+class DeclareStatement(Statement):
+    """DECLARE statement for variable declarations."""
+    variables: List["VariableDeclaration"] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_declare_statement(self)
+
+@dataclass
+class VariableDeclaration(ASTNode):
+    """Variable declaration within DECLARE statement."""
+    name: str
+    data_type: str
+    default_value: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_variable_declaration(self)
+
+@dataclass
+class SetStatement(Statement):
+    """SET statement for variable assignment."""
+    variable_name: str
+    value: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_set_statement(self)
+
+@dataclass
+class IfStatement(Statement):
+    """IF-THEN-ELSE statement."""
+    condition: Expression
+    then_statements: List[Statement] = field(default_factory=list)
+    elseif_clauses: List["ElseIfClause"] = field(default_factory=list)
+    else_statements: Optional[List[Statement]] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_if_statement(self)
+
+@dataclass
+class ElseIfClause(ASTNode):
+    """ELSEIF clause within IF statement."""
+    condition: Expression
+    statements: List[Statement] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_elseif_clause(self)
+
+@dataclass
+class WhileLoop(Statement):
+    """WHILE loop statement."""
+    condition: Expression
+    statements: List[Statement] = field(default_factory=list)
+    label: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_while_loop(self)
+
+@dataclass
+class ForLoop(Statement):
+    """FOR loop statement."""
+    variable: str
+    query: Select
+    statements: List[Statement] = field(default_factory=list)
+    label: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_for_loop(self)
+
+@dataclass
+class BeginEndBlock(Statement):
+    """BEGIN-END block statement."""
+    statements: List[Statement] = field(default_factory=list)
+    exception_handler: Optional["ExceptionHandler"] = None
+    label: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_begin_end_block(self)
+
+@dataclass
+class ExceptionHandler(ASTNode):
+    """EXCEPTION handler in BEGIN-END block."""
+    when_conditions: List[str] = field(default_factory=list)  # Exception types
+    statements: List[Statement] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_exception_handler(self)
+
+@dataclass
+class BreakStatement(Statement):
+    """BREAK statement for loop control."""
+    label: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_break_statement(self)
+
+@dataclass
+class ContinueStatement(Statement):
+    """CONTINUE statement for loop control."""
+    label: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_continue_statement(self)
+
+@dataclass
+class CallStatement(Statement):
+    """CALL statement for procedure calls."""
+    procedure_name: str
+    arguments: List[Expression] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_call_statement(self)
 
 @dataclass
 

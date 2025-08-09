@@ -936,6 +936,372 @@ class SQLSerializer(ASTVisitor):
         if node.alias:
             self._write(f" AS {node.alias}")
 
+    # DDL Statement visitors (Task 1)
+    def visit_create_view(self, node) -> Any:
+        """Visit a CREATE VIEW statement."""
+        self._write("CREATE ")
+        if node.or_replace:
+            self._write("OR REPLACE ")
+        if node.materialized:
+            self._write("MATERIALIZED ")
+        self._write("VIEW ")
+        if node.if_not_exists:
+            self._write("IF NOT EXISTS ")
+        node.view.accept(self)
+        
+        if node.columns:
+            self._write(" (")
+            for i, col in enumerate(node.columns):
+                if i > 0:
+                    self._write(", ")
+                self._write(col)
+            self._write(")")
+        
+        if node.partition_by:
+            self._write(" PARTITION BY ")
+            node.partition_by.accept(self)
+        
+        if node.cluster_by:
+            self._write(" CLUSTER BY ")
+            for i, expr in enumerate(node.cluster_by):
+                if i > 0:
+                    self._write(", ")
+                expr.accept(self)
+        
+        if node.options:
+            self._write(" OPTIONS (")
+            items = list(node.options.items())
+            for i, (key, value) in enumerate(items):
+                if i > 0:
+                    self._write(", ")
+                self._write(f"{key} = {value}")
+            self._write(")")
+        
+        self._write(" AS ")
+        node.query.accept(self)
+
+    def visit_create_function(self, node) -> Any:
+        """Visit a CREATE FUNCTION statement."""
+        self._write("CREATE ")
+        if node.or_replace:
+            self._write("OR REPLACE ")
+        if node.temp:
+            self._write("TEMP ")
+        self._write("FUNCTION ")
+        if node.if_not_exists:
+            self._write("IF NOT EXISTS ")
+        self._write(node.function_name)
+        
+        self._write("(")
+        for i, (param_name, param_type) in enumerate(node.parameters):
+            if i > 0:
+                self._write(", ")
+            self._write(f"{param_name} {param_type}")
+        self._write(")")
+        
+        if node.return_type:
+            self._write(f" RETURNS {node.return_type}")
+        
+        if node.deterministic:
+            self._write(" DETERMINISTIC")
+        
+        if node.language != "SQL":
+            self._write(f" LANGUAGE {node.language}")
+        
+        if node.options:
+            self._write(" OPTIONS (")
+            items = list(node.options.items())
+            for i, (key, value) in enumerate(items):
+                if i > 0:
+                    self._write(", ")
+                self._write(f"{key} = {value}")
+            self._write(")")
+        
+        if node.body:
+            self._write(f" AS {node.body}")
+        elif node.query:
+            self._write(" AS (")
+            node.query.accept(self)
+            self._write(")")
+
+    def visit_alter_table(self, node) -> Any:
+        """Visit an ALTER TABLE statement."""
+        self._write("ALTER TABLE ")
+        node.table.accept(self)
+        for i, action in enumerate(node.actions):
+            if i > 0:
+                self._write(", ")
+            else:
+                self._write(" ")
+            action.accept(self)
+
+    def visit_add_column(self, node) -> Any:
+        """Visit an ADD COLUMN action."""
+        self._write("ADD COLUMN ")
+        if node.if_not_exists:
+            self._write("IF NOT EXISTS ")
+        self._write(f"{node.column_name} {node.column_type}")
+        if node.not_null:
+            self._write(" NOT NULL")
+        if node.default_value:
+            self._write(" DEFAULT ")
+            node.default_value.accept(self)
+
+    def visit_drop_column(self, node) -> Any:
+        """Visit a DROP COLUMN action."""
+        self._write("DROP COLUMN ")
+        if node.if_exists:
+            self._write("IF EXISTS ")
+        self._write(node.column_name)
+
+    def visit_rename_column(self, node) -> Any:
+        """Visit a RENAME COLUMN action."""
+        self._write(f"RENAME COLUMN {node.old_name} TO {node.new_name}")
+
+    def visit_alter_column(self, node) -> Any:
+        """Visit an ALTER COLUMN action."""
+        self._write(f"ALTER COLUMN {node.column_name} ")
+        if node.set_data_type:
+            self._write(f"SET DATA TYPE {node.set_data_type}")
+        elif node.set_default:
+            self._write("SET DEFAULT ")
+            node.set_default.accept(self)
+        elif node.drop_default:
+            self._write("DROP DEFAULT")
+        elif node.set_not_null:
+            self._write("SET NOT NULL")
+        elif node.drop_not_null:
+            self._write("DROP NOT NULL")
+
+    def visit_set_table_options(self, node) -> Any:
+        """Visit a SET OPTIONS action."""
+        self._write("SET OPTIONS (")
+        items = list(node.options.items())
+        for i, (key, value) in enumerate(items):
+            if i > 0:
+                self._write(", ")
+            self._write(f"{key} = {value}")
+        self._write(")")
+
+    def visit_drop_statement(self, node) -> Any:
+        """Visit a DROP statement."""
+        self._write(f"DROP {node.object_type} ")
+        if node.if_exists:
+            self._write("IF EXISTS ")
+        if hasattr(node.object_name, 'accept'):
+            node.object_name.accept(self)
+        else:
+            self._write(str(node.object_name))
+        if node.cascade:
+            self._write(" CASCADE")
+
+    # Scripting Statement visitors (Task 3)
+    def visit_declare_statement(self, node) -> Any:
+        """Visit a DECLARE statement."""
+        self._write("DECLARE ")
+        for i, var in enumerate(node.variables):
+            if i > 0:
+                self._write(", ")
+            var.accept(self)
+
+    def visit_variable_declaration(self, node) -> Any:
+        """Visit a variable declaration."""
+        self._write(f"{node.name} {node.data_type}")
+        if node.default_value:
+            self._write(" DEFAULT ")
+            node.default_value.accept(self)
+
+    def visit_set_statement(self, node) -> Any:
+        """Visit a SET statement."""
+        self._write(f"SET {node.variable_name} = ")
+        node.value.accept(self)
+
+    def visit_if_statement(self, node) -> Any:
+        """Visit an IF statement."""
+        self._write("IF ")
+        node.condition.accept(self)
+        self._write(" THEN")
+        if self.options.format_style == "expanded":
+            self._write("\n")
+            self.depth += 1
+        
+        for stmt in node.then_statements:
+            if self.options.format_style == "expanded":
+                self._indent()
+            stmt.accept(self)
+            if self.options.format_style == "expanded":
+                self._write("\n")
+        
+        for elseif in node.elseif_clauses:
+            if self.options.format_style == "expanded":
+                self.depth -= 1
+                self._indent()
+            else:
+                self._write(" ")
+            elseif.accept(self)
+        
+        if node.else_statements:
+            if self.options.format_style == "expanded":
+                self.depth -= 1
+                self._indent()
+                self._write("ELSE\n")
+                self.depth += 1
+            else:
+                self._write(" ELSE ")
+            
+            for stmt in node.else_statements:
+                if self.options.format_style == "expanded":
+                    self._indent()
+                stmt.accept(self)
+                if self.options.format_style == "expanded":
+                    self._write("\n")
+        
+        if self.options.format_style == "expanded":
+            self.depth -= 1
+            self._indent()
+        else:
+            self._write(" ")
+        self._write("END IF")
+
+    def visit_elseif_clause(self, node) -> Any:
+        """Visit an ELSEIF clause."""
+        self._write("ELSEIF ")
+        node.condition.accept(self)
+        self._write(" THEN")
+        if self.options.format_style == "expanded":
+            self._write("\n")
+            self.depth += 1
+        
+        for stmt in node.statements:
+            if self.options.format_style == "expanded":
+                self._indent()
+            stmt.accept(self)
+            if self.options.format_style == "expanded":
+                self._write("\n")
+
+    def visit_while_loop(self, node) -> Any:
+        """Visit a WHILE loop."""
+        if node.label:
+            self._write(f"{node.label}: ")
+        self._write("WHILE ")
+        node.condition.accept(self)
+        self._write(" DO")
+        if self.options.format_style == "expanded":
+            self._write("\n")
+            self.depth += 1
+        
+        for stmt in node.statements:
+            if self.options.format_style == "expanded":
+                self._indent()
+            stmt.accept(self)
+            if self.options.format_style == "expanded":
+                self._write("\n")
+        
+        if self.options.format_style == "expanded":
+            self.depth -= 1
+            self._indent()
+        else:
+            self._write(" ")
+        self._write("END WHILE")
+
+    def visit_for_loop(self, node) -> Any:
+        """Visit a FOR loop."""
+        if node.label:
+            self._write(f"{node.label}: ")
+        self._write(f"FOR {node.variable} IN (")
+        node.query.accept(self)
+        self._write(") DO")
+        if self.options.format_style == "expanded":
+            self._write("\n")
+            self.depth += 1
+        
+        for stmt in node.statements:
+            if self.options.format_style == "expanded":
+                self._indent()
+            stmt.accept(self)
+            if self.options.format_style == "expanded":
+                self._write("\n")
+        
+        if self.options.format_style == "expanded":
+            self.depth -= 1
+            self._indent()
+        else:
+            self._write(" ")
+        self._write("END FOR")
+
+    def visit_begin_end_block(self, node) -> Any:
+        """Visit a BEGIN-END block."""
+        if node.label:
+            self._write(f"{node.label}: ")
+        self._write("BEGIN")
+        if self.options.format_style == "expanded":
+            self._write("\n")
+            self.depth += 1
+        
+        for stmt in node.statements:
+            if self.options.format_style == "expanded":
+                self._indent()
+            stmt.accept(self)
+            if self.options.format_style == "expanded":
+                self._write("\n")
+        
+        if node.exception_handler:
+            if self.options.format_style == "expanded":
+                self.depth -= 1
+                self._indent()
+            else:
+                self._write(" ")
+            node.exception_handler.accept(self)
+        
+        if self.options.format_style == "expanded":
+            self.depth -= 1
+            self._indent()
+        else:
+            self._write(" ")
+        self._write("END")
+
+    def visit_exception_handler(self, node) -> Any:
+        """Visit an exception handler."""
+        self._write("EXCEPTION")
+        if node.when_conditions:
+            self._write(" WHEN ")
+            for i, condition in enumerate(node.when_conditions):
+                if i > 0:
+                    self._write(" OR ")
+                self._write(condition)
+        self._write(" THEN")
+        if self.options.format_style == "expanded":
+            self._write("\n")
+            self.depth += 1
+        
+        for stmt in node.statements:
+            if self.options.format_style == "expanded":
+                self._indent()
+            stmt.accept(self)
+            if self.options.format_style == "expanded":
+                self._write("\n")
+
+    def visit_break_statement(self, node) -> Any:
+        """Visit a BREAK statement."""
+        self._write("BREAK")
+        if node.label:
+            self._write(f" {node.label}")
+
+    def visit_continue_statement(self, node) -> Any:
+        """Visit a CONTINUE statement."""
+        self._write("CONTINUE")
+        if node.label:
+            self._write(f" {node.label}")
+
+    def visit_call_statement(self, node) -> Any:
+        """Visit a CALL statement."""
+        self._write(f"CALL {node.procedure_name}(")
+        for i, arg in enumerate(node.arguments):
+            if i > 0:
+                self._write(", ")
+            arg.accept(self)
+        self._write(")")
+
 
 # Convenience functions
 def to_sql(node: ASTNode, options: Optional[SerializerOptions] = None) -> str:

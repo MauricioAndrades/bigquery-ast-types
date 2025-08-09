@@ -321,6 +321,70 @@ def test_visitor_interface():
         def visit_when_clause(self, node):
             pass
 
+        # Missing DDL and scripting visitor methods
+        def visit_add_column(self, node):
+            pass
+
+        def visit_alter_column(self, node):
+            pass
+
+        def visit_alter_table(self, node):
+            pass
+
+        def visit_begin_end_block(self, node):
+            pass
+
+        def visit_break_statement(self, node):
+            pass
+
+        def visit_continue_statement(self, node):
+            pass
+
+        def visit_create_function(self, node):
+            pass
+
+        def visit_create_view(self, node):
+            pass
+
+        def visit_declare_statement(self, node):
+            pass
+
+        def visit_drop_column(self, node):
+            pass
+
+        def visit_drop_statement(self, node):
+            pass
+
+        def visit_elseif_clause(self, node):
+            pass
+
+        def visit_exception_handler(self, node):
+            pass
+
+        def visit_for_loop(self, node):
+            pass
+
+        def visit_if_statement(self, node):
+            pass
+
+        def visit_rename_column(self, node):
+            pass
+
+        def visit_set_statement(self, node):
+            pass
+
+        def visit_set_table_options(self, node):
+            pass
+
+        def visit_variable_declaration(self, node):
+            pass
+
+        def visit_while_loop(self, node):
+            pass
+
+        def visit_call_statement(self, node):
+            pass
+
     visitor = TestVisitor()
     nodes = [
         ast_types.UnquotedIdentifier("test_column"),
