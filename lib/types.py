@@ -249,6 +249,37 @@ class ASTVisitor(ABC):
     def visit_comment(self, node: "Comment") -> Any:
         pass
 
+    # Additional statement visitors from main branch
+    @abstractmethod
+    def visit_case(self, node: "Case") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_when_clause(self, node: "WhenClause") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_insert(self, node: "Insert") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_update(self, node: "Update") -> Any:
+        pass
+
+    @abstractmethod
+    def visit_create_table(self, node: "CreateTable") -> Any:
+        pass
+
+    # Specific comment style visitors
+    def visit_hash_comment(self, node: "HashComment") -> Any:
+        return self.visit_comment(node)
+
+    def visit_dash_comment(self, node: "DashComment") -> Any:
+        return self.visit_comment(node)
+
+    def visit_block_comment(self, node: "BlockComment") -> Any:
+        return self.visit_comment(node)
+
     def generic_visit(self, node: ASTNode) -> Any:
         """Default visitor method for unhandled node types."""
         pass
@@ -334,7 +365,7 @@ class QuotedIdentifier(Identifier):
 @dataclass
 class EnhancedGeneralIdentifier(Identifier):
     """Enhanced general identifier supporting complex path expressions."""
-    parts: List[Union[str, int]]
+    parts: List[Union[str, int]] = field(default_factory=list)
     separators: List[str] = field(default_factory=list)  # ., /, :, -
 
     def accept(self, visitor: "ASTVisitor") -> Any:
@@ -503,6 +534,10 @@ class ArrayLiteral(Literal):
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_array_literal(self)
 
+    def __str__(self) -> str:
+        elements_str = ", ".join(str(e) for e in self.elements)
+        return f"[{elements_str}]"
+
 @dataclass
 class StructLiteral(Literal):
     """Struct literal."""
@@ -511,6 +546,10 @@ class StructLiteral(Literal):
 
     def accept(self, visitor: "ASTVisitor") -> Any:
         return visitor.visit_struct_literal(self)
+
+    def __str__(self) -> str:
+        fields_str = ", ".join(f"{expr} AS {name}" for name, expr in self.fields)
+        return f"STRUCT({fields_str})"
 
 @dataclass
 class RangeLiteral(Literal):
@@ -552,4 +591,363 @@ class PositionalParameter(Expression):
 class Comment(ASTNode):
     """Comment node to preserve comments in AST."""
     text: str
-    style: str  #
+    style: str
+    is_multiline: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        method = {
+            "#": "visit_hash_comment",
+            "--": "visit_dash_comment",
+            "/* */": "visit_block_comment",
+        }.get(self.style, "visit_comment")
+        return getattr(visitor, method)(self)
+
+@dataclass
+class HashComment(Comment):
+    """Single-line comment using #."""
+
+    def __init__(self, text: str):
+        super().__init__(text=text, style="#", is_multiline=False)
+
+@dataclass
+class DashComment(Comment):
+    """Single-line comment using --."""
+
+    def __init__(self, text: str):
+        super().__init__(text=text, style="--", is_multiline=False)
+
+@dataclass
+class BlockComment(Comment):
+    """Block comment enclosed in /* */."""
+
+    def __init__(self, text: str, is_multiline: bool = True):
+        super().__init__(text=text, style="/* */", is_multiline=is_multiline)
+
+# ---------------------------------------------------------------------------
+# Additional core node types used by the builder utilities.
+
+# Expression Nodes
+@dataclass
+class BinaryOp(Expression):
+    """Binary operation."""
+    left: Expression
+    operator: str
+    right: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_binary_op(self)
+
+    def __str__(self) -> str:
+        return f"({self.left} {self.operator} {self.right})"
+
+@dataclass
+class UnaryOp(Expression):
+    """Unary operation."""
+    operator: str
+    operand: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_unary_op(self)
+
+    def __str__(self) -> str:
+        return f"{self.operator} {self.operand}"
+
+@dataclass
+class FunctionCall(Expression):
+    """Function call expression."""
+    function_name: str
+    arguments: List[Expression] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_function_call(self)
+
+    def __str__(self) -> str:
+        args_str = ", ".join(str(a) for a in self.arguments)
+        return f"{self.function_name}({args_str})"
+
+@dataclass
+class Cast(Expression):
+    """CAST expression."""
+    expr: Expression
+    target_type: str
+    safe: bool = False
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        func = "SAFE_CAST" if self.safe else "CAST"
+        return f"{func}({self.expr} AS {self.target_type})"
+
+# Statement and Clause Types
+@dataclass
+class TableRef(ASTNode):
+    """Table reference in FROM clause."""
+    table: TableName
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_table_ref(self)
+
+@dataclass
+class SelectColumn(ASTNode):
+    """Column selected in a SELECT list."""
+    expression: Expression
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_select_column(self)
+
+@dataclass
+class WhereClause(ASTNode):
+    """WHERE clause."""
+    condition: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_where_clause(self)
+
+@dataclass
+class GroupByClause(ASTNode):
+    """GROUP BY clause."""
+    expressions: List[Expression] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_group_by_clause(self)
+
+@dataclass
+class HavingClause(ASTNode):
+    """HAVING clause."""
+    condition: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_having_clause(self)
+
+@dataclass
+class OrderByItem(ASTNode):
+    """Single ORDER BY item."""
+    expression: Expression
+    direction: OrderDirection = OrderDirection.ASC
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_order_by_item(self)
+
+    def __str__(self) -> str:
+        return f"{self.expression} {self.direction.value}"
+
+@dataclass
+class OrderByClause(ASTNode):
+    """ORDER BY clause."""
+    items: List[OrderByItem] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_order_by_clause(self)
+
+@dataclass
+class LimitClause(ASTNode):
+    """LIMIT clause."""
+    limit: Expression
+    offset: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_limit_clause(self)
+
+@dataclass
+class Join(ASTNode):
+    """JOIN clause."""
+    join_type: JoinType
+    table: TableRef
+    condition: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_join(self)
+
+@dataclass
+class Select(Statement):
+    """SELECT statement."""
+    select_list: List[SelectColumn]
+    from_clause: Optional[TableRef] = None
+    distinct: bool = False
+    joins: List[Join] = field(default_factory=list)
+    where_clause: Optional[WhereClause] = None
+    group_by_clause: Optional[GroupByClause] = None
+    having_clause: Optional[HavingClause] = None
+    order_by_clause: Optional[OrderByClause] = None
+    limit_clause: Optional[LimitClause] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_select(self)
+
+@dataclass
+class Subquery(Expression):
+    """Subquery expression."""
+    query: Select
+    alias: Optional[str] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_subquery(self)
+
+@dataclass
+class CTE(ASTNode):
+    """Common table expression."""
+    name: str
+    query: Select
+    columns: Optional[List[str]] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_cte(self)
+
+@dataclass
+class WithClause(ASTNode):
+    """WITH clause containing CTEs."""
+    ctes: List[CTE] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_with_clause(self)
+
+@dataclass
+class MergeInsert(ASTNode):
+    """INSERT action in MERGE statement."""
+    columns: List[str] = field(default_factory=list)
+    values: List[Expression] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_merge_insert(self)
+
+@dataclass
+class MergeUpdate(ASTNode):
+    """UPDATE action in MERGE statement."""
+    assignments: Dict[str, Expression] = field(default_factory=dict)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_merge_update(self)
+
+@dataclass
+class MergeDelete(ASTNode):
+    """DELETE action in MERGE statement."""
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_merge_delete(self)
+
+@dataclass
+class MergeAction(ASTNode):
+    """WHEN ... THEN action in MERGE."""
+    action: Union[MergeInsert, MergeUpdate, MergeDelete]
+    condition: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_merge_action(self)
+
+@dataclass
+class Merge(Statement):
+    """MERGE statement."""
+    target_table: TableRef
+    source_table: TableRef
+    merge_condition: Expression
+    actions: List[MergeAction] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_merge(self)
+
+@dataclass
+class WindowSpecification(ASTNode):
+    """Window specification for window functions."""
+    partition_by: List[Expression] = field(default_factory=list)
+    order_by: Optional[OrderByClause] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_window_specification(self)
+
+@dataclass
+class WindowFunction(Expression):
+    """Window function call."""
+    function_name: str
+    arguments: List[Expression] = field(default_factory=list)
+    window_spec: WindowSpecification = field(default_factory=WindowSpecification)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_window_function(self)
+
+    def __str__(self) -> str:
+        args_str = ", ".join(str(a) for a in self.arguments)
+        parts = []
+        if self.window_spec.partition_by:
+            partition_str = ", ".join(str(e) for e in self.window_spec.partition_by)
+            parts.append(f"PARTITION BY {partition_str}")
+        if self.window_spec.order_by:
+            order_str = ", ".join(str(o) for o in self.window_spec.order_by.items)
+            parts.append(f"ORDER BY {order_str}")
+        over = " ".join(parts)
+        return f"{self.function_name}({args_str}) OVER ({over})"
+
+# Additional Statement Types
+@dataclass
+class WhenClause(ASTNode):
+    """WHEN clause in CASE expression."""
+    condition: Expression
+    result: Expression
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_when_clause(self)
+
+    def __str__(self) -> str:
+        return f"WHEN {self.condition} THEN {self.result}"
+
+@dataclass
+class Case(Expression):
+    """CASE expression."""
+    whens: List[WhenClause]
+    else_result: Optional[Expression] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_case(self)
+
+    def __str__(self) -> str:
+        clauses = "\n  ".join(str(w) for w in self.whens)
+        result = f"CASE\n  {clauses}"
+        if self.else_result:
+            result += f"\n  ELSE {self.else_result}"
+        result += "\n  END"
+        return result
+
+@dataclass
+class Insert(Statement):
+    """INSERT statement supporting VALUES or SELECT."""
+    table: TableRef
+    columns: List[Identifier] = field(default_factory=list)
+    values: List[List[Expression]] = field(default_factory=list)
+    query: Optional[Select] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_insert(self)
+
+@dataclass
+class Update(Statement):
+    """UPDATE statement."""
+    table: TableRef
+    assignments: Dict[str, Expression]
+    where: Optional[WhereClause] = None
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_update(self)
+
+@dataclass
+class CreateTable(Statement):
+    """CREATE TABLE statement."""
+    table: TableName
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.visit_create_table(self)
+
+@dataclass
+class Star(Expression):
+    """SELECT * expression."""
+    except_columns: List[str] = field(default_factory=list)
+
+    def accept(self, visitor: "ASTVisitor") -> Any:
+        return visitor.generic_visit(self)
+
+    def __str__(self) -> str:
+        if self.except_columns:
+            cols = ", ".join(self.except_columns)
+            return f"* EXCEPT ({cols})"
+        return "*"

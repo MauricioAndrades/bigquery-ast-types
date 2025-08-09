@@ -10,10 +10,11 @@ Date: 2025-07-31
 
 from typing import List, Dict, Optional
 import pendulum
+from lib import OrderByClause
 
-from ..ast.builders import b, Select, CTE, WithClause, Merge, Expression
-from ..ast.parser import BQTransformer, parse
-from ..ast.visitor import BaseVisitor
+from lib.builders import b, Select, CTE, WithClause, Merge, Expression
+# from lib. import BQTransformer, parse
+from lib.visitor import BaseVisitor
 
 
 class OrderMergeBuilder:

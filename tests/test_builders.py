@@ -14,7 +14,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
-from bigquery_ast_types import b, ValidationError, Identifier, Literal, BinaryOp
+from lib import b, ValidationError, Identifier, Literal, BinaryOp
+from lib import OrderByClause
 
 
 class TestIdentifierBuilder:
@@ -304,11 +305,11 @@ class TestComplexBuilders:
         assert row_num.name == "ROW_NUMBER"
         assert len(row_num.args) == 0
 
-        # Add partitioning
         row_num.partition_by = [b.col("customer_id")]
-        row_num.order_by = [b.Builders.OrderByClause(b.col("order_date"), "DESC")]
+        row_num.order_by = [OrderByClause(b.col("order_date"), "DESC")]
 
         win_str = str(row_num)
+        assert "ROW_NUMBER()" in win_str
         assert "ROW_NUMBER()" in win_str
         assert "OVER" in win_str
         assert "PARTITION BY" in win_str

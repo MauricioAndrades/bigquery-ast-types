@@ -32,11 +32,26 @@ setup(
         "sqlglot>=25.0.0",
     ],
     extras_require={
+        "tests": [
+            "pytest>=7.0",
+            "pytz",
+            "duckdb",
+            "numpy",
+            "pandas",
+        ],
+        "examples": [
+            "pendulum",
+        ],
         "dev": [
             "pytest>=7.0",
             "black>=22.0",
             "mypy>=1.0",
             "ruff>=0.0.261",
+            "pytz",
+            "duckdb",
+            "numpy",
+            "pandas",
+            "pendulum",
         ],
     },
 )

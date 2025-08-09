@@ -65,7 +65,7 @@ bigquery-ast-types/
 
 ## Overview
 
-The `symbo-ast/ast_types.py` file has been successfully completed with full support for all BigQuery node types as specified in the BigQueryLexicalIdentifiers.md documentation.
+The `lib/types.py` file has been successfully completed with full support for all BigQuery node types as specified in the BigQueryLexicalIdentifiers.md documentation.
 
 ## What Was Accomplished
 
@@ -231,7 +231,7 @@ The completed AST types can be used to:
 
 ## Conclusion
 
-The `symbo-ast/ast_types.py` file now provides complete, production-ready support for all BigQuery language constructs. This implementation enables developers to:
+The `lib/types.py` file now provides complete, production-ready support for all BigQuery language constructs. This implementation enables developers to:
 
 - Parse and generate BigQuery SQL programmatically
 - Build custom SQL analysis and transformation tools
