@@ -1,0 +1,16 @@
+# Exclude source files
+src/**
+test/**
+node_modules/**
+.vscode-test/**
+.git*
+
+# Include compiled output
+!out/**
+!media/**
+
+# Exclude dev files
+.eslintrc.cjs
+.prettierrc
+tsconfig.json
+*.vsix

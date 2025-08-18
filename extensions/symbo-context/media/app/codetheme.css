@@ -1,0 +1,191 @@
+/* Code syntax highlighting theme that matches VS Code */
+.code-block code {
+  color: var(--vscode-editor-foreground);
+}
+
+/* Comments */
+.code-block code .comment {
+  color: var(--vscode-editorCodeLens-foreground);
+  font-style: italic;
+}
+
+/* Keywords */
+.code-block code .keyword {
+  color: var(--vscode-debugIcon-breakpointForeground);
+  font-weight: bold;
+}
+
+/* Strings */
+.code-block code .string {
+  color: var(--vscode-debugConsole-infoForeground);
+}
+
+/* Numbers */
+.code-block code .number {
+  color: var(--vscode-debugIcon-stepOverForeground);
+}
+
+/* Functions */
+.code-block code .function {
+  color: var(--vscode-debugIcon-continueForeground);
+}
+
+/* Variables */
+.code-block code .variable {
+  color: var(--vscode-debugIcon-stepIntoForeground);
+}
+
+/* Operators */
+.code-block code .operator {
+  color: var(--vscode-editor-foreground);
+}
+
+/* Punctuation */
+.code-block code .punctuation {
+  color: var(--vscode-editor-foreground);
+}
+
+/* Classes/Types */
+.code-block code .class-name,
+.code-block code .type {
+  color: var(--vscode-debugIcon-pauseForeground);
+}
+
+/* Constants */
+.code-block code .constant {
+  color: var(--vscode-debugIcon-stepOverForeground);
+}
+
+/* Regex */
+.code-block code .regex {
+  color: var(--vscode-debugConsole-warningForeground);
+}
+
+/* Line numbers for code blocks with line numbers */
+.code-block.with-line-numbers pre {
+  counter-reset: line;
+}
+
+.code-block.with-line-numbers pre code {
+  counter-increment: line;
+  position: relative;
+  padding-left: 60px;
+}
+
+.code-block.with-line-numbers pre code::before {
+  content: counter(line);
+  position: absolute;
+  left: 0;
+  width: 50px;
+  text-align: right;
+  padding-right: 10px;
+  color: var(--vscode-editorLineNumber-foreground);
+  user-select: none;
+  border-right: 1px solid var(--vscode-panel-border);
+}
+
+/* Language-specific styling */
+.code-block[data-lang="typescript"] .code-lang::before,
+.code-block[data-lang="ts"] .code-lang::before {
+  content: "TS ";
+  color: #3178c6;
+}
+
+.code-block[data-lang="javascript"] .code-lang::before,
+.code-block[data-lang="js"] .code-lang::before {
+  content: "JS ";
+  color: #f7df1e;
+}
+
+.code-block[data-lang="python"] .code-lang::before,
+.code-block[data-lang="py"] .code-lang::before {
+  content: "PY ";
+  color: #3776ab;
+}
+
+.code-block[data-lang="json"] .code-lang::before {
+  content: "JSON ";
+  color: #ffd700;
+}
+
+.code-block[data-lang="html"] .code-lang::before {
+  content: "HTML ";
+  color: #e34c26;
+}
+
+.code-block[data-lang="css"] .code-lang::before {
+  content: "CSS ";
+  color: #1572b6;
+}
+
+.code-block[data-lang="bash"] .code-lang::before,
+.code-block[data-lang="sh"] .code-lang::before {
+  content: "BASH ";
+  color: #89e051;
+}
+
+.code-block[data-lang="sql"] .code-lang::before {
+  content: "SQL ";
+  color: #00758f;
+}
+
+.code-block[data-lang="yaml"] .code-lang::before,
+.code-block[data-lang="yml"] .code-lang::before {
+  content: "YAML ";
+  color: #cb171e;
+}
+
+.code-block[data-lang="markdown"] .code-lang::before,
+.code-block[data-lang="md"] .code-lang::before {
+  content: "MD ";
+  color: #083fa1;
+}
+
+/* Diff highlighting */
+.code-block[data-lang="diff"] .line-added {
+  background-color: rgba(0, 255, 0, 0.1);
+  color: var(--vscode-gitDecoration-addedResourceForeground);
+}
+
+.code-block[data-lang="diff"] .line-removed {
+  background-color: rgba(255, 0, 0, 0.1);
+  color: var(--vscode-gitDecoration-deletedResourceForeground);
+}
+
+.code-block[data-lang="diff"] .line-modified {
+  background-color: rgba(255, 255, 0, 0.1);
+  color: var(--vscode-gitDecoration-modifiedResourceForeground);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .code-block code .keyword {
+    font-weight: bold;
+    text-decoration: underline;
+  }
+  
+  .code-block code .string {
+    font-style: italic;
+  }
+  
+  .code-block code .comment {
+    opacity: 0.8;
+  }
+}
+
+/* Print styles */
+@media print {
+  .code-block {
+    border: 1px solid #000;
+    break-inside: avoid;
+  }
+  
+  .code-header {
+    background: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+  }
+  
+  .code-actions {
+    display: none;
+  }
+}
