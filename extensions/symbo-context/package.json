@@ -1,0 +1,243 @@
+{
+  "name": "symbo-context-chat",
+  "displayName": "Symbo Context Chat",
+  "description": "Chat panel with slide-over context manager for VS Code and Cursor",
+  "version": "0.1.0",
+  "publisher": "symbo",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MauricioAndrades/bigquery-ast-types"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "chat",
+    "context",
+    "ai",
+    "cursor",
+    "assistant"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Symbo Context Chat",
+      "properties": {
+        "symboContext.provider": {
+          "type": "string",
+          "enum": [
+            "openai",
+            "azure",
+            "http"
+          ],
+          "default": "openai",
+          "description": "LLM provider to use"
+        },
+        "symboContext.openai.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenAI API key"
+        },
+        "symboContext.openai.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "OpenAI base URL (optional)"
+        },
+        "symboContext.openai.model": {
+          "type": "string",
+          "default": "gpt-4o-mini",
+          "description": "OpenAI model to use"
+        },
+        "symboContext.azure.endpoint": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI endpoint"
+        },
+        "symboContext.azure.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI API key"
+        },
+        "symboContext.azure.deployment": {
+          "type": "string",
+          "default": "",
+          "description": "Azure OpenAI deployment name"
+        },
+        "symboContext.http.endpoint": {
+          "type": "string",
+          "default": "",
+          "description": "HTTP endpoint for custom LLM provider"
+        },
+        "symboContext.tokenBudget": {
+          "type": "number",
+          "default": 8000,
+          "description": "Maximum tokens to include in context"
+        },
+        "symboContext.defaultContextTTL": {
+          "type": "number",
+          "default": 3600000,
+          "description": "Default TTL for context blocks in milliseconds"
+        },
+        "symboContext.enableTelemetry": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable telemetry collection"
+        },
+        "symboContext.tools": {
+          "type": "array",
+          "default": [],
+          "description": "CLI tools available for context generation",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Tool name"
+              },
+              "cmd": {
+                "type": "string",
+                "description": "Command to execute"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Command arguments"
+              }
+            }
+          }
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "symboContext.open",
+        "title": "Open Symbo Context Chat"
+      },
+      {
+        "command": "symboContext.openDrawer",
+        "title": "Open Context Drawer"
+      },
+      {
+        "command": "symboContext.sendPrompt",
+        "title": "Send Prompt"
+      },
+      {
+        "command": "symboContext.addSelection",
+        "title": "Add Selection to Context"
+      },
+      {
+        "command": "symboContext.addActiveFile",
+        "title": "Add Active File to Context"
+      },
+      {
+        "command": "symboContext.addFilesByGlob",
+        "title": "Add Files by Glob to Context"
+      },
+      {
+        "command": "symboContext.addGitDiff",
+        "title": "Add Git Diff to Context"
+      },
+      {
+        "command": "symboContext.addText",
+        "title": "Add Text to Context"
+      },
+      {
+        "command": "symboContext.addToolOutput",
+        "title": "Add Tool Output to Context"
+      },
+      {
+        "command": "symboContext.removeBlock",
+        "title": "Remove Context Block"
+      },
+      {
+        "command": "symboContext.toggleInclude",
+        "title": "Toggle Include Context Block"
+      },
+      {
+        "command": "symboContext.clearContext",
+        "title": "Clear All Context"
+      },
+      {
+        "command": "symboContext.insertLastCodeBlock",
+        "title": "Insert Last Code Block"
+      },
+      {
+        "command": "symboContext.settings",
+        "title": "Open Settings"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "symboContext.open",
+        "key": "ctrl+alt+c",
+        "mac": "cmd+alt+c"
+      },
+      {
+        "command": "symboContext.openDrawer",
+        "key": "ctrl+alt+d",
+        "mac": "cmd+alt+d"
+      },
+      {
+        "command": "symboContext.addSelection",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a"
+      },
+      {
+        "command": "symboContext.addGitDiff",
+        "key": "ctrl+alt+g",
+        "mac": "cmd+alt+g"
+      }
+    ],
+    "views": {
+      "symbo-context": [
+        {
+          "type": "webview",
+          "id": "symboContext.chatView",
+          "name": "Chat",
+          "when": "symboContext:enabled"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "symbo-context",
+          "title": "Symbo Context",
+          "icon": "$(comment-discussion)"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "compile:watch": "tsc -watch -p ./",
+    "test": "node ./out/test/runTest.js",
+    "lint": "eslint src --ext ts",
+    "vsix": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "18.x",
+    "@types/uuid": "^10.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.4.1",
+    "@typescript-eslint/parser": "^6.4.1",
+    "@vscode/test-electron": "^2.3.4",
+    "@vscode/vsce": "^2.19.0",
+    "eslint": "^8.47.0",
+    "glob": "^11.0.3",
+    "mocha": "^11.7.1",
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  }
+}
